@@ -27,9 +27,9 @@
             <div>
                 <label for="obj1">Custom object:</label><br>
                 <textarea id="obj1" rows="18" cols="80">{
-  a: "a",
   b: "b",
   c: "c",
+  d: "d",
 }</textarea>
             </div>
             <div>
@@ -37,6 +37,7 @@
                 <textarea id="obj2" rows="18" cols="80">{
   a: "a",
   b: "b",
+  c: "c",
 }</textarea>
             </div>
         </div>
@@ -84,6 +85,11 @@
         return result;
     }
 
+    function formatObjectWithoutQuotes(obj) {
+      const jsonString = JSON.stringify(result, (k, v) => v === undefined ? null : v, 2);
+      return jsonString.replace(/"(\w+)"\s*:/g, '$1:');
+    }
+
     function compareObjects() {
         try {
             const obj1 = parseObject(document.getElementById('obj1').value);
@@ -91,7 +97,7 @@
 
             const result = diff(obj1, obj2);
 
-            document.getElementById('result').value = JSON.stringify(result, (k, v) => v === undefined ? null : v, 2);
+            document.getElementById('result').value = formatObjectWithoutQuotes(result);
         } catch (error) {
             document.getElementById('result').value = 'Error: invalid JSON ' + JSON.stringify(error);
         }
