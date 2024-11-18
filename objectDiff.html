@@ -86,7 +86,7 @@
     }
 
     function formatObjectWithoutQuotes(obj) {
-      const jsonString = JSON.stringify(result, (k, v) => v === undefined ? null : v, 2);
+      const jsonString = JSON.stringify(obj, (k, v) => v === undefined ? null : v, 2);
       return jsonString.replace(/"(\w+)"\s*:/g, '$1:');
     }
 
