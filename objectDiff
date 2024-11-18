@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Object Diff Tool</title>
+    <style>
+        body {
+            text-align: center;
+        }
+
+        .wrapper {
+            height: 100%;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <div class="container">
+        <h1>Object Diff Tool</h1>
+        <div style="display: flex; flex-direction: row">
+            <div>
+                <label for="obj1">Custom object:</label><br>
+                <textarea id="obj1" rows="18" cols="80">{
+  a: "a",
+  b: "b",
+  c: "c",
+}</textarea>
+            </div>
+            <div>
+                <label for="obj2">Base object:</label><br>
+                <textarea id="obj2" rows="18" cols="80">{
+  a: "a",
+  b: "b",
+}</textarea>
+            </div>
+        </div>
+        <button onclick="compareObjects()">Compare</button>
+        <br><br>
+
+        <label for="result">Result:</label><br>
+        <textarea id="result" rows="18" cols="80" readonly></textarea>
+
+    </div>
+</div>
+<script>
+    function parseObject(input) {
+        try {
+            return JSON.parse(input);
+        } catch {
+            const sanitizedInput = input
+                .replace(/(\w+)\s*:/g, '"$1":')
+                .replace(/'/g, '"')
+                .replace(/,\s*}/g, '}')
+                .replace(/,\s*]/g, ']');
+            return JSON.parse(sanitizedInput);
+        }
+    }
+
+    function diff(obj1, obj2) {
+        const result = {};
+
+        for (const key in obj1) {
+            if (obj1.hasOwnProperty(key)) {
+                if (!(key in obj2)) {
+                    result[key] = obj1[key];
+                } else if (obj1[key] !== obj2[key]) {
+                    result[key] = obj1[key];
+                }
+            }
+        }
+
+        for (const key in obj2) {
+            if (obj2.hasOwnProperty(key) && !(key in obj1)) {
+                result[key] = undefined;
+            }
+        }
+
+        return result;
+    }
+
+    function compareObjects() {
+        try {
+            const obj1 = parseObject(document.getElementById('obj1').value);
+            const obj2 = parseObject(document.getElementById('obj2').value);
+
+            const result = diff(obj1, obj2);
+
+            document.getElementById('result').value = JSON.stringify(result, (k, v) => v === undefined ? null : v, 2);
+        } catch (error) {
+            document.getElementById('result').value = 'Error: invalid JSON ' + JSON.stringify(error);
+        }
+    }
+</script>
+</body>
+</html>
