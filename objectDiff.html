@@ -17,14 +17,24 @@
             align-items: center;
         }
 
+        textarea {
+            -webkit-box-sizing: border-box;
+            -moz-box-sizing: border-box;
+            box-sizing: border-box;
+
+            width: 100%;
+        }
     </style>
 </head>
 <body>
 <div class="wrapper">
     <div class="container">
         <h1>Object Diff Tool</h1>
-        <div style="display: flex; flex-direction: row">
-            <div>
+        <p>
+            There is a base object (on the right) and a modified one (on the left). The resulting object lists the fields that were added to the modified one and those that are not there. If the field is not there, it is assigned null.
+        </p>
+        <div style="display: flex; flex-direction: row;">
+            <div style="width: 100%;">
                 <label for="obj1">Custom object:</label><br>
                 <textarea id="obj1" rows="18" cols="80">{
   b: "b",
@@ -32,7 +42,7 @@
   d: "d",
 }</textarea>
             </div>
-            <div>
+            <div style="width: 100%;">
                 <label for="obj2">Base object:</label><br>
                 <textarea id="obj2" rows="18" cols="80">{
   a: "a",
@@ -86,8 +96,9 @@
     }
 
     function formatObjectWithoutQuotes(obj) {
-      const jsonString = JSON.stringify(obj, (k, v) => v === undefined ? null : v, 2);
-      return jsonString.replace(/"(\w+)"\s*:/g, '$1:');
+        const jsonString = JSON.stringify(obj, (k, v) => v === undefined ? null : v, 2);
+        const formattedBody = jsonString.replace(/"(\w+)"\s*:/g, '$1:');
+        return `{\n  ...baseObject,${formattedBody.slice(1)}`;
     }
 
     function compareObjects() {
