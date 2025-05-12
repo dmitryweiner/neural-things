@@ -58,11 +58,12 @@ barrelImage.src = 'oil-barrel.png';
 // Препятствия
 let obstacles = [];
 const OBSTACLE_COUNT = 7;
-const OBSTACLE_MIN_SIZE = 50;
-const OBSTACLE_MAX_SIZE = 100;
 
 function generateObstacles() {
     obstacles = [];
+    const minSide = Math.min(canvas.width, canvas.height);
+    const OBSTACLE_MIN_SIZE = minSide * 0.08; // 8%
+    const OBSTACLE_MAX_SIZE = minSide * 0.16; // 16%
     for (let i = 0; i < OBSTACLE_COUNT; i++) {
         let tries = 0;
         let placed = false;
@@ -345,9 +346,39 @@ function resizeCanvas() {
     generateObstacles();
 }
 
+function initGameState() {
+    let attempts = 0;
+    do {
+        car.x = canvas.width / 2;
+        car.y = canvas.height / 2;
+        car.speed = 0;
+        car.angle = 0;
+        cubes = [];
+        for (let i = 0; i < 5; i++) {
+            cubes.push(generateCube());
+        }
+        lastX = null;
+        lastY = null;
+        distanceAccumulator = 0;
+        isGameOver = false;
+        hideGameOver();
+        generateAsphaltBackground();
+        generateObstacles();
+        attempts++;
+    } while (collidesWithObstacles(car.x, car.y) && attempts < 30);
+}
+
+function resetGame() {
+    // Сброс состояния
+    fuel = INITIAL_FUEL;
+    updateFuelDisplay();
+    initGameState();
+}
+
 // Установить размер canvas при загрузке и при изменении окна
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
+initGameState();
 
 // Start the game
 gameLoop();
@@ -360,32 +391,11 @@ gameOverBanner && restartBtn && restartBtn.addEventListener('click', () => {
 });
 
 function showGameOver() {
-    gameOverBanner.style.display = 'flex';
+    gameOverBanner.style.visibility = 'visible';
 }
 
 function hideGameOver() {
-    gameOverBanner.style.display = 'none';
-}
-
-function resetGame() {
-    // Сброс состояния
-    fuel = INITIAL_FUEL;
-    updateFuelDisplay();
-    car.x = canvas.width / 2;
-    car.y = canvas.height / 2;
-    car.speed = 0;
-    car.angle = 0;
-    cubes = [];
-    for (let i = 0; i < 5; i++) {
-        cubes.push(generateCube());
-    }
-    lastX = null;
-    lastY = null;
-    distanceAccumulator = 0;
-    isGameOver = false;
-    hideGameOver();
-    generateAsphaltBackground();
-    generateObstacles();
+    gameOverBanner.style.visibility = 'hidden';
 }
 
 function updateFuelDisplay() {
