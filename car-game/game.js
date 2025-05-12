@@ -10,13 +10,14 @@ const CUBE_SIZE = 30;
 const FUEL_INCREMENT = 25;
 const INITIAL_FUEL = 50;
 const MAX_SPEED = 5;
-const ACCELERATION = 0.2;
-const DECELERATION = 0.1;
-const ROTATION_SPEED = 0.1;
+const ACCELERATION = 0.01;
+const DECELERATION = 0.005;
+const ROTATION_SPEED = 0.05;
 const CUBE_LIFETIME = 10000; // 10 seconds in milliseconds
+const IDLE_FUEL_CONSUMPTION = 0.4;
 
 // Car properties
-const car = {
+const   car = {
     x: canvas.width / 2,
     y: canvas.height / 2,
     speed: 0,
@@ -36,6 +37,13 @@ let lastY = null;
 let distanceAccumulator = 0;
 const PX_PER_CM = 37.8; // 1 см ≈ 37.8 px (96 dpi)
 
+// Массив для хранения фигур фона
+let asphaltShapes = [];
+
+// Кэш для асфальтового фона
+let asphaltCanvas = null;
+let asphaltCtx = null;
+
 // Загрузка спрайта машинки
 const carImage = new Image();
 carImage.src = 'car.png';
@@ -46,6 +54,34 @@ carImage.onload = () => {
 // Загрузка спрайта бочки
 const barrelImage = new Image();
 barrelImage.src = 'oil-barrel.png';
+
+// Препятствия
+let obstacles = [];
+const OBSTACLE_COUNT = 7;
+const OBSTACLE_MIN_SIZE = 50;
+const OBSTACLE_MAX_SIZE = 100;
+
+function generateObstacles() {
+    obstacles = [];
+    for (let i = 0; i < OBSTACLE_COUNT; i++) {
+        let tries = 0;
+        let placed = false;
+        while (!placed && tries < 30) {
+            const w = OBSTACLE_MIN_SIZE + Math.random() * (OBSTACLE_MAX_SIZE - OBSTACLE_MIN_SIZE);
+            const h = OBSTACLE_MIN_SIZE + Math.random() * (OBSTACLE_MAX_SIZE - OBSTACLE_MIN_SIZE);
+            const x = Math.random() * (canvas.width - w);
+            const y = Math.random() * (canvas.height - h);
+            // Не слишком близко к центру (старта машины)
+            const dx = x + w/2 - canvas.width/2;
+            const dy = y + h/2 - canvas.height/2;
+            if (Math.sqrt(dx*dx + dy*dy) < 180) { tries++; continue; }
+            // Не пересекается с другими препятствиями
+            if (obstacles.some(o => !(x + w < o.x || x > o.x + o.w || y + h < o.y || y > o.y + o.h))) { tries++; continue; }
+            obstacles.push({x, y, w, h});
+            placed = true;
+        }
+    }
+}
 
 // Generate random cube
 function generateCube() {
@@ -134,13 +170,29 @@ function update() {
         car.angle += ROTATION_SPEED;
     }
 
+    // Сохраняем старые координаты
+    const oldX = car.x;
+    const oldY = car.y;
+
     // Update position
     car.x += Math.cos(car.angle) * car.speed;
     car.y += Math.sin(car.angle) * car.speed;
 
-    // Keep car within bounds
+    // Проверка выхода за границы
+    const wasX = car.x;
+    const wasY = car.y;
     car.x = Math.max(CAR_SIZE, Math.min(canvas.width - CAR_SIZE, car.x));
     car.y = Math.max(CAR_SIZE, Math.min(canvas.height - CAR_SIZE, car.y));
+    if (car.x !== wasX || car.y !== wasY) {
+        car.speed = 0;
+    }
+
+    // Проверка коллизии с препятствиями
+    if (collidesWithObstacles(car.x, car.y)) {
+        car.x = oldX;
+        car.y = oldY;
+        car.speed = 0;
+    }
 
     // === Подсчёт пройденного пути ===
     if (lastX !== null && lastY !== null) {
@@ -152,7 +204,7 @@ function update() {
             fuel -= 1;
             distanceAccumulator -= PX_PER_CM;
         }
-        scoreElement.textContent = `Fuel: ${fuel}`;
+        updateFuelDisplay();
     }
     lastX = car.x;
     lastY = car.y;
@@ -160,7 +212,7 @@ function update() {
     // Проверка на окончание топлива
     if (fuel <= 0) {
         fuel = 0;
-        scoreElement.textContent = `Fuel: 0`;
+        updateFuelDisplay();
         isGameOver = true;
         showGameOver();
         return;
@@ -174,7 +226,7 @@ function update() {
         
         if (distance < CAR_SIZE) {
             fuel += FUEL_INCREMENT;
-            scoreElement.textContent = `Fuel: ${fuel}`;
+            updateFuelDisplay();
             return false;
         }
 
@@ -194,9 +246,11 @@ function update() {
 
 // Draw game objects
 function draw() {
-    // Clear canvas
+    // Просто копируем кэшированный фон
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    if (asphaltCanvas) {
+        ctx.drawImage(asphaltCanvas, 0, 0);
+    }
     // Draw car
     ctx.save();
     ctx.translate(car.x, car.y);
@@ -238,6 +292,32 @@ function draw() {
         }
     });
     ctx.globalAlpha = 1; // Reset opacity for other drawings
+
+    // Draw obstacles (concrete blocks)
+    obstacles.forEach(o => {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(o.x, o.y, o.w, o.h);
+        ctx.clip();
+        ctx.translate(o.x, o.y);
+        // Диагональные полосы (красные и белые)
+        const stripeWidth = 16;
+        for (let i = -o.h; i < o.w + o.h; i += stripeWidth) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i + o.h, o.h);
+            ctx.lineWidth = stripeWidth;
+            ctx.strokeStyle = (Math.floor(i / stripeWidth) % 2 === 0) ? '#fff' : '#d22';
+            ctx.stroke();
+        }
+        ctx.restore();
+        // Контур
+        ctx.save();
+        ctx.strokeStyle = '#b00';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(o.x, o.y, o.w, o.h);
+        ctx.restore();
+    });
 }
 
 // Game loop
@@ -261,6 +341,8 @@ function resizeCanvas() {
         cube.x = Math.max(CUBE_SIZE, Math.min(canvas.width - CUBE_SIZE, cube.x));
         cube.y = Math.max(CUBE_SIZE, Math.min(canvas.height - CUBE_SIZE, cube.y));
     });
+    generateAsphaltBackground();
+    generateObstacles();
 }
 
 // Установить размер canvas при загрузке и при изменении окна
@@ -288,7 +370,7 @@ function hideGameOver() {
 function resetGame() {
     // Сброс состояния
     fuel = INITIAL_FUEL;
-    scoreElement.textContent = `Fuel: ${fuel}`;
+    updateFuelDisplay();
     car.x = canvas.width / 2;
     car.y = canvas.height / 2;
     car.speed = 0;
@@ -302,4 +384,69 @@ function resetGame() {
     distanceAccumulator = 0;
     isGameOver = false;
     hideGameOver();
+    generateAsphaltBackground();
+    generateObstacles();
+}
+
+function updateFuelDisplay() {
+    scoreElement.textContent = `Fuel: ${fuel <= 0 ? 0 : Math.round(fuel)}`;
+}
+
+// Таймер для убывания топлива во времени
+setInterval(() => {
+    if (!isGameOver) {
+        fuel = Math.max(0, fuel - IDLE_FUEL_CONSUMPTION);
+        updateFuelDisplay();
+        if (fuel <= 0) {
+            fuel = 0;
+            isGameOver = true;
+            showGameOver();
+        }
+    }
+}, 1000);
+
+function generateAsphaltBackground() {
+    asphaltShapes = [];
+    const area = canvas.width * canvas.height;
+    const shapeCount = Math.floor(area / 3500); // больше фигур
+    // Создаём offscreen canvas для кэширования
+    asphaltCanvas = document.createElement('canvas');
+    asphaltCanvas.width = canvas.width;
+    asphaltCanvas.height = canvas.height;
+    asphaltCtx = asphaltCanvas.getContext('2d');
+    // Светло-серый фон
+    asphaltCtx.clearRect(0, 0, asphaltCanvas.width, asphaltCanvas.height);
+    asphaltCtx.fillStyle = '#e0e0e0';
+    asphaltCtx.fillRect(0, 0, asphaltCanvas.width, asphaltCanvas.height);
+    for (let i = 0; i < shapeCount; i++) {
+        const type = Math.random() < 0.7 ? 'ellipse' : 'circle';
+        const x = Math.random() * asphaltCanvas.width;
+        const y = Math.random() * asphaltCanvas.height;
+        const r1 = 18 + Math.random() * 32;
+        const r2 = type === 'ellipse' ? (8 + Math.random() * 24) : r1;
+        const gray = Math.floor(150 + Math.random() * 70); // 150-220 (светлее)
+        const alpha = 0.13 + Math.random() * 0.13; // чуть прозрачнее
+        const blur = 12 + Math.random() * 18; // размытые края
+        asphaltCtx.save();
+        asphaltCtx.globalAlpha = alpha;
+        asphaltCtx.fillStyle = `rgb(${gray},${gray},${gray})`;
+        asphaltCtx.shadowBlur = blur;
+        asphaltCtx.shadowColor = `rgb(${gray},${gray},${gray})`;
+        asphaltCtx.beginPath();
+        if (type === 'ellipse') {
+            asphaltCtx.ellipse(x, y, r1, r2, 0, 0, 2 * Math.PI);
+        } else {
+            asphaltCtx.arc(x, y, r1, 0, 2 * Math.PI);
+        }
+        asphaltCtx.fill();
+        asphaltCtx.restore();
+    }
+}
+
+// Проверка коллизии с препятствиями
+function collidesWithObstacles(x, y) {
+    // Проверяем пересечение центра машины с любым препятствием
+    return obstacles.some(o =>
+        x > o.x && x < o.x + o.w && y > o.y && y < o.y + o.h
+    );
 } 
