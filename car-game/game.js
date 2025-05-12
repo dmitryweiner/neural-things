@@ -108,7 +108,7 @@ window.addEventListener('keyup', (e) => {
 });
 
 // Мобильные кнопки управления
-const isMobile = window.innerWidth <= 700;
+const isMobile = window.innerWidth <= 900;
 if (isMobile) {
     const btnUp = document.getElementById('btn-up');
     const btnDown = document.getElementById('btn-down');
