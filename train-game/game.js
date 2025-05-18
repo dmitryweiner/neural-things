@@ -234,18 +234,36 @@ class Game {
           break;
       }
 
+      const centerX = (this.train.x + 0.5) * CELL_SIZE;
+      const centerY = (this.train.y + 0.5) * CELL_SIZE;
       switch (this.train.direction) {
         case DIRECTIONS.right:
           nextPixelX += this.train.speed * CELL_SIZE * deltaTime;
+          // Snap Y coordinate to center when moving horizontally
+          if (Math.abs(nextPixelY - centerY) < 0.1 * CELL_SIZE) {
+            nextPixelY = centerY;
+          }
           break;
         case DIRECTIONS.left:
           nextPixelX -= this.train.speed * CELL_SIZE * deltaTime;
+          // Snap Y coordinate to center when moving horizontally
+          if (Math.abs(nextPixelY - centerY) < 0.1 * CELL_SIZE) {
+            nextPixelY = centerY;
+          }
           break;
         case DIRECTIONS.up:
           nextPixelY -= this.train.speed * CELL_SIZE * deltaTime;
+          // Snap X coordinate to center when moving vertically
+          if (Math.abs(nextPixelX - centerX) < 0.1 * CELL_SIZE) {
+            nextPixelX = centerX;
+          }
           break;
         case DIRECTIONS.down:
           nextPixelY += this.train.speed * CELL_SIZE * deltaTime;
+          // Snap X coordinate to center when moving vertically
+          if (Math.abs(nextPixelX - centerX) < 0.1 * CELL_SIZE) {
+            nextPixelX = centerX;
+          }
           break;
       }
     }
