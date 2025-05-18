@@ -347,11 +347,49 @@ class Game {
   }
 
   drawTrain() {
+    this.ctx.save(); // Save the current canvas state
+    
+    // Move to train position
+    this.ctx.translate(this.train.pixelX, this.train.pixelY);
+    
+    // Rotate based on direction
+    let rotation = 0;
+    switch (this.train.direction) {
+      case DIRECTIONS.right:
+        rotation = 0;
+        break;
+      case DIRECTIONS.down:
+        rotation = Math.PI / 2;
+        break;
+      case DIRECTIONS.left:
+        rotation = Math.PI;
+        break;
+      case DIRECTIONS.up:
+        rotation = -Math.PI / 2;
+        break;
+      case DIRECTIONS.rightDown:
+        rotation = Math.PI / 4;
+        break;
+      case DIRECTIONS.leftDown:
+        rotation = Math.PI * 3/4;
+        break;
+      case DIRECTIONS.leftUp:
+        rotation = -Math.PI * 3/4;
+        break;
+      case DIRECTIONS.rightUp:
+        rotation = -Math.PI / 4;
+        break;
+    }
+    this.ctx.rotate(rotation);
+    
+    // Draw the train sprite
     this.ctx.fillStyle = "#f00";
     this.ctx.font = "24px Arial";
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
-    this.ctx.fillText("🚂", this.train.pixelX, this.train.pixelY);
+    this.ctx.fillText("🚃", 0, 0);
+    
+    this.ctx.restore(); // Restore the canvas state
   }
 }
 
