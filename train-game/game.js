@@ -61,12 +61,12 @@ const TURN_DIRECTIONS = {
         let nextX = x;
         let nextY = y;
         let nexDirection = direction;
-        if (direction === 'left' || direction === DIRECTIONS.rightDown) {
+        if (direction === 'left' || direction === DIRECTIONS.leftDown || direction === DIRECTIONS.rightDown) {
             nextX = x - speed * CELL_SIZE * deltaTime;
             nextY = y + speed * CELL_SIZE * deltaTime;
             nexDirection = DIRECTIONS.leftDown;
         }
-        if (direction === 'up' || direction === DIRECTIONS.rightUp) {
+        if (direction === 'up' || direction === DIRECTIONS.rightUp || direction === DIRECTIONS.rightUp) {
             nextX = x + speed * CELL_SIZE * deltaTime;
             nextY = y - speed * CELL_SIZE * deltaTime;
             nexDirection = DIRECTIONS.rightUp;
@@ -128,32 +128,18 @@ class Game {
 
     initGame() {
         // Initialize game grid
-        this.grid = Array(GRID_HEIGHT).fill().map(() => Array(GRID_WIDTH).fill(CELL_TYPES.EMPTY));
-        
-        // Create initial track layout (rectangle with turns)
-        // Top row
-        for (let i = 0; i < GRID_WIDTH; i++) {
-            this.grid[0][i] = CELL_TYPES.RAIL_H;
-        }
-        // Bottom row
-        for (let i = 0; i < GRID_WIDTH; i++) {
-            this.grid[GRID_HEIGHT - 1][i] = CELL_TYPES.RAIL_H;
-        }
-        // Left column
-        for (let i = 0; i < GRID_HEIGHT; i++) {
-            this.grid[i][0] = CELL_TYPES.RAIL_V;
-        }
-        // Right column
-        for (let i = 0; i < GRID_HEIGHT; i++) {
-            this.grid[i][GRID_WIDTH - 1] = CELL_TYPES.RAIL_V;
-        }
-
-        // Add turns at corners
-        this.grid[0][0] = CELL_TYPES.TURN_LEFT_DOWN;        // ┌
-        this.grid[0][GRID_WIDTH - 1] = CELL_TYPES.TURN_RIGHT_DOWN;  // └
-        this.grid[GRID_HEIGHT - 1][0] = CELL_TYPES.TURN_RIGHT_UP;  // ┐
-        this.grid[GRID_HEIGHT - 1][GRID_WIDTH - 1] = CELL_TYPES.TURN_LEFT_UP;  // ┘
-
+        this.grid = [
+            ["┌", "-", "-", "-", "-", "-", "┐", " ", " ", "┌", "-", "-", "-", "-", "┐"],
+            ["|", " ", " ", " ", " ", " ", "|", " ", " ", "|", " ", " ", " ", " ", "|"],
+            ["|", " ", " ", " ", " ", " ", "|", " ", " ", "|", " ", " ", " ", " ", "|"],
+            ["|", " ", " ", " ", " ", " ", "|", " ", " ", "|", " ", " ", " ", " ", "|"],
+            ["|", " ", " ", " ", " ", " ", "└", "-", "-", "┘", " ", " ", " ", " ", "|"],
+            ["|", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", "|"],
+            ["|", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", "|"],
+            ["|", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", "|"],
+            ["└", "┐", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", "┌", "┘"],
+            [" ", "└", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "┘", " "]
+          ];
         // Initialize train at the center of the starting cell
         this.train = {
             x: 1,
@@ -205,10 +191,16 @@ class Game {
             this.train.direction = nextDirection;
         } else {
             switch (this.train.direction) {
-                case DIRECTIONS.rightDown: this.train.direction = DIRECTIONS.down; break;
-                case DIRECTIONS.rightUp: this.train.direction = DIRECTIONS.right; break;
-                case DIRECTIONS.leftDown: this.train.direction = DIRECTIONS.left; break;
-                case DIRECTIONS.leftUp: this.train.direction = DIRECTIONS.up; break;
+                case DIRECTIONS.rightDown: 
+                    this.train.direction = 
+                        currentCellType === CELL_TYPES.RAIL_H 
+                        ? DIRECTIONS.right 
+                        : DIRECTIONS.down;
+                    break;
+                case DIRECTIONS.rightUp: this.train.direction = currentCellType === CELL_TYPES.RAIL_H 
+                ? DIRECTIONS.right : DIRECTIONS.up; break;
+                case DIRECTIONS.leftDown: this.train.direction = currentCellType === CELL_TYPES.RAIL_H ? DIRECTIONS.left : DIRECTIONS.down; break;
+                case DIRECTIONS.leftUp: this.train.direction =  currentCellType === CELL_TYPES.RAIL_H ? DIRECTIONS.left : DIRECTIONS.up; break;
             }
 
 
