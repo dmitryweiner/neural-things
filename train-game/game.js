@@ -22,15 +22,16 @@ const CELL_TYPES = {
   TURN_RIGHT_UP: "└",
 };
 
+// Direction angles in radians
 const DIRECTIONS = {
-  right: "right",
-  left: "left",
-  up: "up",
-  down: "down",
-  rightDown: "right-down",
-  leftDown: "left-down",
-  rightUp: "right-up",
-  leftUp: "left-up",
+  right: 0,
+  rightDown: Math.PI / 4,
+  down: Math.PI / 2,
+  leftDown: Math.PI * 3/4,
+  left: Math.PI,
+  leftUp: -Math.PI * 3/4,
+  up: -Math.PI / 2,
+  rightUp: -Math.PI / 4
 };
 
 // Train states
@@ -44,74 +45,66 @@ const TURN_DIRECTIONS = {
   [CELL_TYPES.TURN_RIGHT_DOWN]: (x, y, speed, direction, deltaTime) => {
     let nextX = x;
     let nextY = y;
-    let nexDirection = direction;
+    let nextDirection = direction;
     if (direction === DIRECTIONS.right || direction === DIRECTIONS.rightDown) {
       nextX = x + speed * CELL_SIZE * deltaTime;
       nextY = y + speed * CELL_SIZE * deltaTime;
-      nexDirection = DIRECTIONS.rightDown;
+      nextDirection = DIRECTIONS.rightDown;
     }
     if (direction === DIRECTIONS.up || direction === DIRECTIONS.leftUp) {
       nextX = x - speed * CELL_SIZE * deltaTime;
       nextY = y - speed * CELL_SIZE * deltaTime;
-      nexDirection = DIRECTIONS.leftUp;
+      nextDirection = DIRECTIONS.leftUp;
     }
-    return [nextX, nextY, nexDirection];
+    return [nextX, nextY, nextDirection];
   },
   [CELL_TYPES.TURN_LEFT_DOWN]: (x, y, speed, direction, deltaTime) => {
     let nextX = x;
     let nextY = y;
-    let nexDirection = direction;
-    if (
-      direction === "left" ||
-      direction === DIRECTIONS.leftDown ||
-      direction === DIRECTIONS.rightDown
-    ) {
+    let nextDirection = direction;
+    if (direction === DIRECTIONS.left || direction === DIRECTIONS.leftDown) {
       nextX = x - speed * CELL_SIZE * deltaTime;
       nextY = y + speed * CELL_SIZE * deltaTime;
-      nexDirection = DIRECTIONS.leftDown;
+      nextDirection = DIRECTIONS.leftDown;
     }
-    if (
-      direction === "up" ||
-      direction === DIRECTIONS.rightUp ||
-      direction === DIRECTIONS.rightUp
-    ) {
+    if (direction === DIRECTIONS.up || direction === DIRECTIONS.rightUp) {
       nextX = x + speed * CELL_SIZE * deltaTime;
       nextY = y - speed * CELL_SIZE * deltaTime;
-      nexDirection = DIRECTIONS.rightUp;
+      nextDirection = DIRECTIONS.rightUp;
     }
-    return [nextX, nextY, nexDirection];
+    return [nextX, nextY, nextDirection];
   },
   [CELL_TYPES.TURN_RIGHT_UP]: (x, y, speed, direction, deltaTime) => {
     let nextX = x;
     let nextY = y;
-    let nexDirection = direction;
-    if (direction === "left" || direction === DIRECTIONS.leftUp) {
+    let nextDirection = direction;
+    if (direction === DIRECTIONS.left || direction === DIRECTIONS.leftUp) {
       nextX = x - speed * CELL_SIZE * deltaTime;
       nextY = y - speed * CELL_SIZE * deltaTime;
-      nexDirection = DIRECTIONS.leftUp;
+      nextDirection = DIRECTIONS.leftUp;
     }
-    if (direction === "down" || direction === DIRECTIONS.rightDown) {
+    if (direction === DIRECTIONS.down || direction === DIRECTIONS.rightDown) {
       nextX = x + speed * CELL_SIZE * deltaTime;
       nextY = y + speed * CELL_SIZE * deltaTime;
-      nexDirection = DIRECTIONS.rightDown;
+      nextDirection = DIRECTIONS.rightDown;
     }
-    return [nextX, nextY, nexDirection];
+    return [nextX, nextY, nextDirection];
   },
   [CELL_TYPES.TURN_LEFT_UP]: (x, y, speed, direction, deltaTime) => {
     let nextX = x;
     let nextY = y;
-    let nexDirection = direction;
-    if (direction === "right" || direction === DIRECTIONS.rightUp) {
+    let nextDirection = direction;
+    if (direction === DIRECTIONS.right || direction === DIRECTIONS.rightUp) {
       nextX = x + speed * CELL_SIZE * deltaTime;
       nextY = y - speed * CELL_SIZE * deltaTime;
-      nexDirection = DIRECTIONS.rightUp;
+      nextDirection = DIRECTIONS.rightUp;
     }
-    if (direction === "down" || direction === DIRECTIONS.leftDown) {
+    if (direction === DIRECTIONS.down || direction === DIRECTIONS.leftDown) {
       nextX = x - speed * CELL_SIZE * deltaTime;
       nextY = y + speed * CELL_SIZE * deltaTime;
-      nexDirection = DIRECTIONS.leftDown;
+      nextDirection = DIRECTIONS.leftDown;
     }
-    return [nextX, nextY, nexDirection];
+    return [nextX, nextY, nextDirection];
   },
 };
 
@@ -152,7 +145,7 @@ class Game {
         this.train = {
             x: 1,
             y: 0,
-      direction: "right",
+      direction: DIRECTIONS.right,
       state: TRAIN_STATES.RUNNING,
       speed: 0,
       pixelX: (1 + 0.5) * CELL_SIZE, // Center of the cell
@@ -187,7 +180,7 @@ class Game {
       );
     }
 
-    // Calculate next position based on current speed
+    // Calculate next position based on current speed and direction
     let nextPixelX = this.train.pixelX;
     let nextPixelY = this.train.pixelY;
 
@@ -207,64 +200,50 @@ class Game {
       nextPixelY = nextY;
       this.train.direction = nextDirection;
     } else {
-      switch (this.train.direction) {
-        case DIRECTIONS.rightDown:
-          this.train.direction =
-            currentCellType === CELL_TYPES.RAIL_H
-              ? DIRECTIONS.right
-              : DIRECTIONS.down;
-          break;
-        case DIRECTIONS.rightUp:
-          this.train.direction =
-            currentCellType === CELL_TYPES.RAIL_H
-              ? DIRECTIONS.right
-              : DIRECTIONS.up;
-          break;
-        case DIRECTIONS.leftDown:
-          this.train.direction =
-            currentCellType === CELL_TYPES.RAIL_H
-              ? DIRECTIONS.left
-              : DIRECTIONS.down;
-          break;
-        case DIRECTIONS.leftUp:
-          this.train.direction =
-            currentCellType === CELL_TYPES.RAIL_H
-              ? DIRECTIONS.left
-              : DIRECTIONS.up;
-          break;
+      // Update direction based on current cell type for diagonal movements
+      const currentAngle = this.train.direction;
+      const normalizedCurrentAngle = (currentAngle + 2 * Math.PI) % (2 * Math.PI);
+      
+      // Check if we're moving diagonally (with small threshold for floating point comparison)
+      const cosValue = Math.abs(Math.cos(normalizedCurrentAngle));
+      const sinValue = Math.abs(Math.sin(normalizedCurrentAngle));
+      const angleThreshold = 0.1; // Small threshold for floating point comparison
+      
+      if (Math.abs(cosValue - sinValue) < angleThreshold) {
+        if (currentCellType === CELL_TYPES.RAIL_H) {
+          // If on horizontal rail, snap to horizontal movement
+          this.train.direction = Math.cos(normalizedCurrentAngle) > 0 ? DIRECTIONS.right : DIRECTIONS.left;
+        } else if (currentCellType === CELL_TYPES.RAIL_V) {
+          // If on vertical rail, snap to vertical movement
+          this.train.direction = Math.sin(normalizedCurrentAngle) > 0 ? DIRECTIONS.down : DIRECTIONS.up;
+        }
       }
 
+      // Update position based on direction angle
+      nextPixelX += Math.cos(this.train.direction) * this.train.speed * CELL_SIZE * deltaTime;
+      nextPixelY += Math.sin(this.train.direction) * this.train.speed * CELL_SIZE * deltaTime;
+
+      // Snap to cell center if we're close enough
       const centerX = (this.train.x + 0.5) * CELL_SIZE;
       const centerY = (this.train.y + 0.5) * CELL_SIZE;
-      switch (this.train.direction) {
-        case DIRECTIONS.right:
-          nextPixelX += this.train.speed * CELL_SIZE * deltaTime;
-          // Snap Y coordinate to center when moving horizontally
-          if (Math.abs(nextPixelY - centerY) < 0.1 * CELL_SIZE) {
-            nextPixelY = centerY;
-          }
-          break;
-        case DIRECTIONS.left:
-          nextPixelX -= this.train.speed * CELL_SIZE * deltaTime;
-          // Snap Y coordinate to center when moving horizontally
-          if (Math.abs(nextPixelY - centerY) < 0.1 * CELL_SIZE) {
-            nextPixelY = centerY;
-          }
-          break;
-        case DIRECTIONS.up:
-          nextPixelY -= this.train.speed * CELL_SIZE * deltaTime;
-          // Snap X coordinate to center when moving vertically
-          if (Math.abs(nextPixelX - centerX) < 0.1 * CELL_SIZE) {
-            nextPixelX = centerX;
-          }
-          break;
-        case DIRECTIONS.down:
-          nextPixelY += this.train.speed * CELL_SIZE * deltaTime;
-          // Snap X coordinate to center when moving vertically
-          if (Math.abs(nextPixelX - centerX) < 0.1 * CELL_SIZE) {
-            nextPixelX = centerX;
-          }
-          break;
+      const snapThreshold = 0.1 * CELL_SIZE;
+
+      // Determine which coordinate to snap based on the angle
+      const movementAngle = this.train.direction;
+      // Normalize angle to 0-2π range
+      const normalizedMovementAngle = (movementAngle + 2 * Math.PI) % (2 * Math.PI);
+      
+      // If moving mostly horizontally (angle close to 0 or π)
+      if (Math.abs(Math.cos(normalizedMovementAngle)) > Math.abs(Math.sin(normalizedMovementAngle))) {
+        if (Math.abs(nextPixelY - centerY) < snapThreshold) {
+          nextPixelY = centerY;
+        }
+      }
+      // If moving mostly vertically (angle close to π/2 or -π/2)
+      else {
+        if (Math.abs(nextPixelX - centerX) < snapThreshold) {
+          nextPixelX = centerX;
+        }
       }
     }
 
@@ -347,49 +326,15 @@ class Game {
   }
 
   drawTrain() {
-    this.ctx.save(); // Save the current canvas state
-    
-    // Move to train position
+    this.ctx.save();
     this.ctx.translate(this.train.pixelX, this.train.pixelY);
-    
-    // Rotate based on direction
-    let rotation = 0;
-    switch (this.train.direction) {
-      case DIRECTIONS.right:
-        rotation = 0;
-        break;
-      case DIRECTIONS.down:
-        rotation = Math.PI / 2;
-        break;
-      case DIRECTIONS.left:
-        rotation = Math.PI;
-        break;
-      case DIRECTIONS.up:
-        rotation = -Math.PI / 2;
-        break;
-      case DIRECTIONS.rightDown:
-        rotation = Math.PI / 4;
-        break;
-      case DIRECTIONS.leftDown:
-        rotation = Math.PI * 3/4;
-        break;
-      case DIRECTIONS.leftUp:
-        rotation = -Math.PI * 3/4;
-        break;
-      case DIRECTIONS.rightUp:
-        rotation = -Math.PI / 4;
-        break;
-    }
-    this.ctx.rotate(rotation);
-    
-    // Draw the train sprite
+    this.ctx.rotate(this.train.direction);
     this.ctx.fillStyle = "#f00";
     this.ctx.font = "24px Arial";
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
     this.ctx.fillText("🚃", 0, 0);
-    
-    this.ctx.restore(); // Restore the canvas state
+    this.ctx.restore();
   }
 }
 
