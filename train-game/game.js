@@ -1,113 +1,3 @@
-// Game constants
-const CELL_SIZE = 40;
-const GRID_WIDTH = 15;
-const GRID_HEIGHT = 10;
-
-// Train movement constants
-const TRAIN_MAX_SPEED = 2; // cells per second
-const TRAIN_ACCELERATION = 0.5; // cells per second^2
-const TRAIN_DECELERATION = 1; // cells per second^2
-
-// Cell types
-const CELL_TYPES = {
-  EMPTY: " ",
-  RAIL_H: "-",
-  RAIL_V: "|",
-  RAIL_DIAG1: "/",
-  RAIL_DIAG2: "\\",
-  SWITCH: "Y",
-  TURN_RIGHT_DOWN: "┐",
-  TURN_LEFT_DOWN: "┌",
-  TURN_LEFT_UP: "┘",
-  TURN_RIGHT_UP: "└",
-};
-
-// Direction angles in radians
-const DIRECTIONS = {
-  right: 0,
-  rightDown: Math.PI / 4,
-  down: Math.PI / 2,
-  leftDown: Math.PI * 3/4,
-  left: Math.PI,
-  leftUp: -Math.PI * 3/4,
-  up: -Math.PI / 2,
-  rightUp: -Math.PI / 4
-};
-
-// Train states
-const TRAIN_STATES = {
-  RUNNING: "running",
-  CRASHED: "crashed",
-};
-
-// Direction mapping for turns
-const TURN_DIRECTIONS = {
-  [CELL_TYPES.TURN_RIGHT_DOWN]: (x, y, speed, direction, deltaTime) => {
-    let nextX = x;
-    let nextY = y;
-    let nextDirection = direction;
-    if (direction === DIRECTIONS.right || direction === DIRECTIONS.rightDown) {
-      nextX = x + speed * CELL_SIZE * deltaTime;
-      nextY = y + speed * CELL_SIZE * deltaTime;
-      nextDirection = DIRECTIONS.rightDown;
-    }
-    if (direction === DIRECTIONS.up || direction === DIRECTIONS.leftUp) {
-      nextX = x - speed * CELL_SIZE * deltaTime;
-      nextY = y - speed * CELL_SIZE * deltaTime;
-      nextDirection = DIRECTIONS.leftUp;
-    }
-    return [nextX, nextY, nextDirection];
-  },
-  [CELL_TYPES.TURN_LEFT_DOWN]: (x, y, speed, direction, deltaTime) => {
-    let nextX = x;
-    let nextY = y;
-    let nextDirection = direction;
-    if (direction === DIRECTIONS.left || direction === DIRECTIONS.leftDown) {
-      nextX = x - speed * CELL_SIZE * deltaTime;
-      nextY = y + speed * CELL_SIZE * deltaTime;
-      nextDirection = DIRECTIONS.leftDown;
-    }
-    if (direction === DIRECTIONS.up || direction === DIRECTIONS.rightUp) {
-      nextX = x + speed * CELL_SIZE * deltaTime;
-      nextY = y - speed * CELL_SIZE * deltaTime;
-      nextDirection = DIRECTIONS.rightUp;
-    }
-    return [nextX, nextY, nextDirection];
-  },
-  [CELL_TYPES.TURN_RIGHT_UP]: (x, y, speed, direction, deltaTime) => {
-    let nextX = x;
-    let nextY = y;
-    let nextDirection = direction;
-    if (direction === DIRECTIONS.left || direction === DIRECTIONS.leftUp) {
-      nextX = x - speed * CELL_SIZE * deltaTime;
-      nextY = y - speed * CELL_SIZE * deltaTime;
-      nextDirection = DIRECTIONS.leftUp;
-    }
-    if (direction === DIRECTIONS.down || direction === DIRECTIONS.rightDown) {
-      nextX = x + speed * CELL_SIZE * deltaTime;
-      nextY = y + speed * CELL_SIZE * deltaTime;
-      nextDirection = DIRECTIONS.rightDown;
-    }
-    return [nextX, nextY, nextDirection];
-  },
-  [CELL_TYPES.TURN_LEFT_UP]: (x, y, speed, direction, deltaTime) => {
-    let nextX = x;
-    let nextY = y;
-    let nextDirection = direction;
-    if (direction === DIRECTIONS.right || direction === DIRECTIONS.rightUp) {
-      nextX = x + speed * CELL_SIZE * deltaTime;
-      nextY = y - speed * CELL_SIZE * deltaTime;
-      nextDirection = DIRECTIONS.rightUp;
-    }
-    if (direction === DIRECTIONS.down || direction === DIRECTIONS.leftDown) {
-      nextX = x - speed * CELL_SIZE * deltaTime;
-      nextY = y + speed * CELL_SIZE * deltaTime;
-      nextDirection = DIRECTIONS.leftDown;
-    }
-    return [nextX, nextY, nextDirection];
-  },
-};
-
 class Game {
   constructor() {
     this.canvas = document.getElementById("gameCanvas");
@@ -127,24 +17,24 @@ class Game {
     this.canvas.height = GRID_HEIGHT * CELL_SIZE;
   }
 
-    initGame() {
-        // Initialize game grid
-        this.grid = [
-            ["┌", "-", "-", "-", "-", "-", "┐", " ", " ", "┌", "-", "-", "-", "-", "┐"],
-            ["|", " ", " ", " ", " ", " ", "|", " ", " ", "|", " ", " ", " ", " ", "|"],
-            ["|", " ", " ", " ", " ", " ", "|", " ", " ", "|", " ", " ", " ", " ", "|"],
-            ["|", " ", " ", " ", "┌", "-", "┘", " ", " ", "└", "-", "┐", " ", " ", "|"],
-            ["|", " ", " ", " ", "|", " ", " ", " ", " ", " ", " ", "|", " ", " ", "|"],
-            ["|", " ", " ", " ", "└", "-", "-", "-", "-", "-", "-", "┘", " ", " ", "|"],
-            ["|", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", "|"],
-            ["└", "-", "┐", " ", " ", " ", " ", " ", " ", " ", " ", " ", "┌", "-", "┘"],
-            [" ", " ", "|", " ", " ", " ", " ", " ", " ", " ", " ", " ", "|", " ", " "],
-            [" ", " ", "└", "-", "-", "-", "-", "-", "-", "-", "-", "-", "┘", " ", " "]
-          ];
-        // Initialize train at the center of the starting cell
-        this.train = {
-            x: 1,
-            y: 0,
+  initGame() {
+    // Initialize game grid
+    this.grid = [
+      ["┌", "-", "-", "-", "-", "-", "┐", " ", " ", "┌", "-", "-", "-", "-", "┐"],
+      ["|", " ", " ", " ", " ", " ", "|", " ", " ", "|", " ", " ", " ", " ", "|"],
+      ["|", " ", " ", " ", " ", " ", "|", " ", " ", "|", " ", " ", " ", " ", "|"],
+      ["|", " ", " ", " ", "┌", "-", "┘", " ", " ", "└", "-", "┐", " ", " ", "|"],
+      ["|", " ", " ", " ", "|", " ", " ", " ", " ", " ", " ", "|", " ", " ", "|"],
+      ["|", " ", " ", " ", "└", "-", "-", "-", "-", "-", "-", "┘", " ", " ", "|"],
+      ["|", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", "|"],
+      ["└", "-", "┐", " ", " ", " ", " ", " ", " ", " ", " ", " ", "┌", "-", "┘"],
+      [" ", " ", "|", " ", " ", " ", " ", " ", " ", " ", " ", " ", "|", " ", " "],
+      [" ", " ", "└", "-", "-", "-", "-", "-", "-", "-", "-", "-", "┘", " ", " "]
+    ];
+    // Initialize train at the center of the starting cell
+    this.train = {
+      x: 1,
+      y: 0,
       direction: DIRECTIONS.right,
       state: TRAIN_STATES.RUNNING,
       speed: 0,
@@ -189,62 +79,38 @@ class Game {
     const turnCell = TURN_DIRECTIONS[currentCellType];
 
     if (turnCell) {
-      const [nextX, nextY, nextDirection] = turnCell(
+      const turnResult = calculateTurnPosition(
+        currentCellType,
+        this.train.x,
+        this.train.y,
         this.train.pixelX,
         this.train.pixelY,
-        this.train.speed,
         this.train.direction,
+        this.train.speed,
         deltaTime
       );
-      nextPixelX = nextX;
-      nextPixelY = nextY;
-      this.train.direction = nextDirection;
+
+      if (turnResult) {
+        nextPixelX = turnResult.x;
+        nextPixelY = turnResult.y;
+        this.train.direction = turnResult.direction;
+      }
     } else {
       // Update direction based on current cell type for diagonal movements
       const currentAngle = this.train.direction;
       const normalizedCurrentAngle = (currentAngle + 2 * Math.PI) % (2 * Math.PI);
-      
-      // Check if we're moving diagonally (with small threshold for floating point comparison)
-      const cosValue = Math.abs(Math.cos(normalizedCurrentAngle));
-      const sinValue = Math.abs(Math.sin(normalizedCurrentAngle));
-      const angleThreshold = 0.1; // Small threshold for floating point comparison
-      
-      if (Math.abs(cosValue - sinValue) < angleThreshold) {
-        if (currentCellType === CELL_TYPES.RAIL_H) {
-          // If on horizontal rail, snap to horizontal movement
-          this.train.direction = Math.cos(normalizedCurrentAngle) > 0 ? DIRECTIONS.right : DIRECTIONS.left;
-        } else if (currentCellType === CELL_TYPES.RAIL_V) {
-          // If on vertical rail, snap to vertical movement
-          this.train.direction = Math.sin(normalizedCurrentAngle) > 0 ? DIRECTIONS.down : DIRECTIONS.up;
-        }
+            
+      if (currentCellType === CELL_TYPES.RAIL_H) {
+        // If on horizontal rail, snap to horizontal movement
+        this.train.direction = Math.cos(normalizedCurrentAngle) > 0 ? DIRECTIONS.right : DIRECTIONS.left;
+      } else if (currentCellType === CELL_TYPES.RAIL_V) {
+        // If on vertical rail, snap to vertical movement
+        this.train.direction = Math.sin(normalizedCurrentAngle) > 0 ? DIRECTIONS.down : DIRECTIONS.up;
       }
 
       // Update position based on direction angle
       nextPixelX += Math.cos(this.train.direction) * this.train.speed * CELL_SIZE * deltaTime;
       nextPixelY += Math.sin(this.train.direction) * this.train.speed * CELL_SIZE * deltaTime;
-
-      // Snap to cell center if we're close enough
-      const centerX = (this.train.x + 0.5) * CELL_SIZE;
-      const centerY = (this.train.y + 0.5) * CELL_SIZE;
-      const snapThreshold = 0.1 * CELL_SIZE;
-
-      // Determine which coordinate to snap based on the angle
-      const movementAngle = this.train.direction;
-      // Normalize angle to 0-2π range
-      const normalizedMovementAngle = (movementAngle + 2 * Math.PI) % (2 * Math.PI);
-      
-      // If moving mostly horizontally (angle close to 0 or π)
-      if (Math.abs(Math.cos(normalizedMovementAngle)) > Math.abs(Math.sin(normalizedMovementAngle))) {
-        if (Math.abs(nextPixelY - centerY) < snapThreshold) {
-          nextPixelY = centerY;
-        }
-      }
-      // If moving mostly vertically (angle close to π/2 or -π/2)
-      else {
-        if (Math.abs(nextPixelX - centerX) < snapThreshold) {
-          nextPixelX = centerX;
-        }
-      }
     }
 
     // Convert pixel position to grid position (using center points)
@@ -342,5 +208,3 @@ class Game {
 window.addEventListener("load", () => {
   new Game();
 });
-
-

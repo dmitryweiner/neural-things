@@ -1,0 +1,13 @@
+{
+  "name": "train-game",
+  "version": "1.0.0",
+  "description": "Train game with tests",
+  "main": "game.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+} 
