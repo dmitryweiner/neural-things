@@ -69,13 +69,9 @@ function calculateTurnPosition(cellType, cellX, cellY, pixelX, pixelY, direction
 
   // Угол между объектом и центром окружности
   const theta = Math.atan2(dy, dx);
-
-  // Правильное преобразование линейной скорости в угловую
-  // Угловая скорость = Линейная скорость / Радиус
-  const angularSpeed = 20 * speed / radius; // TODO: make it correct
   
   // Изменение угла за время deltaTime
-  const deltaTheta = angularSpeed * deltaTime * (clockwise ? 1 : -1);
+  const deltaTheta = speed * deltaTime * (clockwise ? 1 : -1);
 
   const newTheta = theta + deltaTheta;
 
