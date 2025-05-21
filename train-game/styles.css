@@ -45,4 +45,37 @@ body {
 
 #playAgain:hover {
     background-color: #45a049;
+}
+
+/* Стили для предупреждения на мобильных устройствах */
+#mobile-warning {
+    display: none; /* По умолчанию скрыто */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 15px;
+    background-color: #ff9800;
+    color: #fff;
+    text-align: center;
+    font-weight: bold;
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Отображаем предупреждение только на экранах меньше 900px */
+@media screen and (max-width: 900px) {
+    #mobile-warning {
+        display: block;
+    }
+    
+    body {
+        padding-top: 50px; /* Добавляем отступ сверху, чтобы предупреждение не перекрывало контент */
+        align-items: flex-start; /* Меняем выравнивание для возможности прокрутки */
+        padding-bottom: 20px; /* Добавляем отступ снизу для лучшей видимости при прокрутке */
+    }
+    
+    #game-container {
+        margin-top: 20px; /* Добавляем отступ сверху для контейнера игры */
+    }
 } 

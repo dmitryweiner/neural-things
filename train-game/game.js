@@ -219,24 +219,14 @@ class Game {
     this.ctx.strokeRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
 
     // Настройки линий для рельсов
-    this.ctx.strokeStyle = "#555";
+    this.ctx.strokeStyle = "#555"; // Серый цвет для рельсов
     this.ctx.lineWidth = 2;
 
     // Отрисовка в зависимости от типа клетки
     switch (cellType) {
       case CELL_TYPES.RAIL_H:
-        // Горизонтальные рельсы (две параллельные линии)
-        this.ctx.beginPath();
-        this.ctx.moveTo(cellX, centerY - RAIL_WIDTH);
-        this.ctx.lineTo(cellX + CELL_SIZE, centerY - RAIL_WIDTH);
-        this.ctx.stroke();
-
-        this.ctx.beginPath();
-        this.ctx.moveTo(cellX, centerY + RAIL_WIDTH);
-        this.ctx.lineTo(cellX + CELL_SIZE, centerY + RAIL_WIDTH);
-        this.ctx.stroke();
-        
-        // Добавляем шпалы
+        // Добавляем шпалы (рисуем их первыми)
+        this.ctx.strokeStyle = "#CD853F"; // Более светлый коричневый цвет для шпал (Peru)
         const numTiesH = Math.floor(CELL_SIZE / TIE_SPACING);
         const tieSpacingH = CELL_SIZE / numTiesH;
         
@@ -248,21 +238,23 @@ class Game {
           this.ctx.lineTo(tieX, centerY + RAIL_WIDTH + TIE_WIDTH/2);
           this.ctx.stroke();
         }
+        
+        // Горизонтальные рельсы (две параллельные линии)
+        this.ctx.strokeStyle = "#555"; // Серый цвет для рельсов
+        this.ctx.beginPath();
+        this.ctx.moveTo(cellX, centerY - RAIL_WIDTH);
+        this.ctx.lineTo(cellX + CELL_SIZE, centerY - RAIL_WIDTH);
+        this.ctx.stroke();
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(cellX, centerY + RAIL_WIDTH);
+        this.ctx.lineTo(cellX + CELL_SIZE, centerY + RAIL_WIDTH);
+        this.ctx.stroke();
         break;
 
       case CELL_TYPES.RAIL_V:
-        // Вертикальные рельсы (две параллельные линии)
-        this.ctx.beginPath();
-        this.ctx.moveTo(centerX - RAIL_WIDTH, cellY);
-        this.ctx.lineTo(centerX - RAIL_WIDTH, cellY + CELL_SIZE);
-        this.ctx.stroke();
-
-        this.ctx.beginPath();
-        this.ctx.moveTo(centerX + RAIL_WIDTH, cellY);
-        this.ctx.lineTo(centerX + RAIL_WIDTH, cellY + CELL_SIZE);
-        this.ctx.stroke();
-        
-        // Добавляем шпалы
+        // Добавляем шпалы (рисуем их первыми)
+        this.ctx.strokeStyle = "#CD853F"; // Более светлый коричневый цвет для шпал (Peru)
         const numTiesV = Math.floor(CELL_SIZE / TIE_SPACING);
         const tieSpacingV = CELL_SIZE / numTiesV;
         
@@ -274,25 +266,27 @@ class Game {
           this.ctx.lineTo(centerX + RAIL_WIDTH + TIE_WIDTH/2, tieY);
           this.ctx.stroke();
         }
+        
+        // Вертикальные рельсы (две параллельные линии)
+        this.ctx.strokeStyle = "#555"; // Серый цвет для рельсов
+        this.ctx.beginPath();
+        this.ctx.moveTo(centerX - RAIL_WIDTH, cellY);
+        this.ctx.lineTo(centerX - RAIL_WIDTH, cellY + CELL_SIZE);
+        this.ctx.stroke();
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(centerX + RAIL_WIDTH, cellY);
+        this.ctx.lineTo(centerX + RAIL_WIDTH, cellY + CELL_SIZE);
+        this.ctx.stroke();
         break;
 
       case CELL_TYPES.TURN_RIGHT_DOWN:
-        // Поворот направо-вниз
         const radius1RD = CELL_SIZE / 2 - RAIL_WIDTH;
         const radius2RD = CELL_SIZE / 2 + RAIL_WIDTH;
         const centerRD = { x: cellX, y: cellY + CELL_SIZE };
         
-        // Внутренняя дуга
-        this.ctx.beginPath();
-        this.ctx.arc(centerRD.x, centerRD.y, radius1RD, -Math.PI/2, 0);
-        this.ctx.stroke();
-        
-        // Внешняя дуга
-        this.ctx.beginPath();
-        this.ctx.arc(centerRD.x, centerRD.y, radius2RD, -Math.PI/2, 0);
-        this.ctx.stroke();
-        
-        // Добавляем шпалы
+        // Добавляем шпалы (рисуем их первыми)
+        this.ctx.strokeStyle = "#CD853F"; // Более светлый коричневый цвет для шпал (Peru)
         const numTiesRD = Math.floor((Math.PI/2 * CELL_SIZE/2) / TIE_SPACING);
         const tieAngleSpacingRD = Math.PI/2 / numTiesRD;
         
@@ -310,25 +304,27 @@ class Game {
           );
           this.ctx.stroke();
         }
-        break;
-
-      case CELL_TYPES.TURN_LEFT_DOWN:
-        // Поворот налево-вниз
-        const radius1LD = CELL_SIZE / 2 - RAIL_WIDTH;
-        const radius2LD = CELL_SIZE / 2 + RAIL_WIDTH;
-        const centerLD = { x: cellX + CELL_SIZE, y: cellY + CELL_SIZE };
         
+        // Рельсы (дуги)
+        this.ctx.strokeStyle = "#555"; // Серый цвет для рельсов
         // Внутренняя дуга
         this.ctx.beginPath();
-        this.ctx.arc(centerLD.x, centerLD.y, radius1LD, Math.PI, Math.PI * 3/2);
+        this.ctx.arc(centerRD.x, centerRD.y, radius1RD, -Math.PI/2, 0);
         this.ctx.stroke();
         
         // Внешняя дуга
         this.ctx.beginPath();
-        this.ctx.arc(centerLD.x, centerLD.y, radius2LD, Math.PI, Math.PI * 3/2);
+        this.ctx.arc(centerRD.x, centerRD.y, radius2RD, -Math.PI/2, 0);
         this.ctx.stroke();
+        break;
+
+      case CELL_TYPES.TURN_LEFT_DOWN:
+        const radius1LD = CELL_SIZE / 2 - RAIL_WIDTH;
+        const radius2LD = CELL_SIZE / 2 + RAIL_WIDTH;
+        const centerLD = { x: cellX + CELL_SIZE, y: cellY + CELL_SIZE };
         
-        // Добавляем шпалы
+        // Добавляем шпалы (рисуем их первыми)
+        this.ctx.strokeStyle = "#CD853F"; // Более светлый коричневый цвет для шпал (Peru)
         const numTiesLD = Math.floor((Math.PI/2 * CELL_SIZE/2) / TIE_SPACING);
         const tieAngleSpacingLD = Math.PI/2 / numTiesLD;
         
@@ -346,25 +342,27 @@ class Game {
           );
           this.ctx.stroke();
         }
-        break;
-
-      case CELL_TYPES.TURN_RIGHT_UP:
-        // Поворот направо-вверх
-        const radius1RU = CELL_SIZE / 2 - RAIL_WIDTH;
-        const radius2RU = CELL_SIZE / 2 + RAIL_WIDTH;
-        const centerRU = { x: cellX + CELL_SIZE, y: cellY };
         
+        // Рельсы (дуги)
+        this.ctx.strokeStyle = "#555"; // Серый цвет для рельсов
         // Внутренняя дуга
         this.ctx.beginPath();
-        this.ctx.arc(centerRU.x, centerRU.y, radius1RU, Math.PI / 2, Math.PI);
+        this.ctx.arc(centerLD.x, centerLD.y, radius1LD, Math.PI, Math.PI * 3/2);
         this.ctx.stroke();
         
         // Внешняя дуга
         this.ctx.beginPath();
-        this.ctx.arc(centerRU.x, centerRU.y, radius2RU, Math.PI / 2, Math.PI);
+        this.ctx.arc(centerLD.x, centerLD.y, radius2LD, Math.PI, Math.PI * 3/2);
         this.ctx.stroke();
+        break;
+
+      case CELL_TYPES.TURN_RIGHT_UP:
+        const radius1RU = CELL_SIZE / 2 - RAIL_WIDTH;
+        const radius2RU = CELL_SIZE / 2 + RAIL_WIDTH;
+        const centerRU = { x: cellX + CELL_SIZE, y: cellY };
         
-        // Добавляем шпалы
+        // Добавляем шпалы (рисуем их первыми)
+        this.ctx.strokeStyle = "#CD853F"; // Более светлый коричневый цвет для шпал (Peru)
         const numTiesRU = Math.floor((Math.PI/2 * CELL_SIZE/2) / TIE_SPACING);
         const tieAngleSpacingRU = Math.PI/2 / numTiesRU;
         
@@ -382,25 +380,27 @@ class Game {
           );
           this.ctx.stroke();
         }
-        break;
-
-      case CELL_TYPES.TURN_LEFT_UP:
-        // Поворот налево-вверх
-        const radius1LU = CELL_SIZE / 2 - RAIL_WIDTH;
-        const radius2LU = CELL_SIZE / 2 + RAIL_WIDTH;
-        const centerLU = { x: cellX, y: cellY };
         
+        // Рельсы (дуги)
+        this.ctx.strokeStyle = "#555"; // Серый цвет для рельсов
         // Внутренняя дуга
         this.ctx.beginPath();
-        this.ctx.arc(centerLU.x, centerLU.y, radius1LU, 0, Math.PI / 2);
+        this.ctx.arc(centerRU.x, centerRU.y, radius1RU, Math.PI / 2, Math.PI);
         this.ctx.stroke();
         
         // Внешняя дуга
         this.ctx.beginPath();
-        this.ctx.arc(centerLU.x, centerLU.y, radius2LU, 0, Math.PI / 2);
+        this.ctx.arc(centerRU.x, centerRU.y, radius2RU, Math.PI / 2, Math.PI);
         this.ctx.stroke();
+        break;
+
+      case CELL_TYPES.TURN_LEFT_UP:
+        const radius1LU = CELL_SIZE / 2 - RAIL_WIDTH;
+        const radius2LU = CELL_SIZE / 2 + RAIL_WIDTH;
+        const centerLU = { x: cellX, y: cellY };
         
-        // Добавляем шпалы
+        // Добавляем шпалы (рисуем их первыми)
+        this.ctx.strokeStyle = "#CD853F"; // Более светлый коричневый цвет для шпал (Peru)
         const numTiesLU = Math.floor((Math.PI/2 * CELL_SIZE/2) / TIE_SPACING);
         const tieAngleSpacingLU = Math.PI/2 / numTiesLU;
         
@@ -418,6 +418,18 @@ class Game {
           );
           this.ctx.stroke();
         }
+        
+        // Рельсы (дуги)
+        this.ctx.strokeStyle = "#555"; // Серый цвет для рельсов
+        // Внутренняя дуга
+        this.ctx.beginPath();
+        this.ctx.arc(centerLU.x, centerLU.y, radius1LU, 0, Math.PI / 2);
+        this.ctx.stroke();
+        
+        // Внешняя дуга
+        this.ctx.beginPath();
+        this.ctx.arc(centerLU.x, centerLU.y, radius2LU, 0, Math.PI / 2);
+        this.ctx.stroke();
         break;
 
       case CELL_TYPES.EMPTY:
