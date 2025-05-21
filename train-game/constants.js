@@ -2,6 +2,7 @@
 const CELL_SIZE = 40;
 const GRID_WIDTH = 15;
 const GRID_HEIGHT = 10;
+const RAIL_WIDTH = 3; // Ширина рельса в пикселях (смещение от центра)
 
 // Train movement constants
 const TRAIN_MAX_SPEED = 2; // cells per second
@@ -117,6 +118,7 @@ module.exports = {
   CELL_SIZE,
   GRID_WIDTH,
   GRID_HEIGHT,
+  RAIL_WIDTH,
   TRAIN_MAX_SPEED,
   TRAIN_ACCELERATION,
   TRAIN_DECELERATION,

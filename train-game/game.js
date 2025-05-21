@@ -155,6 +155,8 @@ class Game {
   drawCell(x, y, cellType) {
     const cellX = x * CELL_SIZE;
     const cellY = y * CELL_SIZE;
+    const centerX = cellX + CELL_SIZE / 2;
+    const centerY = cellY + CELL_SIZE / 2;
 
     // Draw cell background
     this.ctx.fillStyle = "#fff";
@@ -162,12 +164,115 @@ class Game {
     this.ctx.strokeStyle = "#ccc";
     this.ctx.strokeRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
 
-    // Draw cell content
-    this.ctx.fillStyle = "#000";
-    this.ctx.font = "20px Arial";
-    this.ctx.textAlign = "center";
-    this.ctx.textBaseline = "middle";
-    this.ctx.fillText(cellType, cellX + CELL_SIZE / 2, cellY + CELL_SIZE / 2);
+    // Настройки линий для рельсов
+    this.ctx.strokeStyle = "#555";
+    this.ctx.lineWidth = 2;
+
+    // Отрисовка в зависимости от типа клетки
+    switch (cellType) {
+      case CELL_TYPES.RAIL_H:
+        // Горизонтальные рельсы (две параллельные линии)
+        this.ctx.beginPath();
+        this.ctx.moveTo(cellX, centerY - RAIL_WIDTH);
+        this.ctx.lineTo(cellX + CELL_SIZE, centerY - RAIL_WIDTH);
+        this.ctx.stroke();
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(cellX, centerY + RAIL_WIDTH);
+        this.ctx.lineTo(cellX + CELL_SIZE, centerY + RAIL_WIDTH);
+        this.ctx.stroke();
+        break;
+
+      case CELL_TYPES.RAIL_V:
+        // Вертикальные рельсы (две параллельные линии)
+        this.ctx.beginPath();
+        this.ctx.moveTo(centerX - RAIL_WIDTH, cellY);
+        this.ctx.lineTo(centerX - RAIL_WIDTH, cellY + CELL_SIZE);
+        this.ctx.stroke();
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(centerX + RAIL_WIDTH, cellY);
+        this.ctx.lineTo(centerX + RAIL_WIDTH, cellY + CELL_SIZE);
+        this.ctx.stroke();
+        break;
+
+      case CELL_TYPES.TURN_RIGHT_DOWN:
+        // Поворот направо-вниз
+        const radius1RD = CELL_SIZE / 2 - RAIL_WIDTH;
+        const radius2RD = CELL_SIZE / 2 + RAIL_WIDTH;
+        
+        // Внутренняя дуга
+        this.ctx.beginPath();
+        this.ctx.arc(cellX, cellY + CELL_SIZE, radius1RD, -Math.PI/2, 0);
+        this.ctx.stroke();
+        
+        // Внешняя дуга
+        this.ctx.beginPath();
+        this.ctx.arc(cellX, cellY + CELL_SIZE, radius2RD, -Math.PI/2, 0);
+        this.ctx.stroke();
+        break;
+
+      case CELL_TYPES.TURN_LEFT_DOWN:
+        // Поворот налево-вниз
+        const radius1LD = CELL_SIZE / 2 - RAIL_WIDTH;
+        const radius2LD = CELL_SIZE / 2 + RAIL_WIDTH;
+        
+        // Внутренняя дуга
+        this.ctx.beginPath();
+        this.ctx.arc(cellX + CELL_SIZE, cellY + CELL_SIZE, radius1LD, Math.PI, Math.PI * 3/2);
+        this.ctx.stroke();
+        
+        // Внешняя дуга
+        this.ctx.beginPath();
+        this.ctx.arc(cellX + CELL_SIZE, cellY + CELL_SIZE, radius2LD, Math.PI, Math.PI * 3/2);
+        this.ctx.stroke();
+        break;
+
+      case CELL_TYPES.TURN_RIGHT_UP:
+        // Поворот направо-вверх
+        const radius1RU = CELL_SIZE / 2 - RAIL_WIDTH;
+        const radius2RU = CELL_SIZE / 2 + RAIL_WIDTH;
+        
+        // Внутренняя дуга
+        this.ctx.beginPath();
+        this.ctx.arc(cellX + CELL_SIZE, cellY, radius1RU, Math.PI / 2, Math.PI);
+        this.ctx.stroke();
+        
+        // Внешняя дуга
+        this.ctx.beginPath();
+        this.ctx.arc(cellX + CELL_SIZE, cellY, radius2RU, Math.PI / 2, Math.PI);
+        this.ctx.stroke();
+        break;
+
+      case CELL_TYPES.TURN_LEFT_UP:
+        // Поворот налево-вверх
+        const radius1LU = CELL_SIZE / 2 - RAIL_WIDTH;
+        const radius2LU = CELL_SIZE / 2 + RAIL_WIDTH;
+        
+        // Внутренняя дуга
+        this.ctx.beginPath();
+        this.ctx.arc(cellX, cellY, radius1LU, 0, Math.PI / 2);
+        this.ctx.stroke();
+        
+        // Внешняя дуга
+        this.ctx.beginPath();
+        this.ctx.arc(cellX, cellY, radius2LU, 0, Math.PI / 2);
+        this.ctx.stroke();
+        break;
+
+      case CELL_TYPES.EMPTY:
+        // Пустая клетка
+        break;
+
+      default:
+        // Для других типов клеток оставляем текстовую отрисовку
+        this.ctx.fillStyle = "#000";
+        this.ctx.font = "20px Arial";
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "middle";
+        this.ctx.fillText(cellType, centerX, centerY);
+        break;
+    }
   }
 
   drawTrain() {
