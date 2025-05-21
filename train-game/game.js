@@ -70,48 +70,27 @@ class Game {
       );
     }
 
-    // Calculate next position based on current speed and direction
-    let nextPixelX = this.train.pixelX;
-    let nextPixelY = this.train.pixelY;
-
     // Get current cell type
     const currentCellType = this.grid[this.train.y][this.train.x];
     const turnCell = TURN_DIRECTIONS[currentCellType];
 
-    if (turnCell) {
-      const turnResult = calculateTurnPosition(
-        currentCellType,
-        this.train.x,
-        this.train.y,
-        this.train.pixelX,
-        this.train.pixelY,
-        this.train.direction,
-        this.train.speed,
-        deltaTime
-      );
+    // Рассчитываем следующую позицию с помощью выделенной функции
+    const nextPosition = calculateNextPosition(
+      currentCellType,
+      turnCell,
+      this.train.x,
+      this.train.y,
+      this.train.pixelX,
+      this.train.pixelY,
+      this.train.direction,
+      this.train.speed,
+      deltaTime,
+      CELL_SIZE
+    );
 
-      if (turnResult) {
-        nextPixelX = turnResult.x;
-        nextPixelY = turnResult.y;
-        this.train.direction = turnResult.direction;
-      }
-    } else {
-      // Update direction based on current cell type for diagonal movements
-      const currentAngle = this.train.direction;
-      const normalizedCurrentAngle = (currentAngle + 2 * Math.PI) % (2 * Math.PI);
-            
-      if (currentCellType === CELL_TYPES.RAIL_H) {
-        // If on horizontal rail, snap to horizontal movement
-        this.train.direction = Math.cos(normalizedCurrentAngle) > 0 ? DIRECTIONS.right : DIRECTIONS.left;
-      } else if (currentCellType === CELL_TYPES.RAIL_V) {
-        // If on vertical rail, snap to vertical movement
-        this.train.direction = Math.sin(normalizedCurrentAngle) > 0 ? DIRECTIONS.down : DIRECTIONS.up;
-      }
-
-      // Update position based on direction angle
-      nextPixelX += Math.cos(this.train.direction) * this.train.speed * CELL_SIZE * deltaTime;
-      nextPixelY += Math.sin(this.train.direction) * this.train.speed * CELL_SIZE * deltaTime;
-    }
+    const nextPixelX = nextPosition.x;
+    const nextPixelY = nextPosition.y;
+    this.train.direction = nextPosition.direction;
 
     // Convert pixel position to grid position (using center points)
     const nextGridX = Math.floor(nextPixelX / CELL_SIZE);

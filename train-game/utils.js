@@ -86,9 +86,67 @@ function calculateTurnPosition(cellType, cellX, cellY, pixelX, pixelY, direction
   return { x: nextX, y: nextY, direction: nextDirection };
 }
 
+// Вычисляет следующую позицию при движении по прямой клетке
+function calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, deltaTime, cellSize) {
+  let nextPixelX = pixelX;
+  let nextPixelY = pixelY;
+  let nextDirection = direction;
+
+  // Нормализуем угол от 0 до 2π
+  const normalizedCurrentAngle = (direction + 2 * Math.PI) % (2 * Math.PI);
+        
+  if (cellType === CELL_TYPES.RAIL_H) {
+    // Если на горизонтальных рельсах, "прилипаем" к горизонтальному движению
+    nextDirection = Math.cos(normalizedCurrentAngle) > 0 ? DIRECTIONS.right : DIRECTIONS.left;
+  } else if (cellType === CELL_TYPES.RAIL_V) {
+    // Если на вертикальных рельсах, "прилипаем" к вертикальному движению
+    nextDirection = Math.sin(normalizedCurrentAngle) > 0 ? DIRECTIONS.down : DIRECTIONS.up;
+  }
+
+  // Обновляем позицию в зависимости от угла направления
+  nextPixelX += Math.cos(nextDirection) * speed * cellSize * deltaTime;
+  nextPixelY += Math.sin(nextDirection) * speed * cellSize * deltaTime;
+
+  return { 
+    x: nextPixelX, 
+    y: nextPixelY, 
+    direction: nextDirection 
+  };
+}
+
+// Вычисляет следующую позицию поезда в зависимости от текущей клетки
+function calculateNextPosition(cellType, turnCell, cellX, cellY, pixelX, pixelY, direction, speed, deltaTime, cellSize) {
+  if (turnCell) {
+    // Перемещение на повороте
+    return calculateTurnPosition(
+      cellType,
+      cellX,
+      cellY,
+      pixelX,
+      pixelY,
+      direction,
+      speed,
+      deltaTime
+    );
+  } else {
+    // Перемещение по прямой
+    return calculateStraightPosition(
+      cellType,
+      pixelX,
+      pixelY,
+      direction,
+      speed,
+      deltaTime,
+      cellSize
+    );
+  }
+}
+
 // Экспортируем функции для тестирования
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     calculateTurnPosition,
+    calculateStraightPosition,
+    calculateNextPosition
   };
 } 
