@@ -2,6 +2,7 @@ body {
     margin: 0;
     padding: 0;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
@@ -12,6 +13,26 @@ body {
 
 #game-container {
     position: relative;
+}
+
+#game-title-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#game-title {
+    font-family: 'Press Start 2P', cursive;
+    text-align: center;
+    font-size: 36px;
+    margin-bottom: 20px;
+    color: #333;
+    text-shadow: 3px 3px 0 #aaa;
+    letter-spacing: 2px;
 }
 
 #gameCanvas {
