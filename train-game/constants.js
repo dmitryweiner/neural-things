@@ -3,6 +3,8 @@ const CELL_SIZE = 40;
 const GRID_WIDTH = 15;
 const GRID_HEIGHT = 10;
 const RAIL_WIDTH = 3; // Ширина рельса в пикселях (смещение от центра)
+const TIE_WIDTH = 6; // Ширина шпалы в пикселях
+const TIE_SPACING = 10; // Расстояние между шпалами в пикселях
 
 // Train movement constants
 const TRAIN_MAX_SPEED = 2; // cells per second
@@ -119,6 +121,8 @@ module.exports = {
   GRID_WIDTH,
   GRID_HEIGHT,
   RAIL_WIDTH,
+  TIE_WIDTH,
+  TIE_SPACING,
   TRAIN_MAX_SPEED,
   TRAIN_ACCELERATION,
   TRAIN_DECELERATION,

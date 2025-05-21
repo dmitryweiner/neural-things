@@ -41,6 +41,49 @@ class Game {
       pixelX: (1 + 0.5) * CELL_SIZE, // Center of the cell
       pixelY: (0 + 0.5) * CELL_SIZE, // Center of the cell
     };
+    
+    // Создаем псевдослучайные зеленые пятна для каждой клетки
+    this.generateGreenPatches();
+  }
+  
+  // Функция для генерации псевдослучайного числа на основе seed
+  seededRandom(seed) {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+  }
+  
+  // Генерация зеленых пятен для всей сетки
+  generateGreenPatches() {
+    this.greenPatches = [];
+    
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+      this.greenPatches[y] = [];
+      for (let x = 0; x < GRID_WIDTH; x++) {
+        // Генерируем от 6 до 12 пятен для каждой клетки
+        const patchCount = 6 + Math.floor(this.seededRandom(x * 1000 + y) * 7);
+        const patches = [];
+        
+        for (let i = 0; i < patchCount; i++) {
+          // Используем разные seed для разных характеристик пятна
+          const patchSeed = x * 10000 + y * 100 + i;
+          
+          // Размер пятна (от 3 до 8 пикселей)
+          const size = 3 + this.seededRandom(patchSeed) * 5;
+          
+          // Положение пятна внутри клетки
+          const patchX = this.seededRandom(patchSeed + 1) * CELL_SIZE;
+          const patchY = this.seededRandom(patchSeed + 2) * CELL_SIZE;
+          
+          // Цвет пятна (оттенок зеленого)
+          const greenValue = 220 + Math.floor(this.seededRandom(patchSeed + 3) * 40);
+          const color = `rgb(0, ${greenValue}, 0)`;
+          
+          patches.push({ x: patchX, y: patchY, size, color });
+        }
+        
+        this.greenPatches[y][x] = patches;
+      }
+    }
   }
 
   setupEventListeners() {
@@ -159,8 +202,19 @@ class Game {
     const centerY = cellY + CELL_SIZE / 2;
 
     // Draw cell background
-    this.ctx.fillStyle = "#fff";
+    this.ctx.fillStyle = "#a5ed32"; // LightGreen - базовый цвет травы
     this.ctx.fillRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
+    
+    // Рисуем зеленые пятна для эффекта травы
+    const patches = this.greenPatches[y][x];
+    for (const patch of patches) {
+      this.ctx.fillStyle = patch.color;
+      this.ctx.beginPath();
+      this.ctx.arc(cellX + patch.x, cellY + patch.y, patch.size, 0, Math.PI * 2);
+      this.ctx.fill();
+    }
+    
+    // Рамка клетки
     this.ctx.strokeStyle = "#ccc";
     this.ctx.strokeRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
 
@@ -181,6 +235,19 @@ class Game {
         this.ctx.moveTo(cellX, centerY + RAIL_WIDTH);
         this.ctx.lineTo(cellX + CELL_SIZE, centerY + RAIL_WIDTH);
         this.ctx.stroke();
+        
+        // Добавляем шпалы
+        const numTiesH = Math.floor(CELL_SIZE / TIE_SPACING);
+        const tieSpacingH = CELL_SIZE / numTiesH;
+        
+        for (let i = 0; i < numTiesH; i++) {
+          const tieX = cellX + i * tieSpacingH + tieSpacingH / 2;
+          
+          this.ctx.beginPath();
+          this.ctx.moveTo(tieX, centerY - RAIL_WIDTH - TIE_WIDTH/2);
+          this.ctx.lineTo(tieX, centerY + RAIL_WIDTH + TIE_WIDTH/2);
+          this.ctx.stroke();
+        }
         break;
 
       case CELL_TYPES.RAIL_V:
@@ -194,70 +261,163 @@ class Game {
         this.ctx.moveTo(centerX + RAIL_WIDTH, cellY);
         this.ctx.lineTo(centerX + RAIL_WIDTH, cellY + CELL_SIZE);
         this.ctx.stroke();
+        
+        // Добавляем шпалы
+        const numTiesV = Math.floor(CELL_SIZE / TIE_SPACING);
+        const tieSpacingV = CELL_SIZE / numTiesV;
+        
+        for (let i = 0; i < numTiesV; i++) {
+          const tieY = cellY + i * tieSpacingV + tieSpacingV / 2;
+          
+          this.ctx.beginPath();
+          this.ctx.moveTo(centerX - RAIL_WIDTH - TIE_WIDTH/2, tieY);
+          this.ctx.lineTo(centerX + RAIL_WIDTH + TIE_WIDTH/2, tieY);
+          this.ctx.stroke();
+        }
         break;
 
       case CELL_TYPES.TURN_RIGHT_DOWN:
         // Поворот направо-вниз
         const radius1RD = CELL_SIZE / 2 - RAIL_WIDTH;
         const radius2RD = CELL_SIZE / 2 + RAIL_WIDTH;
+        const centerRD = { x: cellX, y: cellY + CELL_SIZE };
         
         // Внутренняя дуга
         this.ctx.beginPath();
-        this.ctx.arc(cellX, cellY + CELL_SIZE, radius1RD, -Math.PI/2, 0);
+        this.ctx.arc(centerRD.x, centerRD.y, radius1RD, -Math.PI/2, 0);
         this.ctx.stroke();
         
         // Внешняя дуга
         this.ctx.beginPath();
-        this.ctx.arc(cellX, cellY + CELL_SIZE, radius2RD, -Math.PI/2, 0);
+        this.ctx.arc(centerRD.x, centerRD.y, radius2RD, -Math.PI/2, 0);
         this.ctx.stroke();
+        
+        // Добавляем шпалы
+        const numTiesRD = Math.floor((Math.PI/2 * CELL_SIZE/2) / TIE_SPACING);
+        const tieAngleSpacingRD = Math.PI/2 / numTiesRD;
+        
+        for (let i = 0; i < numTiesRD; i++) {
+          const angle = -Math.PI/2 + i * tieAngleSpacingRD + tieAngleSpacingRD / 2;
+          
+          this.ctx.beginPath();
+          this.ctx.moveTo(
+            centerRD.x + (radius1RD - TIE_WIDTH/2) * Math.cos(angle), 
+            centerRD.y + (radius1RD - TIE_WIDTH/2) * Math.sin(angle)
+          );
+          this.ctx.lineTo(
+            centerRD.x + (radius2RD + TIE_WIDTH/2) * Math.cos(angle), 
+            centerRD.y + (radius2RD + TIE_WIDTH/2) * Math.sin(angle)
+          );
+          this.ctx.stroke();
+        }
         break;
 
       case CELL_TYPES.TURN_LEFT_DOWN:
         // Поворот налево-вниз
         const radius1LD = CELL_SIZE / 2 - RAIL_WIDTH;
         const radius2LD = CELL_SIZE / 2 + RAIL_WIDTH;
+        const centerLD = { x: cellX + CELL_SIZE, y: cellY + CELL_SIZE };
         
         // Внутренняя дуга
         this.ctx.beginPath();
-        this.ctx.arc(cellX + CELL_SIZE, cellY + CELL_SIZE, radius1LD, Math.PI, Math.PI * 3/2);
+        this.ctx.arc(centerLD.x, centerLD.y, radius1LD, Math.PI, Math.PI * 3/2);
         this.ctx.stroke();
         
         // Внешняя дуга
         this.ctx.beginPath();
-        this.ctx.arc(cellX + CELL_SIZE, cellY + CELL_SIZE, radius2LD, Math.PI, Math.PI * 3/2);
+        this.ctx.arc(centerLD.x, centerLD.y, radius2LD, Math.PI, Math.PI * 3/2);
         this.ctx.stroke();
+        
+        // Добавляем шпалы
+        const numTiesLD = Math.floor((Math.PI/2 * CELL_SIZE/2) / TIE_SPACING);
+        const tieAngleSpacingLD = Math.PI/2 / numTiesLD;
+        
+        for (let i = 0; i < numTiesLD; i++) {
+          const angle = Math.PI + i * tieAngleSpacingLD + tieAngleSpacingLD / 2;
+          
+          this.ctx.beginPath();
+          this.ctx.moveTo(
+            centerLD.x + (radius1LD - TIE_WIDTH/2) * Math.cos(angle), 
+            centerLD.y + (radius1LD - TIE_WIDTH/2) * Math.sin(angle)
+          );
+          this.ctx.lineTo(
+            centerLD.x + (radius2LD + TIE_WIDTH/2) * Math.cos(angle), 
+            centerLD.y + (radius2LD + TIE_WIDTH/2) * Math.sin(angle)
+          );
+          this.ctx.stroke();
+        }
         break;
 
       case CELL_TYPES.TURN_RIGHT_UP:
         // Поворот направо-вверх
         const radius1RU = CELL_SIZE / 2 - RAIL_WIDTH;
         const radius2RU = CELL_SIZE / 2 + RAIL_WIDTH;
+        const centerRU = { x: cellX + CELL_SIZE, y: cellY };
         
         // Внутренняя дуга
         this.ctx.beginPath();
-        this.ctx.arc(cellX + CELL_SIZE, cellY, radius1RU, Math.PI / 2, Math.PI);
+        this.ctx.arc(centerRU.x, centerRU.y, radius1RU, Math.PI / 2, Math.PI);
         this.ctx.stroke();
         
         // Внешняя дуга
         this.ctx.beginPath();
-        this.ctx.arc(cellX + CELL_SIZE, cellY, radius2RU, Math.PI / 2, Math.PI);
+        this.ctx.arc(centerRU.x, centerRU.y, radius2RU, Math.PI / 2, Math.PI);
         this.ctx.stroke();
+        
+        // Добавляем шпалы
+        const numTiesRU = Math.floor((Math.PI/2 * CELL_SIZE/2) / TIE_SPACING);
+        const tieAngleSpacingRU = Math.PI/2 / numTiesRU;
+        
+        for (let i = 0; i < numTiesRU; i++) {
+          const angle = Math.PI/2 + i * tieAngleSpacingRU + tieAngleSpacingRU / 2;
+          
+          this.ctx.beginPath();
+          this.ctx.moveTo(
+            centerRU.x + (radius1RU - TIE_WIDTH/2) * Math.cos(angle), 
+            centerRU.y + (radius1RU - TIE_WIDTH/2) * Math.sin(angle)
+          );
+          this.ctx.lineTo(
+            centerRU.x + (radius2RU + TIE_WIDTH/2) * Math.cos(angle), 
+            centerRU.y + (radius2RU + TIE_WIDTH/2) * Math.sin(angle)
+          );
+          this.ctx.stroke();
+        }
         break;
 
       case CELL_TYPES.TURN_LEFT_UP:
         // Поворот налево-вверх
         const radius1LU = CELL_SIZE / 2 - RAIL_WIDTH;
         const radius2LU = CELL_SIZE / 2 + RAIL_WIDTH;
+        const centerLU = { x: cellX, y: cellY };
         
         // Внутренняя дуга
         this.ctx.beginPath();
-        this.ctx.arc(cellX, cellY, radius1LU, 0, Math.PI / 2);
+        this.ctx.arc(centerLU.x, centerLU.y, radius1LU, 0, Math.PI / 2);
         this.ctx.stroke();
         
         // Внешняя дуга
         this.ctx.beginPath();
-        this.ctx.arc(cellX, cellY, radius2LU, 0, Math.PI / 2);
+        this.ctx.arc(centerLU.x, centerLU.y, radius2LU, 0, Math.PI / 2);
         this.ctx.stroke();
+        
+        // Добавляем шпалы
+        const numTiesLU = Math.floor((Math.PI/2 * CELL_SIZE/2) / TIE_SPACING);
+        const tieAngleSpacingLU = Math.PI/2 / numTiesLU;
+        
+        for (let i = 0; i < numTiesLU; i++) {
+          const angle = i * tieAngleSpacingLU + tieAngleSpacingLU / 2;
+          
+          this.ctx.beginPath();
+          this.ctx.moveTo(
+            centerLU.x + (radius1LU - TIE_WIDTH/2) * Math.cos(angle), 
+            centerLU.y + (radius1LU - TIE_WIDTH/2) * Math.sin(angle)
+          );
+          this.ctx.lineTo(
+            centerLU.x + (radius2LU + TIE_WIDTH/2) * Math.cos(angle), 
+            centerLU.y + (radius2LU + TIE_WIDTH/2) * Math.sin(angle)
+          );
+          this.ctx.stroke();
+        }
         break;
 
       case CELL_TYPES.EMPTY:
@@ -280,7 +440,7 @@ class Game {
     this.ctx.translate(this.train.pixelX, this.train.pixelY);
     this.ctx.rotate(this.train.direction);
     this.ctx.fillStyle = "#f00";
-    this.ctx.font = "24px Arial";
+    this.ctx.font = "32px Arial";
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
     this.ctx.fillText("🚃", 0, 0);
