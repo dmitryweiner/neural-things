@@ -42,8 +42,8 @@ class Game {
       pixelY: (0 + 0.5) * CELL_SIZE, // Center of the cell
     };
     
-    // Создаем псевдослучайные зеленые пятна для каждой клетки
-    this.generateGreenPatches();
+    // Создаем псевдослучайные зеленые пятна для всего фона
+    this.generateBackground();
   }
   
   // Функция для генерации псевдослучайного числа на основе seed
@@ -52,36 +52,47 @@ class Game {
     return x - Math.floor(x);
   }
   
-  // Генерация зеленых пятен для всей сетки
-  generateGreenPatches() {
-    this.greenPatches = [];
+  // Генерация единого фонового изображения для всей игры
+  generateBackground() {
+    // Создаем отдельный canvas для фона
+    this.backgroundCanvas = document.createElement('canvas');
+    this.backgroundCanvas.width = this.canvas.width;
+    this.backgroundCanvas.height = this.canvas.height;
+    const bgCtx = this.backgroundCanvas.getContext('2d');
     
+    // Заполняем базовым зеленым цветом
+    bgCtx.fillStyle = "#a5ed32"; // LightGreen - базовый цвет травы
+    bgCtx.fillRect(0, 0, this.backgroundCanvas.width, this.backgroundCanvas.height);
+    
+    // Количество зеленых пятен (примерно 8 на клетку)
+    const totalPatches = Math.floor(GRID_WIDTH * GRID_HEIGHT * 8);
+    
+    for (let i = 0; i < totalPatches; i++) {
+      // Используем i как часть seed для случайности
+      const patchSeed = i * 100;
+      
+      // Размер пятна (от 3 до 8 пикселей)
+      const size = 3 + this.seededRandom(patchSeed) * 5;
+      
+      // Положение пятна на всем поле
+      const patchX = this.seededRandom(patchSeed + 1) * this.backgroundCanvas.width;
+      const patchY = this.seededRandom(patchSeed + 2) * this.backgroundCanvas.height;
+      
+      // Цвет пятна (оттенок зеленого)
+      const greenValue = 220 + Math.floor(this.seededRandom(patchSeed + 3) * 40);
+      const color = `rgb(0, ${greenValue}, 0)`;
+      
+      bgCtx.fillStyle = color;
+      bgCtx.beginPath();
+      bgCtx.arc(patchX, patchY, size, 0, Math.PI * 2);
+      bgCtx.fill();
+    }
+    
+    // Рисуем сетку для ориентировки
+    bgCtx.strokeStyle = "#ccc";
     for (let y = 0; y < GRID_HEIGHT; y++) {
-      this.greenPatches[y] = [];
       for (let x = 0; x < GRID_WIDTH; x++) {
-        // Генерируем от 6 до 12 пятен для каждой клетки
-        const patchCount = 6 + Math.floor(this.seededRandom(x * 1000 + y) * 7);
-        const patches = [];
-        
-        for (let i = 0; i < patchCount; i++) {
-          // Используем разные seed для разных характеристик пятна
-          const patchSeed = x * 10000 + y * 100 + i;
-          
-          // Размер пятна (от 3 до 8 пикселей)
-          const size = 3 + this.seededRandom(patchSeed) * 5;
-          
-          // Положение пятна внутри клетки
-          const patchX = this.seededRandom(patchSeed + 1) * CELL_SIZE;
-          const patchY = this.seededRandom(patchSeed + 2) * CELL_SIZE;
-          
-          // Цвет пятна (оттенок зеленого)
-          const greenValue = 220 + Math.floor(this.seededRandom(patchSeed + 3) * 40);
-          const color = `rgb(0, ${greenValue}, 0)`;
-          
-          patches.push({ x: patchX, y: patchY, size, color });
-        }
-        
-        this.greenPatches[y][x] = patches;
+        bgCtx.strokeRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
       }
     }
   }
@@ -182,8 +193,11 @@ class Game {
   draw() {
     // Clear canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    
+    // Draw background
+    this.ctx.drawImage(this.backgroundCanvas, 0, 0);
 
-    // Draw grid
+    // Draw grid (rails only)
     for (let y = 0; y < GRID_HEIGHT; y++) {
       for (let x = 0; x < GRID_WIDTH; x++) {
         const cellType = this.grid[y][x];
@@ -200,23 +214,6 @@ class Game {
     const cellY = y * CELL_SIZE;
     const centerX = cellX + CELL_SIZE / 2;
     const centerY = cellY + CELL_SIZE / 2;
-
-    // Draw cell background
-    this.ctx.fillStyle = "#a5ed32"; // LightGreen - базовый цвет травы
-    this.ctx.fillRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
-    
-    // Рисуем зеленые пятна для эффекта травы
-    const patches = this.greenPatches[y][x];
-    for (const patch of patches) {
-      this.ctx.fillStyle = patch.color;
-      this.ctx.beginPath();
-      this.ctx.arc(cellX + patch.x, cellY + patch.y, patch.size, 0, Math.PI * 2);
-      this.ctx.fill();
-    }
-    
-    // Рамка клетки
-    this.ctx.strokeStyle = "#ccc";
-    this.ctx.strokeRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
 
     // Настройки линий для рельсов
     this.ctx.strokeStyle = "#555"; // Серый цвет для рельсов
@@ -433,7 +430,7 @@ class Game {
         break;
 
       case CELL_TYPES.EMPTY:
-        // Пустая клетка
+        // Пустая клетка - ничего не рисуем
         break;
 
       default:

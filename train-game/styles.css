@@ -6,6 +6,8 @@ body {
     align-items: center;
     min-height: 100vh;
     background-color: #f0f0f0;
+    overflow-x: auto;
+    width: 100%;
 }
 
 #game-container {
@@ -51,9 +53,11 @@ body {
 #mobile-warning {
     display: none; /* По умолчанию скрыто */
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    max-width: 400px;
     padding: 15px;
     background-color: #ff9800;
     color: #fff;
@@ -61,6 +65,7 @@ body {
     font-weight: bold;
     z-index: 1000;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
 }
 
 /* Отображаем предупреждение только на экранах меньше 900px */
@@ -73,9 +78,14 @@ body {
         padding-top: 50px; /* Добавляем отступ сверху, чтобы предупреждение не перекрывало контент */
         align-items: flex-start; /* Меняем выравнивание для возможности прокрутки */
         padding-bottom: 20px; /* Добавляем отступ снизу для лучшей видимости при прокрутке */
+        justify-content: center; /* Center content horizontally */
+        padding-left: 0; /* Remove left padding since we're centering */
     }
     
     #game-container {
         margin-top: 20px; /* Добавляем отступ сверху для контейнера игры */
+        max-width: 100%; /* Ensure the game container respects viewport width */
+        margin-left: auto; /* Center the container */
+        margin-right: auto; /* Center the container */
     }
 } 
