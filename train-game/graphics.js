@@ -308,12 +308,32 @@ function drawTrain(ctx, train) {
   ctx.restore();
 }
 
+// New function to draw different train parts
+function drawTrainPart(ctx, part) {
+  ctx.save();
+  ctx.translate(part.pixelX, part.pixelY);
+  ctx.rotate(part.direction);
+  ctx.font = "30px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  
+  // Draw different emoji based on part type
+  if (part.type === 'locomotive') {
+    ctx.fillText("🚃", 0, 0); // Locomotive
+  } else if (part.type === 'wagon') {
+    ctx.fillText("🚋", 0, 0); // Wagon
+  }
+  
+  ctx.restore();
+}
+
 // Экспортируем функции для тестирования
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     seededRandom,
     generateBackground,
     drawCell,
-    drawTrain
+    drawTrain,
+    drawTrainPart
   };
 } 
