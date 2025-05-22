@@ -17,7 +17,16 @@ function seededRandom(seed) {
 // Генерация единого фонового изображения для всей игры
 function generateBackground(canvas) {
   // Создаем отдельный canvas для фона
-  const backgroundCanvas = document.createElement('canvas');
+  let backgroundCanvas;
+  if (typeof document !== 'undefined') {
+    // Браузерное окружение
+    backgroundCanvas = document.createElement('canvas');
+  } else {
+    // Node.js окружение (для тестов)
+    const { createCanvas } = require('canvas');
+    backgroundCanvas = createCanvas(canvas.width, canvas.height);
+  }
+  
   backgroundCanvas.width = canvas.width;
   backgroundCanvas.height = canvas.height;
   const bgCtx = backgroundCanvas.getContext('2d');

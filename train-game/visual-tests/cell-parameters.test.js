@@ -1,3 +1,4 @@
+const { createCanvas } = require('canvas');
 const { createTestCanvas, compareCanvasWithReference } = require('./setup');
 const { drawCell } = require('../graphics');
 

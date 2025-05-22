@@ -3,38 +3,28 @@ const { PNG } = require('pngjs');
 const fs = require('fs');
 const pixelmatch = require('pixelmatch');
 const path = require('path');
+const { 
+  CELL_SIZE, 
+  RAIL_WIDTH, 
+  TIE_WIDTH, 
+  TIE_SPACING, 
+  GRID_WIDTH, 
+  GRID_HEIGHT,
+  CELL_TYPES,
+  DIRECTIONS,
+  TURN_DIRECTIONS
+} = require('../constants');
 
-// Константы, необходимые для отрисовки
-global.CELL_SIZE = 40;
-global.RAIL_WIDTH = 3;
-global.TIE_WIDTH = 2;
-global.TIE_SPACING = 10;
-global.GRID_WIDTH = 15;
-global.GRID_HEIGHT = 10;
-global.CELL_TYPES = {
-  RAIL_H: "-",
-  RAIL_V: "|",
-  TURN_RIGHT_DOWN: "┌",
-  TURN_LEFT_DOWN: "┐",
-  TURN_RIGHT_UP: "└",
-  TURN_LEFT_UP: "┘",
-  EMPTY: " "
-};
-
-// Директории для хранения TURN_DIRECTIONS для использования в тестах
-global.DIRECTIONS = {
-  right: 0,
-  down: Math.PI / 2,
-  left: Math.PI,
-  up: Math.PI * 3 / 2
-};
-
-global.TURN_DIRECTIONS = {
-  "┌": { [DIRECTIONS.right]: DIRECTIONS.down },
-  "┐": { [DIRECTIONS.left]: DIRECTIONS.down },
-  "└": { [DIRECTIONS.up]: DIRECTIONS.right },
-  "┘": { [DIRECTIONS.up]: DIRECTIONS.left }
-};
+// Устанавливаем глобальные константы для тестов
+global.CELL_SIZE = CELL_SIZE;
+global.RAIL_WIDTH = RAIL_WIDTH;
+global.TIE_WIDTH = TIE_WIDTH;
+global.TIE_SPACING = TIE_SPACING;
+global.GRID_WIDTH = GRID_WIDTH;
+global.GRID_HEIGHT = GRID_HEIGHT;
+global.CELL_TYPES = CELL_TYPES;
+global.DIRECTIONS = DIRECTIONS;
+global.TURN_DIRECTIONS = TURN_DIRECTIONS;
 
 // Служебная функция для сравнения изображений
 function compareCanvasWithReference(canvas, referenceName, threshold = 0.1) {
