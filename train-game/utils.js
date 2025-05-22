@@ -71,7 +71,7 @@ function calculateTurnPosition(cellType, cellX, cellY, pixelX, pixelY, direction
   const theta = Math.atan2(dy, dx);
   
   // Изменение угла за время deltaTime
-  const deltaTheta = speed * deltaTime * (clockwise ? 1 : -1);
+  const deltaTheta = 2 * speed * deltaTime * (clockwise ? 1 : -1);
 
   const newTheta = theta + deltaTheta;
 

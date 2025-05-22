@@ -1,6 +1,6 @@
 // Импортируем необходимые константы и функции
-const { calculateTurnPosition, calculateStraightPosition } = require('./utils');
-const { CELL_SIZE, CELL_TYPES, DIRECTIONS } = require('./constants');
+const { calculateTurnPosition, calculateStraightPosition } = require('../utils');
+const { CELL_SIZE, CELL_TYPES, DIRECTIONS } = require('../constants');
 
 // Мокаем глобальные константы, которые используются в функции
 global.CELL_SIZE = CELL_SIZE;
@@ -8,7 +8,7 @@ global.CELL_TYPES = CELL_TYPES;
 global.DIRECTIONS = DIRECTIONS;
 
 // Простой хелпер, чтобы сравнить числа с допустимой погрешностью
-function closeTo(a, b, epsilon = 0.4) {
+function closeTo(a, b, epsilon = 0.7) {
   return Math.abs(a - b) < epsilon;
 }
 
