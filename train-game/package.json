@@ -4,7 +4,8 @@
   "description": "A simple train game with canvas",
   "main": "game.js",
   "scripts": {
-    "test": "jest tests/*",
+    "test": "yarn test:unit && yarn test:visual",
+    "test:unit": "jest tests/*",
     "test:visual": "jest visual-tests/*",
     "test:visual:update": "rm -rf visual-tests/fixtures && jest visual-tests/*"
   },

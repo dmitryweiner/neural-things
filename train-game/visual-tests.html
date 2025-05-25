@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Train Game Switch Visual Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        canvas {
+            border: 1px solid #333;
+            margin: 20px 0;
+        }
+        .test-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .test-description {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 600px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .status {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Train Game Switch Visual Tests</h1>
+    
+    <div class="test-description">
+        <p>This page allows you to test the switch functionality of the train game. Click on a switch to toggle its state between straight and turning.</p>
+        <p>The grid below contains different types of switches. Train parts will move according to the switch states.</p>
+        <p>Notice how a switch has different behavior when a train approaches from the "back side".</p>
+    </div>
+    
+    <div class="test-controls">
+        <button id="toggleTrain">Start/Stop Train</button>
+        <button id="resetTest">Reset Test</button>
+    </div>
+    
+    <div class="status" id="statusText">Click a switch to change its state</div>
+    
+    <canvas id="testCanvas" width="600" height="400"></canvas>
+    
+    <script>
+        // Include constants
+        const CELL_SIZE = 40;
+        const GRID_WIDTH = 15;
+        const GRID_HEIGHT = 10;
+        
+        // Direction angles in radians
+        const DIRECTIONS = {
+            right: 0,
+            down: Math.PI / 2,
+            left: Math.PI,
+            up: -Math.PI / 2
+        };
+        
+        // Cell types
+        const CELL_TYPES = {
+            EMPTY: " ",
+            RAIL_H: "-",
+            RAIL_V: "|",
+            TURN_RIGHT_DOWN: "┐",
+            TURN_LEFT_DOWN: "┌",
+            TURN_LEFT_UP: "┘",
+            TURN_RIGHT_UP: "└",
+            SWITCH_RIGHT_DOWN_V: "┐|",
+            SWITCH_LEFT_DOWN_V: "|┌",
+            SWITCH_LEFT_UP_V: "┘|",
+            SWITCH_RIGHT_UP_V: "|└",
+            SWITCH_RIGHT_DOWN_H: "┐-",
+            SWITCH_LEFT_DOWN_H: "-┌",
+            SWITCH_LEFT_UP_H: "┘-",
+            SWITCH_RIGHT_UP_H: "-└"
+        };
+        
+        // Train states
+        const TRAIN_STATES = {
+            RUNNING: "running",
+            STOPPED: "stopped",
+            CRASHED: "crashed"
+        };
+        
+        class SwitchTest {
+            constructor() {
+                this.canvas = document.getElementById("testCanvas");
+                this.ctx = this.canvas.getContext("2d");
+                this.statusText = document.getElementById("statusText");
+                this.toggleButton = document.getElementById("toggleTrain");
+                this.resetButton = document.getElementById("resetTest");
+                
+                this.lastTime = 0;
+                this.setupGrid();
+                this.setupEventListeners();
+                this.gameLoop();
+            }
+            
+            setupGrid() {
+                // Create test grid with different switch types
+                this.grid = [
+                    [" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " "],
+                    [" ", " ", " ", CELL_TYPES.RAIL_H, CELL_TYPES.RAIL_H, CELL_TYPES.SWITCH_LEFT_DOWN_H, CELL_TYPES.RAIL_V, " ", " ", " ", " ", " ", " ", " ", " "],
+                    [" ", " ", " ", " ", " ", CELL_TYPES.RAIL_V, CELL_TYPES.RAIL_V, " ", " ", " ", " ", " ", " ", " ", " "],
+                    [" ", " ", " ", " ", " ", CELL_TYPES.RAIL_V, CELL_TYPES.SWITCH_RIGHT_UP_V, CELL_TYPES.RAIL_H, CELL_TYPES.RAIL_H, CELL_TYPES.RAIL_H, " ", " ", " ", " ", " "],
+                    [" ", " ", " ", " ", " ", CELL_TYPES.RAIL_V, " ", " ", " ", " ", " ", " ", " ", " ", " "],
+                    [" ", " ", " ", " ", " ", CELL_TYPES.SWITCH_LEFT_UP_V, CELL_TYPES.RAIL_H, CELL_TYPES.RAIL_H, CELL_TYPES.RAIL_H, CELL_TYPES.SWITCH_RIGHT_DOWN_H, CELL_TYPES.RAIL_V, " ", " ", " ", " "],
+                    [" ", " ", " ", " ", " ", " ", " ", " ", " ", CELL_TYPES.RAIL_V, CELL_TYPES.RAIL_V, " ", " ", " ", " "],
+                    [" ", " ", " ", " ", " ", " ", " ", " ", " ", CELL_TYPES.RAIL_V, CELL_TYPES.SWITCH_RIGHT_UP_V, CELL_TYPES.RAIL_H, CELL_TYPES.RAIL_H, " ", " "],
+                    [" ", " ", " ", " ", " ", " ", " ", " ", " ", CELL_TYPES.RAIL_V, " ", " ", " ", " ", " "],
+                    [" ", " ", " ", " ", " ", " ", " ", " ", " ", CELL_TYPES.RAIL_V, " ", " ", " ", " ", " "]
+                ];
+                
+                // Initialize switch states
+                this.switchStates = {};
+                
+                // Scan grid for switches and set default states
+                for (let y = 0; y < this.grid.length; y++) {
+                    for (let x = 0; x < this.grid[y].length; x++) {
+                        const cell = this.grid[y][x];
+                        if (this.isSwitchCell(cell)) {
+                            this.switchStates[`${x},${y}`] = { 
+                                state: 'straight', // Default state
+                                isStraight: true
+                            };
+                        }
+                    }
+                }
+                
+                // Create train
+                this.trainParts = [{
+                    type: 'locomotive',
+                    x: 3,
+                    y: 1,
+                    direction: DIRECTIONS.right,
+                    state: TRAIN_STATES.STOPPED,
+                    speed: 0.5,
+                    pixelX: (3 + 0.5) * CELL_SIZE,
+                    pixelY: (1 + 0.5) * CELL_SIZE
+                }, {
+                    type: 'wagon',
+                    x: 2,
+                    y: 1,
+                    direction: DIRECTIONS.right,
+                    speed: 0.5,
+                    pixelX: (2 + 0.5) * CELL_SIZE,
+                    pixelY: (1 + 0.5) * CELL_SIZE
+                }];
+            }
+            
+            setupEventListeners() {
+                // Handle click/touch on canvas to toggle switches
+                const handleInteraction = (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    
+                    // Get coordinates
+                    let clientX, clientY;
+                    if (e.type === 'touchend') {
+                        e.preventDefault();
+                        const touch = e.changedTouches[0];
+                        clientX = touch.clientX;
+                        clientY = touch.clientY;
+                    } else {
+                        clientX = e.clientX;
+                        clientY = e.clientY;
+                    }
+                    
+                    const x = Math.floor((clientX - rect.left) / CELL_SIZE);
+                    const y = Math.floor((clientY - rect.top) / CELL_SIZE);
+                    
+                    // Check if valid grid position
+                    if (x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT) {
+                        const cellType = this.grid[y][x];
+                        if (this.isSwitchCell(cellType)) {
+                            if (this.isTrainOnSwitch(x, y)) {
+                                this.statusText.textContent = "Cannot toggle switch while train is on it!";
+                                return;
+                            }
+                            
+                            // Toggle switch state
+                            const key = `${x},${y}`;
+                            if (this.switchStates[key]) {
+                                this.switchStates[key].isStraight = !this.switchStates[key].isStraight;
+                                this.switchStates[key].state = this.switchStates[key].isStraight ? 'straight' : 'turning';
+                                
+                                this.statusText.textContent = `Switch at (${x}, ${y}) set to ${this.switchStates[key].state}`;
+                            }
+                        }
+                    }
+                };
+                
+                // Mouse and touch events
+                this.canvas.addEventListener("click", handleInteraction);
+                this.canvas.addEventListener("touchend", handleInteraction);
+                this.canvas.addEventListener("touchstart", (e) => {
+                    if (e.touches.length === 1) e.preventDefault();
+                }, { passive: false });
+                
+                // Train control
+                this.toggleButton.addEventListener("click", () => {
+                    const locomotive = this.trainParts[0];
+                    if (locomotive.state === TRAIN_STATES.RUNNING) {
+                        locomotive.state = TRAIN_STATES.STOPPED;
+                        this.toggleButton.textContent = "Start Train";
+                    } else {
+                        locomotive.state = TRAIN_STATES.RUNNING;
+                        this.toggleButton.textContent = "Stop Train";
+                    }
+                });
+                
+                // Reset button
+                this.resetButton.addEventListener("click", () => {
+                    this.setupGrid();
+                    this.statusText.textContent = "Test reset. Click a switch to change its state.";
+                    this.toggleButton.textContent = "Start Train";
+                });
+            }
+            
+            gameLoop(currentTime = 0) {
+                const deltaTime = (currentTime - this.lastTime) / 1000;
+                this.lastTime = currentTime;
+                
+                this.update(deltaTime);
+                this.draw();
+                requestAnimationFrame((time) => this.gameLoop(time));
+            }
+            
+            update(deltaTime) {
+                const locomotive = this.trainParts[0];
+                if (locomotive.state !== TRAIN_STATES.RUNNING) return;
+                
+                // Get current cell type
+                const currentCellType = this.grid[locomotive.y][locomotive.x];
+                
+                // Determine if it's a turning cell or a switch
+                let shouldTurn = false;
+                
+                if (this.isSwitchCell(currentCellType)) {
+                    const key = `${locomotive.x},${locomotive.y}`;
+                    const switchState = this.switchStates[key];
+                    
+                    // Check approach direction
+                    if (this.isApproachingFromBackSide(currentCellType, locomotive.direction)) {
+                        shouldTurn = false; // Always go straight from back side
+                    } else if (switchState) {
+                        shouldTurn = !switchState.isStraight; // Turn if switch is set to turn
+                    }
+                } else {
+                    // For normal turns
+                    shouldTurn = this.isTurnCell(currentCellType);
+                }
+                
+                // Calculate next position
+                const nextPosition = this.calculateNextPosition(
+                    currentCellType,
+                    shouldTurn,
+                    locomotive.x,
+                    locomotive.y,
+                    locomotive.pixelX,
+                    locomotive.pixelY,
+                    locomotive.direction,
+                    locomotive.speed,
+                    deltaTime
+                );
+                
+                // Update position
+                locomotive.pixelX = nextPosition.x;
+                locomotive.pixelY = nextPosition.y;
+                locomotive.direction = nextPosition.direction;
+                
+                // Check if moved to new cell
+                const nextGridX = Math.floor(locomotive.pixelX / CELL_SIZE);
+                const nextGridY = Math.floor(locomotive.pixelY / CELL_SIZE);
+                
+                if (nextGridX !== locomotive.x || nextGridY !== locomotive.y) {
+                    if (this.isValidMove(nextGridX, nextGridY)) {
+                        locomotive.x = nextGridX;
+                        locomotive.y = nextGridY;
+                    } else {
+                        locomotive.state = TRAIN_STATES.CRASHED;
+                        this.statusText.textContent = "Train crashed! Reset to try again.";
+                        return;
+                    }
+                }
+                
+                // Update wagons
+                this.updateWagons(deltaTime);
+            }
+            
+            updateWagons(deltaTime) {
+                // Simple follow-the-leader for wagons
+                for (let i = 1; i < this.trainParts.length; i++) {
+                    const wagon = this.trainParts[i];
+                    const leader = this.trainParts[i - 1];
+                    
+                    // Use same speed as locomotive
+                    wagon.speed = this.trainParts[0].speed;
+                    
+                    // Get current cell
+                    const currentCellType = this.grid[wagon.y][wagon.x];
+                    
+                    // Determine movement (same logic as locomotive)
+                    let shouldTurn = false;
+                    
+                    if (this.isSwitchCell(currentCellType)) {
+                        const key = `${wagon.x},${wagon.y}`;
+                        const switchState = this.switchStates[key];
+                        
+                        if (this.isApproachingFromBackSide(currentCellType, wagon.direction)) {
+                            shouldTurn = false;
+                        } else if (switchState) {
+                            shouldTurn = !switchState.isStraight;
+                        }
+                    } else {
+                        shouldTurn = this.isTurnCell(currentCellType);
+                    }
+                    
+                    // Calculate next position
+                    const nextPosition = this.calculateNextPosition(
+                        currentCellType,
+                        shouldTurn,
+                        wagon.x,
+                        wagon.y,
+                        wagon.pixelX,
+                        wagon.pixelY,
+                        wagon.direction,
+                        wagon.speed,
+                        deltaTime
+                    );
+                    
+                    // Update position
+                    wagon.pixelX = nextPosition.x;
+                    wagon.pixelY = nextPosition.y;
+                    wagon.direction = nextPosition.direction;
+                    
+                    // Check if moved to new cell
+                    const nextGridX = Math.floor(wagon.pixelX / CELL_SIZE);
+                    const nextGridY = Math.floor(wagon.pixelY / CELL_SIZE);
+                    
+                    if (nextGridX !== wagon.x || nextGridY !== wagon.y) {
+                        if (this.isValidMove(nextGridX, nextGridY)) {
+                            wagon.x = nextGridX;
+                            wagon.y = nextGridY;
+                        } else {
+                            this.trainParts[0].state = TRAIN_STATES.CRASHED;
+                            this.statusText.textContent = "Train crashed! Reset to try again.";
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            // Helper methods
+            isSwitchCell(cellType) {
+                return cellType.includes("|") || (cellType.includes("-") && (cellType.includes("┌") || 
+                       cellType.includes("┐") || cellType.includes("└") || cellType.includes("┘")));
+            }
+            
+            isTurnCell(cellType) {
+                return [
+                    CELL_TYPES.TURN_RIGHT_DOWN,
+                    CELL_TYPES.TURN_LEFT_DOWN,
+                    CELL_TYPES.TURN_LEFT_UP,
+                    CELL_TYPES.TURN_RIGHT_UP
+                ].includes(cellType);
+            }
+            
+            isApproachingFromBackSide(cellType, direction) {
+                // For vertical switches ("|┌", "┐|", etc.)
+                if (cellType.includes("|")) {
+                    // If approaching from vertical direction (up/down)
+                    const normalizedDirection = ((direction % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+                    return Math.abs(normalizedDirection - Math.PI/2) < 0.1 || 
+                           Math.abs(normalizedDirection - Math.PI*1.5) < 0.1;
+                } 
+                // For horizontal switches ("-┌", "┐-", etc.)
+                else if (cellType.includes("-")) {
+                    // If approaching from horizontal direction (left/right)
+                    const normalizedDirection = ((direction % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+                    return Math.abs(normalizedDirection) < 0.1 || 
+                           Math.abs(normalizedDirection - Math.PI) < 0.1;
+                }
+                
+                return false;
+            }
+            
+            isTrainOnSwitch(x, y) {
+                return this.trainParts.some(part => part.x === x && part.y === y);
+            }
+            
+            isValidMove(x, y) {
+                if (x < 0 || x >= GRID_WIDTH || y < 0 || y >= GRID_HEIGHT) {
+                    return false;
+                }
+                return this.grid[y][x] !== CELL_TYPES.EMPTY;
+            }
+            
+            // Simplified movement calculation for visual testing
+            calculateNextPosition(cellType, shouldTurn, cellX, cellY, pixelX, pixelY, direction, speed, deltaTime) {
+                let nextX = pixelX;
+                let nextY = pixelY;
+                let nextDirection = direction;
+                
+                if (shouldTurn) {
+                    // Simplified turn logic - just change direction gradually
+                    if (cellType.includes("┐")) { // Right-down or right-up turn
+                        if (Math.abs(direction - DIRECTIONS.right) < 0.1) {
+                            nextDirection = direction + speed * deltaTime; // Turn clockwise
+                        } else if (Math.abs(direction - DIRECTIONS.down) < 0.1 || Math.abs(direction - DIRECTIONS.up) < 0.1) {
+                            nextDirection = direction - speed * deltaTime; // Turn counter-clockwise
+                        }
+                    } else if (cellType.includes("┌")) { // Left-down or left-up turn
+                        if (Math.abs(direction - DIRECTIONS.left) < 0.1) {
+                            nextDirection = direction - speed * deltaTime; // Turn counter-clockwise
+                        } else if (Math.abs(direction - DIRECTIONS.down) < 0.1 || Math.abs(direction - DIRECTIONS.up) < 0.1) {
+                            nextDirection = direction + speed * deltaTime; // Turn clockwise
+                        }
+                    } else if (cellType.includes("┘")) { // Left-up or right-up turn
+                        if (Math.abs(direction - DIRECTIONS.left) < 0.1 || Math.abs(direction - DIRECTIONS.right) < 0.1) {
+                            nextDirection = direction + speed * deltaTime; // Turn clockwise
+                        } else if (Math.abs(direction - DIRECTIONS.down) < 0.1) {
+                            nextDirection = direction - speed * deltaTime; // Turn counter-clockwise
+                        }
+                    } else if (cellType.includes("└")) { // Right-up or left-up turn
+                        if (Math.abs(direction - DIRECTIONS.left) < 0.1 || Math.abs(direction - DIRECTIONS.right) < 0.1) {
+                            nextDirection = direction - speed * deltaTime; // Turn counter-clockwise
+                        } else if (Math.abs(direction - DIRECTIONS.down) < 0.1) {
+                            nextDirection = direction + speed * deltaTime; // Turn clockwise
+                        }
+                    }
+                }
+                
+                // Update position based on direction
+                nextX += Math.cos(nextDirection) * speed * CELL_SIZE * deltaTime;
+                nextY += Math.sin(nextDirection) * speed * CELL_SIZE * deltaTime;
+                
+                return { x: nextX, y: nextY, direction: nextDirection };
+            }
+            
+            draw() {
+                // Clear canvas
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw grid with rails
+                for (let y = 0; y < GRID_HEIGHT; y++) {
+                    for (let x = 0; x < GRID_WIDTH; x++) {
+                        const cellType = this.grid[y][x];
+                        if (cellType !== CELL_TYPES.EMPTY) {
+                            this.drawCell(x, y, cellType);
+                        }
+                    }
+                }
+                
+                // Draw train
+                this.trainParts.forEach(part => {
+                    this.drawTrainPart(part);
+                });
+            }
+            
+            drawCell(x, y, cellType) {
+                const centerX = (x + 0.5) * CELL_SIZE;
+                const centerY = (y + 0.5) * CELL_SIZE;
+                
+                // Draw base rails
+                this.ctx.strokeStyle = "#333";
+                this.ctx.lineWidth = 2;
+                
+                if (this.isSwitchCell(cellType)) {
+                    // Draw switch with state indicator
+                    const switchState = this.switchStates[`${x},${y}`];
+                    const isStraight = switchState ? switchState.isStraight : true;
+                    
+                    // Draw base rail
+                    this.ctx.beginPath();
+                    
+                    if (cellType.includes("|")) {
+                        // Vertical base
+                        this.ctx.moveTo(centerX, y * CELL_SIZE);
+                        this.ctx.lineTo(centerX, (y + 1) * CELL_SIZE);
+                    } else if (cellType.includes("-")) {
+                        // Horizontal base
+                        this.ctx.moveTo(x * CELL_SIZE, centerY);
+                        this.ctx.lineTo((x + 1) * CELL_SIZE, centerY);
+                    }
+                    
+                    this.ctx.stroke();
+                    
+                    // Draw turn part based on switch type
+                    this.ctx.beginPath();
+                    
+                    if (cellType === CELL_TYPES.SWITCH_RIGHT_UP_V) {
+                        this.ctx.moveTo(centerX, y * CELL_SIZE);
+                        this.ctx.lineTo((x + 1) * CELL_SIZE, centerY);
+                    } else if (cellType === CELL_TYPES.SWITCH_LEFT_UP_V) {
+                        this.ctx.moveTo(centerX, y * CELL_SIZE);
+                        this.ctx.lineTo(x * CELL_SIZE, centerY);
+                    } else if (cellType === CELL_TYPES.SWITCH_RIGHT_DOWN_V) {
+                        this.ctx.moveTo(centerX, (y + 1) * CELL_SIZE);
+                        this.ctx.lineTo((x + 1) * CELL_SIZE, centerY);
+                    } else if (cellType === CELL_TYPES.SWITCH_LEFT_DOWN_V) {
+                        this.ctx.moveTo(centerX, (y + 1) * CELL_SIZE);
+                        this.ctx.lineTo(x * CELL_SIZE, centerY);
+                    } else if (cellType === CELL_TYPES.SWITCH_RIGHT_UP_H) {
+                        this.ctx.moveTo((x + 1) * CELL_SIZE, centerY);
+                        this.ctx.lineTo(centerX, y * CELL_SIZE);
+                    } else if (cellType === CELL_TYPES.SWITCH_LEFT_UP_H) {
+                        this.ctx.moveTo(x * CELL_SIZE, centerY);
+                        this.ctx.lineTo(centerX, y * CELL_SIZE);
+                    } else if (cellType === CELL_TYPES.SWITCH_RIGHT_DOWN_H) {
+                        this.ctx.moveTo((x + 1) * CELL_SIZE, centerY);
+                        this.ctx.lineTo(centerX, (y + 1) * CELL_SIZE);
+                    } else if (cellType === CELL_TYPES.SWITCH_LEFT_DOWN_H) {
+                        this.ctx.moveTo(x * CELL_SIZE, centerY);
+                        this.ctx.lineTo(centerX, (y + 1) * CELL_SIZE);
+                    }
+                    
+                    this.ctx.stroke();
+                    
+                    // Draw switch state indicator
+                    this.ctx.beginPath();
+                    this.ctx.fillStyle = isStraight ? "#00AA00" : "#FF5500";
+                    this.ctx.arc(centerX, centerY, CELL_SIZE / 6, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                } else if (cellType === CELL_TYPES.RAIL_H) {
+                    // Horizontal rail
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x * CELL_SIZE, centerY);
+                    this.ctx.lineTo((x + 1) * CELL_SIZE, centerY);
+                    this.ctx.stroke();
+                } else if (cellType === CELL_TYPES.RAIL_V) {
+                    // Vertical rail
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(centerX, y * CELL_SIZE);
+                    this.ctx.lineTo(centerX, (y + 1) * CELL_SIZE);
+                    this.ctx.stroke();
+                } else if (cellType === CELL_TYPES.TURN_RIGHT_DOWN) {
+                    // Right-down turn
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x * CELL_SIZE, centerY);
+                    this.ctx.lineTo(centerX, centerY);
+                    this.ctx.lineTo(centerX, (y + 1) * CELL_SIZE);
+                    this.ctx.stroke();
+                } else if (cellType === CELL_TYPES.TURN_LEFT_DOWN) {
+                    // Left-down turn
+                    this.ctx.beginPath();
+                    this.ctx.moveTo((x + 1) * CELL_SIZE, centerY);
+                    this.ctx.lineTo(centerX, centerY);
+                    this.ctx.lineTo(centerX, (y + 1) * CELL_SIZE);
+                    this.ctx.stroke();
+                } else if (cellType === CELL_TYPES.TURN_LEFT_UP) {
+                    // Left-up turn
+                    this.ctx.beginPath();
+                    this.ctx.moveTo((x + 1) * CELL_SIZE, centerY);
+                    this.ctx.lineTo(centerX, centerY);
+                    this.ctx.lineTo(centerX, y * CELL_SIZE);
+                    this.ctx.stroke();
+                } else if (cellType === CELL_TYPES.TURN_RIGHT_UP) {
+                    // Right-up turn
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x * CELL_SIZE, centerY);
+                    this.ctx.lineTo(centerX, centerY);
+                    this.ctx.lineTo(centerX, y * CELL_SIZE);
+                    this.ctx.stroke();
+                }
+            }
+            
+            drawTrainPart(part) {
+                const { pixelX, pixelY, direction, type } = part;
+                
+                this.ctx.save();
+                this.ctx.translate(pixelX, pixelY);
+                this.ctx.rotate(direction);
+                
+                // Draw train part
+                if (type === 'locomotive') {
+                    this.ctx.fillStyle = "#4285F4"; // Blue for locomotive
+                    this.ctx.fillRect(-CELL_SIZE * 0.4, -CELL_SIZE * 0.3, CELL_SIZE * 0.8, CELL_SIZE * 0.6);
+                    
+                    // Front
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(CELL_SIZE * 0.4, -CELL_SIZE * 0.3);
+                    this.ctx.lineTo(CELL_SIZE * 0.5, 0);
+                    this.ctx.lineTo(CELL_SIZE * 0.4, CELL_SIZE * 0.3);
+                    this.ctx.fill();
+                } else {
+                    // Wagon
+                    this.ctx.fillStyle = "#DB4437"; // Red for wagons
+                    this.ctx.fillRect(-CELL_SIZE * 0.35, -CELL_SIZE * 0.25, CELL_SIZE * 0.7, CELL_SIZE * 0.5);
+                }
+                
+                this.ctx.restore();
+            }
+        }
+        
+        // Start the test when page loads
+        window.addEventListener("load", () => {
+            new SwitchTest();
+        });
+    </script>
+</body>
+</html> 

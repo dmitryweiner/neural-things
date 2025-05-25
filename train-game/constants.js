@@ -23,6 +23,14 @@ const CELL_TYPES = {
   TURN_LEFT_DOWN: "┌",
   TURN_LEFT_UP: "┘",
   TURN_RIGHT_UP: "└",
+  SWITCH_RIGHT_DOWN_V: "┐|",
+  SWITCH_LEFT_DOWN_V: "|┌",
+  SWITCH_LEFT_UP_V: "┘|",
+  SWITCH_RIGHT_UP_V: "|└",
+  SWITCH_RIGHT_DOWN_H: "┐-",
+  SWITCH_LEFT_DOWN_H: "-┌",
+  SWITCH_LEFT_UP_H: "┘-",
+  SWITCH_RIGHT_UP_H: "-└",
 };
 
 // Direction angles in radians

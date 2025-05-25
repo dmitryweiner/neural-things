@@ -39,7 +39,7 @@ class Game {
     for (let y = 0; y < this.grid.length; y++) {
       for (let x = 0; x < this.grid[y].length; x++) {
         const cell = this.grid[y][x];
-        if (isSwitchCell(cell)) {
+        if (this.isSwitchCell(cell)) {
           this.switchStates[`${x},${y}`] = { 
             state: 'straight', // Default state
             isStraight: true
@@ -96,6 +96,19 @@ class Game {
     this.backgroundCanvas = generateBackground(this.canvas);
   }
 
+  // Helper method to detect switch cells
+  isSwitchCell(cellType) {
+    return [
+      CELL_TYPES.SWITCH_RIGHT_DOWN_V, 
+      CELL_TYPES.SWITCH_LEFT_DOWN_V,
+      CELL_TYPES.SWITCH_LEFT_UP_V,
+      CELL_TYPES.SWITCH_RIGHT_UP_V,
+      CELL_TYPES.SWITCH_RIGHT_DOWN_H,
+      CELL_TYPES.SWITCH_LEFT_DOWN_H, 
+      CELL_TYPES.SWITCH_LEFT_UP_H,
+      CELL_TYPES.SWITCH_RIGHT_UP_H
+    ].includes(cellType);
+  }
 
   // Toggle switch state when clicked/tapped
   toggleSwitch(x, y) {
@@ -145,7 +158,7 @@ class Game {
       // Check if valid grid position
       if (x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT) {
         const cellType = this.grid[y][x];
-        if (isSwitchCell(cellType)) {
+        if (this.isSwitchCell(cellType)) {
           this.toggleSwitch(x, y);
         }
       }
@@ -191,15 +204,15 @@ class Game {
     const turnCell = TURN_DIRECTIONS[currentCellType];
     
     // Check if it's a switch cell
-    const isSwitch = isSwitchCell(currentCellType);
+    const isSwitchCell = this.isSwitchCell(currentCellType);
     let shouldTurn = turnCell !== undefined;
     
     // If it's a switch, get its state
-    if (isSwitch) {
+    if (isSwitchCell) {
       const switchState = this.switchStates[`${locomotive.x},${locomotive.y}`];
       if (switchState) {
         // Determine if we should turn based on switch state and approach direction
-        shouldTurn = getSwitchBehavior(currentCellType, locomotive.direction, switchState.isStraight);
+        shouldTurn = this.getSwitchBehavior(currentCellType, locomotive.direction, switchState.isStraight);
       }
     }
 
@@ -258,6 +271,57 @@ class Game {
     this.updateWagons(deltaTime);
   }
   
+  // Helper method to determine switch behavior based on approach direction
+  getSwitchBehavior(switchType, direction, isStraight) {
+    // For vertical switches ("|┌", "┐|", etc.)
+    if (switchType.includes("|")) {
+      // If approaching from vertical direction (up/down)
+      if (Math.abs(direction - DIRECTIONS.up) < 0.1 || 
+          Math.abs(direction - DIRECTIONS.down) < 0.1) {
+        // Always go straight when approaching vertically, except in specific cases
+        if (
+          // When approaching from up and the switch type expects that to change
+          (Math.abs(direction - DIRECTIONS.up) < 0.1 && 
+           (switchType === CELL_TYPES.SWITCH_RIGHT_DOWN_V || 
+            switchType === CELL_TYPES.SWITCH_LEFT_DOWN_V)) ||
+          // When approaching from down and the switch type expects that to change
+          (Math.abs(direction - DIRECTIONS.down) < 0.1 && 
+           (switchType === CELL_TYPES.SWITCH_LEFT_UP_V || 
+            switchType === CELL_TYPES.SWITCH_RIGHT_UP_V))
+        ) {
+          return !isStraight; // Use switch state
+        }
+        return false; // Default: go straight
+      }
+      // Otherwise use the switch state
+      return !isStraight;
+    } 
+    // For horizontal switches ("-┌", "┐-", etc.)
+    else if (switchType.includes("-")) {
+      // If approaching from horizontal direction (left/right)
+      if (Math.abs(direction) < 0.1 || 
+          Math.abs(direction - DIRECTIONS.left) < 0.1) {
+        // Always go straight when approaching horizontally, except in specific cases
+        if (
+          // When approaching from right and the switch type expects that to change
+          (Math.abs(direction) < 0.1 && 
+           (switchType === CELL_TYPES.SWITCH_LEFT_DOWN_H || 
+            switchType === CELL_TYPES.SWITCH_LEFT_UP_H)) ||
+          // When approaching from left and the switch type expects that to change
+          (Math.abs(direction - DIRECTIONS.left) < 0.1 && 
+           (switchType === CELL_TYPES.SWITCH_RIGHT_DOWN_H || 
+            switchType === CELL_TYPES.SWITCH_RIGHT_UP_H))
+        ) {
+          return !isStraight; // Use switch state
+        }
+        return false; // Default: go straight
+      }
+      // Otherwise use the switch state
+      return !isStraight;
+    }
+    
+    return false;
+  }
   
   // Новая реализация updateWagons без истории пути
   updateWagons(deltaTime) {
@@ -275,15 +339,15 @@ class Game {
       const turnCell = TURN_DIRECTIONS[currentCellType];
       
       // Check if it's a switch cell
-      const isSwitchCellResult = isSwitchCell(currentCellType);
+      const isSwitchCell = this.isSwitchCell(currentCellType);
       let shouldTurn = turnCell !== undefined;
       
       // If it's a switch, get its state
-      if (isSwitchCellResult) {
+      if (isSwitchCell) {
         const switchState = this.switchStates[`${wagon.x},${wagon.y}`];
         if (switchState) {
           // Determine if we should turn based on switch state and approach direction
-          shouldTurn = getSwitchBehavior(currentCellType, wagon.direction, switchState.isStraight);
+          shouldTurn = this.getSwitchBehavior(currentCellType, wagon.direction, switchState.isStraight);
         }
       }
       
@@ -359,7 +423,7 @@ class Game {
       for (let x = 0; x < GRID_WIDTH; x++) {
         const cellType = this.grid[y][x];
         // Special handling for switches to show their state
-        if (isSwitchCell(cellType)) {
+        if (this.isSwitchCell(cellType)) {
           const switchState = this.switchStates[`${x},${y}`];
           drawSwitchCell(this.ctx, x, y, cellType, switchState ? switchState.isStraight : true);
         } else {
