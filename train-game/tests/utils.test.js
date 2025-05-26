@@ -1,5 +1,5 @@
 // Импортируем необходимые константы и функции
-const { calculateTurnPosition, calculateStraightPosition } = require('../utils');
+const { calculateTurnPosition, calculateStraightPosition, isApproachingFromBackSide } = require('../utils');
 const { CELL_SIZE, CELL_TYPES, DIRECTIONS } = require('../constants');
 
 // Мокаем глобальные константы, которые используются в функции

@@ -23,11 +23,11 @@ class Game {
       ["┌", "-", "-", "-", "-", "-", "┐", " ", " ", "┌", "-", "-", "-", "-", "┐"],
       ["|", " ", " ", " ", " ", " ", "|", " ", " ", "|", " ", " ", " ", " ", "|"],
       ["|", " ", " ", " ", " ", " ", "|", " ", " ", "|", " ", " ", " ", " ", "|"],
-      ["|", " ", " ", " ", "┌", "-", "┘", " ", " ", "└", "-", "┐", " ", " ", "|"],
-      ["|", " ", " ", " ", "|", " ", " ", " ", " ", " ", " ", "|", " ", " ", "|"],
-      ["|", " ", " ", " ", "|└","-", "-", "-", "-", "-", "-", "┘|"," ", " ", "|"],
-      ["|", " ", " ", " ", "└", "-", "-", "-", "-", "-", "-", "┘", " ", " ", "|"],
-      ["└", "-", "┐", " ", " ", " ", " ", " ", " ", " ", " ", " ", "┌", "-", "┘"],
+      ["|", " ", "┌", "-", "-┌","-", "┘-","-", "-", "-└","-", "┐", " ", " ", "|"],
+      ["|", " ", "|", " ", "|", " ", " ", " ", " ", " ", " ", "|", " ", " ", "|"],
+      ["|", " ", "|", " ", "|└","-", "-", "-", "-", "-", "-", "┘|"," ", " ", "|"],
+      ["|", " ", "|", " ", "└", "-", "-", "-", "-", "-", "-", "┘", " ", " ", "|"],
+      ["└", "-", "┐|"," ", " ", " ", " ", " ", " ", " ", " ", " ", "┌", "-", "┘"],
       [" ", " ", "|", " ", " ", " ", " ", " ", " ", " ", " ", " ", "|", " ", " "],
       [" ", " ", "└", "-", "-", "-", "-", "-", "-", "-", "-", "-", "┘", " ", " "]
     ];
@@ -190,23 +190,10 @@ class Game {
     const currentCellType = this.grid[locomotive.y][locomotive.x];
     const turnCell = TURN_DIRECTIONS[currentCellType];
     
-    // Check if it's a switch cell
-    const isSwitch = isSwitchCell(currentCellType);
-    let shouldTurn = turnCell !== undefined;
-    
-    // If it's a switch, get its state
-    if (isSwitch) {
-      const switchState = this.switchStates[`${locomotive.x},${locomotive.y}`];
-      if (switchState) {
-        // Determine if we should turn based on switch state and approach direction
-        shouldTurn = getSwitchBehavior(currentCellType, locomotive.direction, switchState.isStraight);
-      }
-    }
-
     // Рассчитываем следующую позицию с помощью выделенной функции
     const nextPosition = calculateNextPosition(
       currentCellType,
-      shouldTurn ? turnCell : null,
+      turnCell,
       locomotive.x,
       locomotive.y,
       locomotive.pixelX,
@@ -217,6 +204,7 @@ class Game {
       CELL_SIZE,
       this.switchStates
     );
+    console.log(nextPosition);
 
     const nextPixelX = nextPosition.x;
     const nextPixelY = nextPosition.y;
@@ -273,24 +261,11 @@ class Game {
       // Получаем тип клетки под вагоном
       const currentCellType = this.grid[wagon.y][wagon.x];
       const turnCell = TURN_DIRECTIONS[currentCellType];
-      
-      // Check if it's a switch cell
-      const isSwitchCellResult = isSwitchCell(currentCellType);
-      let shouldTurn = turnCell !== undefined;
-      
-      // If it's a switch, get its state
-      if (isSwitchCellResult) {
-        const switchState = this.switchStates[`${wagon.x},${wagon.y}`];
-        if (switchState) {
-          // Determine if we should turn based on switch state and approach direction
-          shouldTurn = getSwitchBehavior(currentCellType, wagon.direction, switchState.isStraight);
-        }
-      }
-      
+            
       // Рассчитываем следующую позицию так же, как для локомотива
       const nextPosition = calculateNextPosition(
         currentCellType,
-        shouldTurn ? turnCell : null,
+        turnCell,
         wagon.x,
         wagon.y,
         wagon.pixelX,

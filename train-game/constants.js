@@ -36,13 +36,9 @@ const CELL_TYPES = {
 // Direction angles in radians
 const DIRECTIONS = {
   right: 0,
-  rightDown: Math.PI / 4,
   down: Math.PI / 2,
-  leftDown: Math.PI * 3/4,
   left: Math.PI,
-  leftUp: -Math.PI * 3/4,
-  up: -Math.PI / 2,
-  rightUp: -Math.PI / 4
+  up: 3 * Math.PI / 2,
 };
 
 // Train states

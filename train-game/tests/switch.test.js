@@ -36,40 +36,6 @@ describe('Switch Detection', () => {
   });
 });
 
-describe('Back Side Approach Detection', () => {
-  test('should detect vertical approach to vertical switches', () => {
-    // Vertical switch approached from vertical direction (back side)
-    expect(isApproachingFromBackSide(CELL_TYPES.SWITCH_RIGHT_DOWN_V, DIRECTIONS.down)).toBe(true);
-    expect(isApproachingFromBackSide(CELL_TYPES.SWITCH_RIGHT_DOWN_V, DIRECTIONS.up)).toBe(true);
-    expect(isApproachingFromBackSide(CELL_TYPES.SWITCH_LEFT_UP_V, DIRECTIONS.down)).toBe(true);
-    expect(isApproachingFromBackSide(CELL_TYPES.SWITCH_LEFT_UP_V, DIRECTIONS.up)).toBe(true);
-  });
-
-  test('should not detect horizontal approach to vertical switches as back side', () => {
-    // Vertical switch approached from horizontal direction (not back side)
-    expect(isApproachingFromBackSide(CELL_TYPES.SWITCH_RIGHT_DOWN_V, DIRECTIONS.right)).toBe(false);
-    expect(isApproachingFromBackSide(CELL_TYPES.SWITCH_RIGHT_DOWN_V, DIRECTIONS.left)).toBe(false);
-    expect(isApproachingFromBackSide(CELL_TYPES.SWITCH_LEFT_UP_V, DIRECTIONS.right)).toBe(false);
-    expect(isApproachingFromBackSide(CELL_TYPES.SWITCH_LEFT_UP_V, DIRECTIONS.left)).toBe(false);
-  });
-
-  test('should detect horizontal approach to horizontal switches', () => {
-    // Horizontal switch approached from horizontal direction (back side)
-    expect(isApproachingFromBackSide(CELL_TYPES.SWITCH_RIGHT_DOWN_H, DIRECTIONS.left)).toBe(true);
-    expect(isApproachingFromBackSide(CELL_TYPES.SWITCH_RIGHT_DOWN_H, DIRECTIONS.right)).toBe(true);
-    expect(isApproachingFromBackSide(CELL_TYPES.SWITCH_LEFT_UP_H, DIRECTIONS.left)).toBe(true);
-    expect(isApproachingFromBackSide(CELL_TYPES.SWITCH_LEFT_UP_H, DIRECTIONS.right)).toBe(true);
-  });
-
-  test('should not detect vertical approach to horizontal switches as back side', () => {
-    // Horizontal switch approached from vertical direction (not back side)
-    expect(isApproachingFromBackSide(CELL_TYPES.SWITCH_RIGHT_DOWN_H, DIRECTIONS.up)).toBe(false);
-    expect(isApproachingFromBackSide(CELL_TYPES.SWITCH_RIGHT_DOWN_H, DIRECTIONS.down)).toBe(false);
-    expect(isApproachingFromBackSide(CELL_TYPES.SWITCH_LEFT_UP_H, DIRECTIONS.up)).toBe(false);
-    expect(isApproachingFromBackSide(CELL_TYPES.SWITCH_LEFT_UP_H, DIRECTIONS.down)).toBe(false);
-  });
-});
-
 describe('Switch Movement Calculation', () => {
   const CELL_SIZE = 40;
   
