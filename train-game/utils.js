@@ -133,7 +133,7 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
       if (closeTo(normalizedDirection, DIRECTIONS.down)) { // backward
         return false;
       }
-      if (normalizedDirection >= DIRECTIONS.right && normalizedDirection < DIRECTIONS.down) { // backward
+      if (normalizedDirection >= DIRECTIONS.right && normalizedDirection <= DIRECTIONS.down) { // backward
         return true;
       }
       if (normalizedDirection >= DIRECTIONS.left && normalizedDirection <= DIRECTIONS.up) { // working direction
@@ -146,10 +146,10 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
       if (closeTo(normalizedDirection, DIRECTIONS.down)) { // backward
         return false;
       }
-      if (normalizedDirection >= DIRECTIONS.down && normalizedDirection < DIRECTIONS.left) { // backward
+      if (normalizedDirection >= DIRECTIONS.down && normalizedDirection <= DIRECTIONS.left) { // backward
         return true;
       }
-      if (normalizedDirection >= DIRECTIONS.up && normalizedDirection <= DIRECTIONS.right) { // working direction
+      if (normalizedDirection >= DIRECTIONS.up && normalizedDirection <= 2 * Math.PI) { // working direction
         return !isStraight;
       }
       return false;
@@ -159,7 +159,7 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
       if (closeTo(normalizedDirection, DIRECTIONS.up)) { // backward
         return false;
       }
-      if (normalizedDirection >= DIRECTIONS.up && direction < 2 * Math.PI 
+      if (normalizedDirection >= DIRECTIONS.up && direction <= 2 * Math.PI 
         || closeTo(normalizedDirection, DIRECTIONS.right)) { // backward
         return true;
       }
@@ -173,7 +173,7 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
       if (closeTo(normalizedDirection, DIRECTIONS.up)) { // backward
         return false;
       }
-      if (normalizedDirection >= DIRECTIONS.left && normalizedDirection < DIRECTIONS.up) { // backward
+      if (normalizedDirection >= DIRECTIONS.left && normalizedDirection <= DIRECTIONS.up) { // backward
         return true;
       }
       if (normalizedDirection >= DIRECTIONS.right && normalizedDirection <= DIRECTIONS.down) { // working direction
@@ -186,7 +186,7 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
       if (closeTo(normalizedDirection, DIRECTIONS.left)) { // backward
         return false;
       }
-      if (normalizedDirection >= DIRECTIONS.left && normalizedDirection < DIRECTIONS.up) { // backward
+      if (normalizedDirection >= DIRECTIONS.left && normalizedDirection <= DIRECTIONS.up) { // backward
         return true;
       }
       if (normalizedDirection >= DIRECTIONS.right && normalizedDirection <= DIRECTIONS.down) { // working direction
@@ -199,7 +199,7 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
       if (closeTo(normalizedDirection, DIRECTIONS.right)) { // backward
         return false;
       }
-      if (normalizedDirection >= DIRECTIONS.up && normalizedDirection < 2 * Math.PI) { // backward
+      if (normalizedDirection >= DIRECTIONS.up && normalizedDirection <= 2 * Math.PI) { // backward
         return true;
       }
       if (normalizedDirection >= DIRECTIONS.down && normalizedDirection <= DIRECTIONS.left) { // working direction
@@ -212,7 +212,7 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
       if (closeTo(normalizedDirection, DIRECTIONS.left)) { // backward
         return false;
       }
-      if (normalizedDirection >= DIRECTIONS.down && normalizedDirection < DIRECTIONS.left) { // backward
+      if (normalizedDirection >= DIRECTIONS.down && normalizedDirection <= DIRECTIONS.left) { // backward
         return true;
       }
       if (closeTo(normalizedDirection, DIRECTIONS.right) || 
@@ -226,7 +226,7 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
       if (closeTo(normalizedDirection, DIRECTIONS.right)) { // backward
         return false;
       }
-      if (normalizedDirection >= DIRECTIONS.right && normalizedDirection < DIRECTIONS.down) { // backward
+      if (normalizedDirection >= DIRECTIONS.right && normalizedDirection <= DIRECTIONS.down) { // backward
         return true;
       }
       if (normalizedDirection >= DIRECTIONS.left && normalizedDirection <= DIRECTIONS.up) { // working direction

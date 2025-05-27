@@ -27,8 +27,6 @@ describe('calculateTurnPosition', () => {
       deltaTime
     );
 
-    console.log(result);
-
     expect(closeTo(result.x, CELL_SIZE)).toBe(true);
     expect(result.x).toBeLessThan(CELL_SIZE);
     expect(closeTo(result.y, radius)).toBe(true);
