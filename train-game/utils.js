@@ -8,7 +8,7 @@ if (typeof window === 'undefined') {
 
 const normalizeAngle = angle => ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 
-const closeTo = (a, b, epsilon = 0.01) => Math.abs(a - b) < epsilon;
+const closeTo = (a, b, epsilon = 0.1) => Math.abs(a - b) < epsilon;
 
 function isClockwise(cellType, direction) {
   // Нормализуем угол от 0 до 2π
