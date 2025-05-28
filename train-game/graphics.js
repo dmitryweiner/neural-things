@@ -8,6 +8,38 @@ if (typeof window === 'undefined') {
   globalThis.TIE_SPACING = TIE_SPACING;
 }
 
+// Helper function to check if a cell is a semaphore
+function isSemaphoreCell(cellType) {
+  return [
+    CELL_TYPES.RAIL_H_SEMAPHORE,
+    CELL_TYPES.RAIL_V_SEMAPHORE,
+    CELL_TYPES.TURN_RIGHT_DOWN_SEMAPHORE,
+    CELL_TYPES.TURN_LEFT_DOWN_SEMAPHORE,
+    CELL_TYPES.TURN_LEFT_UP_SEMAPHORE,
+    CELL_TYPES.TURN_RIGHT_UP_SEMAPHORE
+  ].includes(cellType);
+}
+
+// Helper function to get the base cell type for a semaphore cell
+function getBaseCellType(cellType) {
+  switch (cellType) {
+    case CELL_TYPES.RAIL_H_SEMAPHORE:
+      return CELL_TYPES.RAIL_H;
+    case CELL_TYPES.RAIL_V_SEMAPHORE:
+      return CELL_TYPES.RAIL_V;
+    case CELL_TYPES.TURN_RIGHT_DOWN_SEMAPHORE:
+      return CELL_TYPES.TURN_RIGHT_DOWN;
+    case CELL_TYPES.TURN_LEFT_DOWN_SEMAPHORE:
+      return CELL_TYPES.TURN_LEFT_DOWN;
+    case CELL_TYPES.TURN_LEFT_UP_SEMAPHORE:
+      return CELL_TYPES.TURN_LEFT_UP;
+    case CELL_TYPES.TURN_RIGHT_UP_SEMAPHORE:
+      return CELL_TYPES.TURN_RIGHT_UP;
+    default:
+      return cellType;
+  }
+}
+
 // Функция для генерации псевдослучайного числа на основе seed
 function seededRandom(seed) {
   const x = Math.sin(seed) * 10000;
@@ -403,6 +435,29 @@ function drawSwitchCell(ctx, x, y, cellType, isStraight) {
   }
 }
 
+// Draw function for semaphore cells with visual indication of state
+function drawSemaphoreCell(ctx, x, y, cellType, isOpen) {
+  // First draw the base rail/turn
+  const baseCellType = getBaseCellType(cellType);
+  drawCell(ctx, x, y, baseCellType);
+  
+  // Then draw the semaphore indicator
+  const centerX = (x + 0.5) * CELL_SIZE;
+  const centerY = (y + 0.5) * CELL_SIZE;
+  
+  // Draw semaphore circle
+  const radius = 6;
+  ctx.fillStyle = isOpen ? "#00ff00" : "#ff0000"; // Green if open, red if closed
+  ctx.beginPath();
+  ctx.arc(centerX + 10, centerY - 10, radius, 0, Math.PI * 2); // Offset to corner
+  ctx.fill();
+  
+  // Add border to make it more visible
+  ctx.strokeStyle = "#000";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
 // Экспортируем функции для тестирования
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -412,5 +467,6 @@ if (typeof module !== 'undefined' && module.exports) {
     drawTrain,
     drawTrainPart,
     drawSwitchCell,
+    drawSemaphoreCell,
   };
 } 

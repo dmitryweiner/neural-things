@@ -123,6 +123,38 @@ function isSwitchCell(cellType) {
   ].includes(cellType);
 }
 
+// Helper function to check if a cell is a semaphore
+function isSemaphoreCell(cellType) {
+  return [
+    CELL_TYPES.RAIL_H_SEMAPHORE,
+    CELL_TYPES.RAIL_V_SEMAPHORE,
+    CELL_TYPES.TURN_RIGHT_DOWN_SEMAPHORE,
+    CELL_TYPES.TURN_LEFT_DOWN_SEMAPHORE,
+    CELL_TYPES.TURN_LEFT_UP_SEMAPHORE,
+    CELL_TYPES.TURN_RIGHT_UP_SEMAPHORE
+  ].includes(cellType);
+}
+
+// Helper function to get the base cell type for a semaphore cell
+function getBaseCellType(cellType) {
+  switch (cellType) {
+    case CELL_TYPES.RAIL_H_SEMAPHORE:
+      return CELL_TYPES.RAIL_H;
+    case CELL_TYPES.RAIL_V_SEMAPHORE:
+      return CELL_TYPES.RAIL_V;
+    case CELL_TYPES.TURN_RIGHT_DOWN_SEMAPHORE:
+      return CELL_TYPES.TURN_RIGHT_DOWN;
+    case CELL_TYPES.TURN_LEFT_DOWN_SEMAPHORE:
+      return CELL_TYPES.TURN_LEFT_DOWN;
+    case CELL_TYPES.TURN_LEFT_UP_SEMAPHORE:
+      return CELL_TYPES.TURN_LEFT_UP;
+    case CELL_TYPES.TURN_RIGHT_UP_SEMAPHORE:
+      return CELL_TYPES.TURN_RIGHT_UP;
+    default:
+      return cellType;
+  }
+}
+
 // Helper method to determine switch behavior based on approach direction
 function shouldTurnOnSwitch(switchType, direction, isStraight) {
   const normalizedDirection = normalizeAngle(direction);
@@ -245,15 +277,18 @@ function calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, d
   let nextPixelY = pixelY;
   let nextDirection = direction;
 
+  // Get base cell type for semaphores
+  const baseCellType = isSemaphoreCell(cellType) ? getBaseCellType(cellType) : cellType;
+
   // Нормализуем угол от 0 до 2π
   const normalizedCurrentAngle = normalizeAngle(direction);
         
-  if (cellType === CELL_TYPES.RAIL_H || 
-      (cellType.includes("-") && isSwitchCell(cellType))) {
+  if (baseCellType === CELL_TYPES.RAIL_H || 
+      (baseCellType.includes("-") && isSwitchCell(baseCellType))) {
     // Если на горизонтальных рельсах, "прилипаем" к горизонтальному движению
     nextDirection = Math.cos(normalizedCurrentAngle) > 0 ? DIRECTIONS.right : DIRECTIONS.left;
-  } else if (cellType === CELL_TYPES.RAIL_V || 
-            (cellType.includes("|") && isSwitchCell(cellType))) {
+  } else if (baseCellType === CELL_TYPES.RAIL_V || 
+            (baseCellType.includes("|") && isSwitchCell(baseCellType))) {
     // Если на вертикальных рельсах, "прилипаем" к вертикальному движению
     nextDirection = Math.sin(normalizedCurrentAngle) > 0 ? DIRECTIONS.down : DIRECTIONS.up;
   }
@@ -271,16 +306,19 @@ function calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, d
 
 // Вычисляет следующую позицию поезда в зависимости от текущей клетки
 function calculateNextPosition(cellType, turnCell, cellX, cellY, pixelX, pixelY, direction, speed, deltaTime, cellSize, switchStates) {
+  // Get base cell type for semaphores
+  const baseCellType = isSemaphoreCell(cellType) ? getBaseCellType(cellType) : cellType;
+  
   // Check if cell is a switch
-  if (isSwitchCell(cellType)) {
+  if (isSwitchCell(baseCellType)) {
     const key = `${cellX},${cellY}`;
     
     const switchState = switchStates ? switchStates[key] : null;
     
-    if (shouldTurnOnSwitch(cellType, direction, switchState?.isStraight)) {
+    if (shouldTurnOnSwitch(baseCellType, direction, switchState?.isStraight)) {
       // Use turn movement if switch is set to turning
       return calculateTurnPosition(
-        cellType,
+        baseCellType,
         cellX,
         cellY,
         pixelX,
@@ -292,7 +330,7 @@ function calculateNextPosition(cellType, turnCell, cellX, cellY, pixelX, pixelY,
     } else {
       // Use straight movement if switch is set to straight
       return calculateStraightPosition(
-        cellType,
+        baseCellType,
         pixelX,
         pixelY,
         direction,
@@ -307,7 +345,7 @@ function calculateNextPosition(cellType, turnCell, cellX, cellY, pixelX, pixelY,
   if (turnCell) {
     // Перемещение на повороте
     return calculateTurnPosition(
-      cellType,
+      baseCellType,
       cellX,
       cellY,
       pixelX,
@@ -319,7 +357,7 @@ function calculateNextPosition(cellType, turnCell, cellX, cellY, pixelX, pixelY,
   } else {
     // Перемещение по прямой
     return calculateStraightPosition(
-      cellType,
+      baseCellType,
       pixelX,
       pixelY,
       direction,
@@ -338,5 +376,7 @@ if (typeof module !== 'undefined' && module.exports) {
     calculateNextPosition,
     isSwitchCell,
     shouldTurnOnSwitch,
+    isSemaphoreCell,
+    getBaseCellType,
   };
 } 

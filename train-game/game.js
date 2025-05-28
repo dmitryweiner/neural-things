@@ -26,10 +26,10 @@ class Game {
       ["|", " ", "┌", "-", "-┌","-", "┘-","-", "-", "-└","-", "┐", " ", " ", "|"],
       ["|", " ", "|", " ", "|", " ", " ", " ", " ", " ", " ", "|", " ", " ", "|"],
       ["|└","-", "┘|"," ", "|└","-", "-", "-", "-", "-", "-", "┘|"," ", " ", "|"],
-      ["|", " ", "|┌","-", "-└","-", "-", "-", "-", "-", "-", "┘-", "┐", " ", "|"],
+      ["|", " ", "|┌","-", "-└","-", "-", "-", "-", "-", "-", "┘-","┐", " ", "|"],
       ["└", "-", "┐|"," ", " ", " ", " ", " ", " ", " ", " ", " ", "|┌","-", "┘"],
-      [" ", " ", "|", " ", " ", " ", " ", " ", " ", " ", " ", " ", "|", " ", " "],
-      [" ", " ", "└", "-", "-", "-", "-", "-", "-", "-", "-", "-", "┘", " ", " "]
+      [" ", " ", "|S"," ", " ", " ", " ", " ", " ", " ", " ", " ", "|", " ", " "],
+      [" ", " ", "└", "-", "-", "-S","-", "-", "-", "-", "-", "-", "┘", " ", " "]
     ];
     
     // Initialize switch states
@@ -48,16 +48,31 @@ class Game {
       }
     }
     
+    // Initialize semaphore states
+    this.semaphoreStates = {};
+    
+    // Scan grid for semaphores and set default states
+    for (let y = 0; y < this.grid.length; y++) {
+      for (let x = 0; x < this.grid[y].length; x++) {
+        const cell = this.grid[y][x];
+        if (isSemaphoreCell(cell)) {
+          this.semaphoreStates[`${x},${y}`] = { 
+            isOpen: true // Default state - semaphore is open
+          };
+        }
+      }
+    }
+    
     // Определяем начальные позиции
     const initialDirection = DIRECTIONS.right;
     
     // Создаем локомотив
     this.trainParts = [{
       type: 'locomotive',
+      state: LOCOMOTIVE_STATES.ACCELERATING,
       x: 4, // Начальная позиция
       y: 0,
       direction: initialDirection,
-      state: TRAIN_STATES.RUNNING,
       speed: 0,
       pixelX: (4 + 0.5) * CELL_SIZE,
       pixelY: (0 + 0.5) * CELL_SIZE,
@@ -110,6 +125,15 @@ class Game {
     }
   }
 
+  // Toggle semaphore state when clicked/tapped
+  toggleSemaphore(x, y) {
+    const key = `${x},${y}`;
+    if (this.semaphoreStates[key]) {
+      // Toggle state (semaphores can be toggled even if train is on them)
+      this.semaphoreStates[key].isOpen = !this.semaphoreStates[key].isOpen;
+    }
+  }
+
   // Check if any train part is on the given cell
   isTrainOnSwitch(x, y) {
     return this.trainParts.some(part => part.x === x && part.y === y);
@@ -147,6 +171,8 @@ class Game {
         const cellType = this.grid[y][x];
         if (isSwitchCell(cellType)) {
           this.toggleSwitch(x, y);
+        } else if (isSemaphoreCell(cellType)) {
+          this.toggleSemaphore(x, y);
         }
       }
     };
@@ -176,14 +202,47 @@ class Game {
 
   update(deltaTime) {
     const locomotive = this.trainParts[0];
-    if (locomotive.state !== TRAIN_STATES.RUNNING) return;
 
-    // Update locomotive speed with acceleration (only for locomotive)
-    if (locomotive.speed < TRAIN_MAX_SPEED) {
-      locomotive.speed = Math.min(
-        TRAIN_MAX_SPEED,
-        locomotive.speed + TRAIN_ACCELERATION * deltaTime
-      );
+    // Check if locomotive is on a semaphore
+    const locomotiveCell = this.grid[locomotive.y][locomotive.x];
+    if (isSemaphoreCell(locomotiveCell)) {
+      const semaphoreKey = `${locomotive.x},${locomotive.y}`;
+      const semaphoreState = this.semaphoreStates[semaphoreKey];
+      
+      if (semaphoreState) {
+        if (!semaphoreState.isOpen) {
+          if (locomotive.speed > 0) {
+            locomotive.state = LOCOMOTIVE_STATES.DECELERATING;
+          } else {
+            locomotive.state = LOCOMOTIVE_STATES.STOPPED;
+          }
+        } else {
+          locomotive.state = LOCOMOTIVE_STATES.ACCELERATING;
+        }
+      }
+    }
+
+    switch (locomotive.state) {
+      case LOCOMOTIVE_STATES.ACCELERATING:
+        if (locomotive.speed < TRAIN_MAX_SPEED) {
+          locomotive.speed = Math.min(
+            TRAIN_MAX_SPEED,
+            locomotive.speed + TRAIN_ACCELERATION * deltaTime
+          );
+        }
+        break;
+      case LOCOMOTIVE_STATES.DECELERATING:
+        if (locomotive.speed > 0) {
+          locomotive.speed = Math.max(0, locomotive.speed - TRAIN_DECELERATION * deltaTime);
+        }
+        break;
+      case LOCOMOTIVE_STATES.STOPPED:
+        locomotive.speed = 0;
+        break;
+      case LOCOMOTIVE_STATES.IDLE:
+        break;
+      default:
+        break;
     }
 
     // Process all train parts in a single loop
@@ -197,7 +256,8 @@ class Game {
 
       // Get current cell type
       const currentCellType = this.grid[trainPart.y][trainPart.x];
-      const turnCell = TURN_DIRECTIONS[currentCellType];
+      const baseCellType = isSemaphoreCell(currentCellType) ? getBaseCellType(currentCellType) : currentCellType;
+      const turnCell = TURN_DIRECTIONS[baseCellType];
       
       // Calculate next position using the shared function
       const nextPosition = calculateNextPosition(
@@ -232,12 +292,13 @@ class Game {
 
           // Then check for turn and update direction
           const cellType = this.grid[trainPart.y][trainPart.x];
+          const baseCellTypeForTurn = isSemaphoreCell(cellType) ? getBaseCellType(cellType) : cellType;
           if (
-            TURN_DIRECTIONS[cellType] &&
-            TURN_DIRECTIONS[cellType][trainPart.direction]
+            TURN_DIRECTIONS[baseCellTypeForTurn] &&
+            TURN_DIRECTIONS[baseCellTypeForTurn][trainPart.direction]
           ) {
             trainPart.direction =
-              TURN_DIRECTIONS[cellType][trainPart.direction];
+              TURN_DIRECTIONS[baseCellTypeForTurn][trainPart.direction];
           }
         } else {
           locomotive.state = TRAIN_STATES.CRASHED;
@@ -260,7 +321,8 @@ class Game {
 
     // Check if there are rails at the position
     const cellType = this.grid[y][x];
-    return cellType !== CELL_TYPES.EMPTY;
+    const baseCellType = isSemaphoreCell(cellType) ? getBaseCellType(cellType) : cellType;
+    return baseCellType !== CELL_TYPES.EMPTY;
   }
 
   draw() {
@@ -278,6 +340,9 @@ class Game {
         if (isSwitchCell(cellType)) {
           const switchState = this.switchStates[`${x},${y}`];
           drawSwitchCell(this.ctx, x, y, cellType, switchState ? switchState.isStraight : true);
+        } else if (isSemaphoreCell(cellType)) {
+          const semaphoreState = this.semaphoreStates[`${x},${y}`];
+          drawSemaphoreCell(this.ctx, x, y, cellType, semaphoreState ? semaphoreState.isOpen : true);
         } else {
           drawCell(this.ctx, x, y, cellType);
         }

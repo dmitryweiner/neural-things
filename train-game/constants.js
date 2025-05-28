@@ -9,20 +9,23 @@ const TIE_SPACING = 10; // Расстояние между шпалами в п�
 // Train movement constants
 const TRAIN_MAX_SPEED = 2; // cells per second
 const TRAIN_ACCELERATION = 0.5; // cells per second^2
-const TRAIN_DECELERATION = 1; // cells per second^2
+const TRAIN_DECELERATION = 4; // cells per second^2
 
 // Cell types
 const CELL_TYPES = {
   EMPTY: " ",
   RAIL_H: "-",
   RAIL_V: "|",
-  RAIL_DIAG1: "/",
-  RAIL_DIAG2: "\\",
-  SWITCH: "Y",
   TURN_RIGHT_DOWN: "┐",
   TURN_LEFT_DOWN: "┌",
   TURN_LEFT_UP: "┘",
   TURN_RIGHT_UP: "└",
+  RAIL_H_SEMAPHORE: "-S",
+  RAIL_V_SEMAPHORE: "|S",
+  TURN_RIGHT_DOWN_SEMAPHORE: "┐S",
+  TURN_LEFT_DOWN_SEMAPHORE: "┌S",
+  TURN_LEFT_UP_SEMAPHORE: "┘S",
+  TURN_RIGHT_UP_SEMAPHORE: "└S",
   SWITCH_RIGHT_DOWN_V: "┐|",
   SWITCH_LEFT_DOWN_V: "|┌",
   SWITCH_LEFT_UP_V: "┘|",
@@ -119,6 +122,13 @@ const TURN_DIRECTIONS = {
   }
 };
 
+const LOCOMOTIVE_STATES = {
+  ACCELERATING: "accelerating",
+  DECELERATING: "decelerating",
+  STOPPED: "stopped",
+  IDLE: "idle",
+};
+
 if (typeof module !== 'undefined' && module.exports) {
 module.exports = {
   CELL_SIZE,
@@ -133,6 +143,7 @@ module.exports = {
   CELL_TYPES,
   DIRECTIONS,
   TRAIN_STATES,
-  TURN_DIRECTIONS
+  TURN_DIRECTIONS,
+  LOCOMOTIVE_STATES,
   }; 
 }
