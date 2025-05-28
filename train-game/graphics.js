@@ -340,66 +340,67 @@ function drawTrainPart(ctx, part) {
 function drawSwitchCell(ctx, x, y, cellType, isStraight) {
   const centerX = (x + 0.5) * CELL_SIZE;
   const centerY = (y + 0.5) * CELL_SIZE;
+
+  // Helper function to temporarily set dashed line style
+  function withDashedStyle(callback) {
+    ctx.save();
+    ctx.setLineDash([3, 3]); // Small dashes
+    callback();
+    ctx.restore();
+  }
+
+  // Determine which paths to draw based on switch type
+  let straightPath, curvedPath;
   
-  // Draw base cell
-  drawCell(ctx, x, y, cellType);
-  
-  // Add visual indicator for switch state
-  ctx.beginPath();
-  ctx.lineWidth = 2;
-  
-  // Different colors for different states
+  switch (cellType) {
+    case CELL_TYPES.SWITCH_RIGHT_DOWN_V: // "┐|"
+      straightPath = CELL_TYPES.RAIL_V;
+      curvedPath = CELL_TYPES.TURN_RIGHT_DOWN;
+      break;
+    case CELL_TYPES.SWITCH_LEFT_DOWN_V: // "|┌"
+      straightPath = CELL_TYPES.RAIL_V;
+      curvedPath = CELL_TYPES.TURN_LEFT_DOWN;
+      break;
+    case CELL_TYPES.SWITCH_LEFT_UP_V: // "┘|"
+      straightPath = CELL_TYPES.RAIL_V;
+      curvedPath = CELL_TYPES.TURN_LEFT_UP;
+      break;
+    case CELL_TYPES.SWITCH_RIGHT_UP_V: // "|└"
+      straightPath = CELL_TYPES.RAIL_V;
+      curvedPath = CELL_TYPES.TURN_RIGHT_UP;
+      break;
+    case CELL_TYPES.SWITCH_RIGHT_DOWN_H: // "┐-"
+      straightPath = CELL_TYPES.RAIL_H;
+      curvedPath = CELL_TYPES.TURN_RIGHT_DOWN;
+      break;
+    case CELL_TYPES.SWITCH_LEFT_DOWN_H: // "-┌"
+      straightPath = CELL_TYPES.RAIL_H;
+      curvedPath = CELL_TYPES.TURN_LEFT_DOWN;
+      break;
+    case CELL_TYPES.SWITCH_LEFT_UP_H: // "┘-"
+      straightPath = CELL_TYPES.RAIL_H;
+      curvedPath = CELL_TYPES.TURN_LEFT_UP;
+      break;
+    case CELL_TYPES.SWITCH_RIGHT_UP_H: // "-└"
+      straightPath = CELL_TYPES.RAIL_H;
+      curvedPath = CELL_TYPES.TURN_RIGHT_UP;
+      break;
+    default:
+      // Fallback to original cell drawing
+      drawCell(ctx, x, y, cellType);
+      return;
+  }
+
+  // Draw the paths based on switch state
   if (isStraight) {
-    ctx.strokeStyle = '#00AA00'; // Green for straight
+    // Straight path is active (solid), curved path is inactive (dashed)
+    drawCell(ctx, x, y, straightPath);
+    withDashedStyle(() => drawCell(ctx, x, y, curvedPath));
   } else {
-    ctx.strokeStyle = '#FF5500'; // Orange for turning
+    // Curved path is active (solid), straight path is inactive (dashed)
+    drawCell(ctx, x, y, curvedPath);
+    withDashedStyle(() => drawCell(ctx, x, y, straightPath));
   }
-  
-  // Draw a small circle in the center to indicate it's a clickable switch
-  ctx.arc(centerX, centerY, CELL_SIZE / 6, 0, Math.PI * 2);
-  ctx.stroke();
-  
-  // Draw small line indicating the direction based on switch type and state
-  ctx.beginPath();
-  
-  // Vertical switches ("|┌", "┐|", etc.)
-  if (cellType.includes("|")) {
-    if (isStraight) {
-      // Straight line for vertical direction
-      ctx.moveTo(centerX, centerY - CELL_SIZE / 8);
-      ctx.lineTo(centerX, centerY + CELL_SIZE / 8);
-    } else {
-      // Draw diagonal line for turn direction based on switch type
-      if (cellType === CELL_TYPES.SWITCH_RIGHT_DOWN_V || 
-          cellType === CELL_TYPES.SWITCH_LEFT_UP_V) {
-        ctx.moveTo(centerX - CELL_SIZE / 8, centerY - CELL_SIZE / 8);
-        ctx.lineTo(centerX + CELL_SIZE / 8, centerY + CELL_SIZE / 8);
-      } else {
-        ctx.moveTo(centerX + CELL_SIZE / 8, centerY - CELL_SIZE / 8);
-        ctx.lineTo(centerX - CELL_SIZE / 8, centerY + CELL_SIZE / 8);
-      }
-    }
-  } 
-  // Horizontal switches ("-┌", "┐-", etc.)
-  else if (cellType.includes("-")) {
-    if (isStraight) {
-      // Straight line for horizontal direction
-      ctx.moveTo(centerX - CELL_SIZE / 8, centerY);
-      ctx.lineTo(centerX + CELL_SIZE / 8, centerY);
-    } else {
-      // Draw diagonal line for turn direction based on switch type
-      if (cellType === CELL_TYPES.SWITCH_RIGHT_DOWN_H || 
-          cellType === CELL_TYPES.SWITCH_LEFT_UP_H) {
-        ctx.moveTo(centerX - CELL_SIZE / 8, centerY - CELL_SIZE / 8);
-        ctx.lineTo(centerX + CELL_SIZE / 8, centerY + CELL_SIZE / 8);
-      } else {
-        ctx.moveTo(centerX + CELL_SIZE / 8, centerY - CELL_SIZE / 8);
-        ctx.lineTo(centerX - CELL_SIZE / 8, centerY + CELL_SIZE / 8);
-      }
-    }
-  }
-  
-  ctx.stroke();
 }
 
 // Экспортируем функции для тестирования

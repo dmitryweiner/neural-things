@@ -139,7 +139,7 @@ describe('Switch Movement Calculation', () => {
         null,
         5, 5,
         5.5 * CELL_SIZE, 5.5 * CELL_SIZE,
-        DIRECTIONS.down, // Back side approach
+        DIRECTIONS.up, // Back side approach
         1.0,
         0.1,
         CELL_SIZE,
@@ -147,8 +147,8 @@ describe('Switch Movement Calculation', () => {
       );
       
       // Should continue straight regardless of switch state
-      expect(result.direction).toBeCloseTo(DIRECTIONS.down, 1);
-      expect(result.y).toBeGreaterThan(5.5 * CELL_SIZE);
+      expect(result.direction).toBeCloseTo(DIRECTIONS.up, 1);
+      expect(result.y).toBeLessThan(5.5 * CELL_SIZE);
     });
 
     test('horizontal switch should ignore state when approaching from back side', () => {
@@ -162,7 +162,7 @@ describe('Switch Movement Calculation', () => {
         null,
         5, 5,
         5.5 * CELL_SIZE, 5.5 * CELL_SIZE,
-        DIRECTIONS.left, // Back side approach
+        DIRECTIONS.right, // Back side approach
         1.0,
         0.1,
         CELL_SIZE,
@@ -170,8 +170,8 @@ describe('Switch Movement Calculation', () => {
       );
       
       // Should continue straight regardless of switch state
-      expect(result.direction).toBeCloseTo(DIRECTIONS.left, 1);
-      expect(result.x).toBeLessThan(5.5 * CELL_SIZE);
+      expect(result.direction).toBeCloseTo(DIRECTIONS.right, 1);
+      expect(result.x).toBeGreaterThan(5.5 * CELL_SIZE);
     });
   });
 

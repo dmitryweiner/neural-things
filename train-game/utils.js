@@ -277,7 +277,7 @@ function calculateNextPosition(cellType, turnCell, cellX, cellY, pixelX, pixelY,
     
     const switchState = switchStates ? switchStates[key] : null;
     
-    if (shouldTurnOnSwitch(cellType, direction, switchState.isStraight)) {
+    if (shouldTurnOnSwitch(cellType, direction, switchState?.isStraight)) {
       // Use turn movement if switch is set to turning
       return calculateTurnPosition(
         cellType,
