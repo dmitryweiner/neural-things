@@ -6,6 +6,7 @@ class Game {
     this.playAgainButton = document.getElementById("playAgain");
 
     this.lastTime = 0;
+    this.isPaused = false; // Add pause state
     this.setupCanvas();
     this.initGame();
     this.setupEventListeners();
@@ -41,8 +42,7 @@ class Game {
         const cell = this.grid[y][x];
         if (isSwitchCell(cell)) {
           this.switchStates[`${x},${y}`] = { 
-            state: 'straight', // Default state
-            isStraight: true
+            isStraight: true // Default state
           };
         }
       }
@@ -121,7 +121,6 @@ class Game {
       
       // Toggle state
       this.switchStates[key].isStraight = !this.switchStates[key].isStraight;
-      this.switchStates[key].state = this.switchStates[key].isStraight ? 'straight' : 'turning';
     }
   }
 
@@ -143,6 +142,28 @@ class Game {
     this.playAgainButton.addEventListener("click", () => {
       this.gameOverScreen.classList.add("hidden");
       this.initGame();
+    });
+    
+    // Add focus/blur event listeners for pause functionality
+    window.addEventListener("blur", () => {
+      this.isPaused = true;
+    });
+    
+    window.addEventListener("focus", () => {
+      this.isPaused = false;
+      // Reset lastTime to prevent large deltaTime when resuming
+      this.lastTime = performance.now();
+    });
+    
+    // Handle visibility change (for mobile browsers)
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        this.isPaused = true;
+      } else {
+        this.isPaused = false;
+        // Reset lastTime to prevent large deltaTime when resuming
+        this.lastTime = performance.now();
+      }
     });
     
     // Handle both clicks and taps for switch toggling
@@ -195,7 +216,11 @@ class Game {
     const deltaTime = (currentTime - this.lastTime) / 1000; // Convert to seconds
     this.lastTime = currentTime;
 
-    this.update(deltaTime);
+    // Only update if not paused
+    if (!this.isPaused) {
+      this.update(deltaTime);
+    }
+    
     this.draw();
     requestAnimationFrame((time) => this.gameLoop(time));
   }
