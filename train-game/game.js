@@ -188,7 +188,6 @@ class Game {
 
   gameLoop(currentTime) {
     const deltaTime = (currentTime - this.lastTime) / 1000; // Convert to seconds
-    console.log('gameLoop', currentTime, this.lastTime, deltaTime);
     this.lastTime = currentTime;
 
     // Only update if not paused
@@ -304,7 +303,6 @@ class Game {
               TURN_DIRECTIONS[baseCellTypeForTurn][trainPart.direction];
           }
         } else {
-          console.log('not valid move', nextGridX, nextGridY, nextPixelX, nextPixelY)
           locomotive.state = LOCOMOTIVE_STATES.CRASHED;
           this.gameOverScreen.style.display = "block";
           return;
