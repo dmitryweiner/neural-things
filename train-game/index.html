@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Поезда</title>
+    <title>Happy train</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,9 +14,25 @@
     <div id="game-title-container">
         <h1 id="game-title">HAPPY TRAIN</h1>
     </div>
-    <div id="game-container">
+    
+    <!-- Welcome Screen with Instructions -->
+    <div id="welcome-screen">
+        <div id="instructions-container">
+            <h2>HOW TO PLAY</h2>
+            <div id="instructions-content">
+                <p>• Control the train by switching track switches</p>
+                <p>• Click on switches <img src="assets/switch.png" width="32"/> to change direction</p>
+                <p>• Control semaphores <img src="assets/semaphore.png" width="32"/> to stop the train</p>
+                <p>• Avoid crashes!</p>
+                <p>• Deliver the train to its destination</p>
+            </div>
+            <button id="start-game-btn" class="play-button">PLAY</button>
+        </div>
+    </div>
+    
+    <div id="game-container" style="display: none;">
         <canvas id="gameCanvas"></canvas>
-        <div id="gameOver" class="hidden">
+        <div id="gameOver" style="display: none;">
             <h2>GAME OVER!</h2>
             <p>Wanna play again?</p>
             <button id="playAgain">Play</button>

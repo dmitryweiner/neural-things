@@ -5,12 +5,12 @@ class Game {
     this.gameOverScreen = document.getElementById("gameOver");
     this.playAgainButton = document.getElementById("playAgain");
 
-    this.lastTime = 0;
+    this.lastTime = performance.now();
     this.isPaused = false; // Add pause state
     this.setupCanvas();
     this.initGame();
     this.setupEventListeners();
-    this.gameLoop();
+    this.gameLoop(performance.now());
   }
 
   setupCanvas() {
@@ -113,7 +113,8 @@ class Game {
 
   setupEventListeners() {
     this.playAgainButton.addEventListener("click", () => {
-      this.gameOverScreen.classList.add("hidden");
+      // Hide game over screen
+      this.gameOverScreen.style.display = "none";
       this.initGame();
     });
     
@@ -185,8 +186,9 @@ class Game {
     }, { passive: false });
   }
 
-  gameLoop(currentTime = 0) {
+  gameLoop(currentTime) {
     const deltaTime = (currentTime - this.lastTime) / 1000; // Convert to seconds
+    console.log('gameLoop', currentTime, this.lastTime, deltaTime);
     this.lastTime = currentTime;
 
     // Only update if not paused
@@ -200,6 +202,9 @@ class Game {
 
   update(deltaTime) {
     const locomotive = this.trainParts[0];
+    if (locomotive.state === LOCOMOTIVE_STATES.CRASHED) {
+      return;
+    }
 
     // Check if locomotive is on a semaphore
     const locomotiveCell = this.grid[locomotive.y][locomotive.x];
@@ -299,8 +304,9 @@ class Game {
               TURN_DIRECTIONS[baseCellTypeForTurn][trainPart.direction];
           }
         } else {
-          locomotive.state = TRAIN_STATES.CRASHED;
-          this.gameOverScreen.classList.remove("hidden");
+          console.log('not valid move', nextGridX, nextGridY, nextPixelX, nextPixelY)
+          locomotive.state = LOCOMOTIVE_STATES.CRASHED;
+          this.gameOverScreen.style.display = "block";
           return;
         }
       }
@@ -356,5 +362,20 @@ class Game {
 
 // Start the game when the page loads
 window.addEventListener("load", () => {
-  new Game();
+  // Game instance will be created when PLAY button is clicked
+  let gameInstance = null;
+  
+  const welcomeScreen = document.getElementById("welcome-screen");
+  const gameContainer = document.getElementById("game-container");
+  const startGameBtn = document.getElementById("start-game-btn");
+  
+  // Handle PLAY button click
+  startGameBtn.addEventListener("click", () => {
+    // Hide welcome screen
+    welcomeScreen.style.display = "none";
+    // Show game container
+    gameContainer.style.display = "block";
+    // Start the game
+    gameInstance = new Game();
+  });
 });

@@ -44,9 +44,11 @@ const DIRECTIONS = {
   up: 3 * Math.PI / 2,
 };
 
-// Train states
-const TRAIN_STATES = {
-  RUNNING: "running",
+const LOCOMOTIVE_STATES = {
+  ACCELERATING: "accelerating",
+  DECELERATING: "decelerating",
+  STOPPED: "stopped",
+  IDLE: "idle",
   CRASHED: "crashed",
 };
 
@@ -120,13 +122,6 @@ const TURN_DIRECTIONS = {
       }
     }
   }
-};
-
-const LOCOMOTIVE_STATES = {
-  ACCELERATING: "accelerating",
-  DECELERATING: "decelerating",
-  STOPPED: "stopped",
-  IDLE: "idle",
 };
 
 if (typeof module !== 'undefined' && module.exports) {
