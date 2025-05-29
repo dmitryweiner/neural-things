@@ -19,19 +19,11 @@ class Game {
   }
 
   initGame() {
-    // Initialize game grid
-    this.grid = [
-      ["┌", "-", "-", "-", "-", "┐", " ", " ", " ", "┌", "-", "-", "-", "-", "┐"],
-      ["|", " ", " ", " ", " ", "|", " ", " ", " ", "|", " ", " ", " ", " ", "|"],
-      ["|S"," ", " ", " ", " ", "|", " ", " ", " ", "|", " ", " ", " ", " ","|S"],
-      ["|┌","-", "-", "-┌","-","┘-", "-", "-S","-", "-└","-", "┐-","-", "-","┐|"],
-      ["|", " ", " ", "|", " ", " ", " ", " ", " ", " ", " ", "|", " ", " ", "|"],
-      ["|", " ", " ", "|", " ", " ", " ", " ", " ", " ", " ", "|", " ", " ", "|"],
-      ["|", " ", "┌", "-└","-","-", "-", "-", "-", "-", "-", "┘-", "┐", " ", "|"],
-      ["└", "-", "┐|"," ", " ", " ", " ", " ", " ", " ", " ", " ", "|┌","-", "┘"],
-      [" ", " ", "|", " ", " ", " ", " ", " ", " ", " ", " ", " ", "|", " ", " "],
-      [" ", " ", "└", "-", "-", "-", "-", "-S","-", "-", "-", "-", "┘", " ", " "]
-    ];
+    // Load level data (for now use first level)
+    const currentLevel = levels[0];
+    
+    // Initialize game grid from level data
+    this.grid = currentLevel.grid.map(row => [...row]); // Deep copy the grid
     
     // Initialize switch states
     this.switchStates = {};
@@ -63,49 +55,30 @@ class Game {
       }
     }
     
-    // Определяем начальные позиции
-    const initialDirection = DIRECTIONS.right;
-    
-    // Создаем локомотив
-    this.trainParts = [{
-      type: 'locomotive',
-      state: LOCOMOTIVE_STATES.ACCELERATING,
-      x: 4, // Начальная позиция
-      y: 0,
-      direction: initialDirection,
-      speed: 0,
-      pixelX: (4 + 0.5) * CELL_SIZE,
-      pixelY: (0 + 0.5) * CELL_SIZE,
-    }];
-    
-    // Добавляем вагон
-    this.trainParts.push({
-      type: 'wagon',
-      x: 3, // Начинаем с предыдущей клетки
-      y: 0,
-      direction: initialDirection,
-      speed: 0,
-      pixelX: (3 + 0.5) * CELL_SIZE,
-      pixelY: (0 + 0.5) * CELL_SIZE,
-    });
-    this.trainParts.push({
-      type: 'wagon',
-      x: 2, // Начинаем с предыдущей клетки
-      y: 0,
-      direction: initialDirection,
-      speed: 0,
-      pixelX: (2 + 0.5) * CELL_SIZE,
-      pixelY: (0 + 0.5) * CELL_SIZE,
-    });
-    this.trainParts.push({
-      type: 'wagon',
-      x: 1, // Начинаем с предыдущей клетки
-      y: 0,
-      direction: initialDirection,
-      speed: 0,
-      pixelX: (1 + 0.5) * CELL_SIZE,
-      pixelY: (0 + 0.5) * CELL_SIZE,
-    });
+    // Create train parts from level data
+    this.trainParts = [];
+        
+    for (let i = 0; i < currentLevel.train.length; i++) {
+      const trainData = currentLevel.train[i];
+      const direction = trainData.direction;
+      
+      const trainPart = {
+        type: trainData.type,
+        x: trainData.x,
+        y: trainData.y,
+        direction: direction,
+        speed: 0,
+        pixelX: (trainData.x + 0.5) * CELL_SIZE,
+        pixelY: (trainData.y + 0.5) * CELL_SIZE,
+      };
+      
+      // Add locomotive state if it's a locomotive
+      if (trainData.type === 'locomotive') {
+        trainPart.state = LOCOMOTIVE_STATES.ACCELERATING;
+      }
+      
+      this.trainParts.push(trainPart);
+    }
     
     // Создаем фон
     this.backgroundCanvas = generateBackground(this.canvas);
