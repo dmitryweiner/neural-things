@@ -3,8 +3,13 @@ class Game {
     this.canvas = document.getElementById("gameCanvas");
     this.ctx = this.canvas.getContext("2d");
     this.gameOverScreen = document.getElementById("gameOver");
+    this.levelCompleteScreen = document.getElementById("levelComplete");
+    this.gameWinScreen = document.getElementById("gameWin");
     this.playAgainButton = document.getElementById("playAgain");
+    this.nextLevelButton = document.getElementById("nextLevel");
+    this.playAgainWinButton = document.getElementById("playAgainWin");
 
+    this.currentLevelIndex = 0; // Track current level
     this.lastTime = performance.now();
     this.isPaused = false; // Add pause state
     this.setupCanvas();
@@ -19,8 +24,8 @@ class Game {
   }
 
   initGame() {
-    // Load level data (for now use first level)
-    const currentLevel = levels[0];
+    // Load level data (use current level)
+    const currentLevel = levels[this.currentLevelIndex];
     
     // Initialize game grid from level data
     this.grid = currentLevel.grid.map(row => [...row]); // Deep copy the grid
@@ -115,6 +120,21 @@ class Game {
     this.playAgainButton.addEventListener("click", () => {
       // Hide game over screen
       this.gameOverScreen.style.display = "none";
+      this.currentLevelIndex = 0; // Reset to first level
+      this.initGame();
+    });
+    
+    this.nextLevelButton.addEventListener("click", () => {
+      // Hide level complete screen
+      this.levelCompleteScreen.style.display = "none";
+      this.currentLevelIndex++;
+      this.initGame();
+    });
+    
+    this.playAgainWinButton.addEventListener("click", () => {
+      // Hide game win screen
+      this.gameWinScreen.style.display = "none";
+      this.currentLevelIndex = 0; // Reset to first level
       this.initGame();
     });
     
@@ -288,6 +308,25 @@ class Game {
           // Update grid position first
           trainPart.x = nextGridX;
           trainPart.y = nextGridY;
+          
+          // Check if locomotive reached the target point (station)
+          if (i === 0) { // Only check for locomotive (first train part)
+            const currentLevel = levels[this.currentLevelIndex];
+            const targetPoint = currentLevel.targetPoint;
+            
+            if (trainPart.x === targetPoint.x && trainPart.y === targetPoint.y) {
+              // Level completed!
+              if (this.currentLevelIndex < levels.length - 1) {
+                // More levels available
+                this.levelCompleteScreen.style.display = "block";
+              } else {
+                // All levels completed
+                this.gameWinScreen.style.display = "block";
+              }
+              locomotive.state = LOCOMOTIVE_STATES.CRASHED;
+              return;
+            }
+          }
         } else {
           locomotive.state = LOCOMOTIVE_STATES.CRASHED;
           this.gameOverScreen.style.display = "block";
@@ -324,12 +363,19 @@ class Game {
     // Draw background
     this.ctx.drawImage(this.backgroundCanvas, 0, 0);
 
+    // Get current level target point
+    const currentLevel = levels[this.currentLevelIndex];
+    const targetPoint = currentLevel.targetPoint;
+
     // Draw grid (rails only)
     for (let y = 0; y < GRID_HEIGHT; y++) {
       for (let x = 0; x < GRID_WIDTH; x++) {
         const cellType = this.grid[y][x];
-        // Special handling for switches to show their state
-        if (isSwitchCell(cellType)) {
+        
+        // Check if this is the station cell
+        if (x === targetPoint.x && y === targetPoint.y) {
+          drawStationCell(this.ctx, x, y, cellType);
+        } else if (isSwitchCell(cellType)) {
           drawSwitchCell(this.ctx, x, y, cellType, this.getSwitchState(x, y));
         } else if (isSemaphoreCell(cellType)) {
           const semaphoreState = this.semaphoreStates[`${x},${y}`];

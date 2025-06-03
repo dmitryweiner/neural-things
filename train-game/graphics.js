@@ -458,6 +458,19 @@ function drawSemaphoreCell(ctx, x, y, cellType, isOpen) {
   ctx.stroke();
 }
 
+// Draw function for station cells with turquoise background
+function drawStationCell(ctx, x, y, cellType) {
+  const cellX = x * CELL_SIZE;
+  const cellY = y * CELL_SIZE;
+  
+  // Draw turquoise background
+  ctx.fillStyle = "#40E0D0"; // Turquoise color
+  ctx.fillRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
+  
+  // Draw the normal cell content on top
+  drawCell(ctx, x, y, cellType);
+}
+
 // Экспортируем функции для тестирования
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -468,5 +481,6 @@ if (typeof module !== 'undefined' && module.exports) {
     drawTrainPart,
     drawSwitchCell,
     drawSemaphoreCell,
+    drawStationCell,
   };
 } 
