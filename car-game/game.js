@@ -5,7 +5,9 @@ const gameOverBanner = document.getElementById('gameOverBanner');
 const restartBtn = document.getElementById('restartBtn');
 
 // Game constants
-const CAR_SIZE = 40;
+const CAR_WIDTH = 28;  
+const CAR_HEIGHT = 40; 
+const CAR_SIZE = 40;   
 const CUBE_SIZE = 30;
 const FUEL_INCREMENT = 25;
 const INITIAL_FUEL = 50;
@@ -136,14 +138,6 @@ if (isMobile) {
         btn.addEventListener('mouseup', e => { e.preventDefault(); releaseKey(key); });
         btn.addEventListener('mouseleave', e => { e.preventDefault(); releaseKey(key); });
     });
-
-    // Если палец ушёл с экрана — сбросить все
-    document.addEventListener('touchend', () => {
-        releaseKey('ArrowUp');
-        releaseKey('ArrowDown');
-        releaseKey('ArrowLeft');
-        releaseKey('ArrowRight');
-    });
 }
 
 // Update car position and handle collisions
@@ -259,10 +253,10 @@ function draw() {
     if (car.sprite) {
         ctx.drawImage(
             car.sprite,
-            -CAR_SIZE / 2,
-            -CAR_SIZE / 2,
-            CAR_SIZE,
-            CAR_SIZE
+            -CAR_WIDTH / 2,
+            -CAR_HEIGHT / 2,
+            CAR_WIDTH,
+            CAR_HEIGHT
         );
     } else {
         ctx.font = `${CAR_SIZE}px Arial`;
