@@ -41,20 +41,15 @@ describe('Switch Movement Calculation', () => {
   
   describe('Straight state movement', () => {
     test('vertical switch should continue straight when in straight state', () => {
-      const switchStates = {
-        '5,5': { isStraight: true }
-      };
-      
       const result = calculateNextPosition(
         CELL_TYPES.SWITCH_RIGHT_UP_V,
-        null,
         5, 5,
         5.5 * CELL_SIZE, 5.5 * CELL_SIZE,
         DIRECTIONS.up,
         1.0,
         0.1,
         CELL_SIZE,
-        switchStates
+        true
       );
       
       expect(result.direction).toBeCloseTo(DIRECTIONS.up, 1);
@@ -62,20 +57,15 @@ describe('Switch Movement Calculation', () => {
     });
 
     test('horizontal switch should continue straight when in straight state', () => {
-      const switchStates = {
-        '5,5': { isStraight: true }
-      };
-      
       const result = calculateNextPosition(
         CELL_TYPES.SWITCH_RIGHT_UP_H,
-        null,
         5, 5,
         5.5 * CELL_SIZE, 5.5 * CELL_SIZE,
         DIRECTIONS.right,
         1.0,
         0.1,
         CELL_SIZE,
-        switchStates
+        true
       );
       
       expect(result.direction).toBeCloseTo(DIRECTIONS.right, 1);
@@ -85,20 +75,15 @@ describe('Switch Movement Calculation', () => {
 
   describe('Turning state movement', () => {
     test('vertical switch should turn when in turning state and not approaching from back', () => {
-      const switchStates = {
-        '5,5': { isStraight: false }
-      };
-      
       const result = calculateNextPosition(
         CELL_TYPES.SWITCH_RIGHT_UP_V,
-        null,
         5, 5,
         5.5 * CELL_SIZE, 5.5 * CELL_SIZE,
         DIRECTIONS.right, // Approaching from side (not back)
         1.0,
         0.1,
         CELL_SIZE,
-        switchStates
+        false
       );
       
       // Direction should change when turning
@@ -106,20 +91,15 @@ describe('Switch Movement Calculation', () => {
     });
 
     test('horizontal switch should turn when in turning state and not approaching from back', () => {
-      const switchStates = {
-        '5,5': { isStraight: false }
-      };
-      
       const result = calculateNextPosition(
         CELL_TYPES.SWITCH_RIGHT_UP_H,
-        null,
         5, 5,
         5.5 * CELL_SIZE, 5.5 * CELL_SIZE,
         DIRECTIONS.up, // Approaching from vertical (not back)
         1.0,
         0.1,
         CELL_SIZE,
-        switchStates
+        false
       );
       
       // Direction should change when turning
@@ -129,21 +109,16 @@ describe('Switch Movement Calculation', () => {
 
   describe('Back side approach behavior', () => {
     test('should ignore switch state when approaching from back side', () => {
-      const switchStates = {
-        '5,5': { isStraight: false } // Switch set to turning
-      };
-      
       // Vertical switch approached from below (back side)
       const result = calculateNextPosition(
         CELL_TYPES.SWITCH_RIGHT_UP_V,
-        null,
         5, 5,
         5.5 * CELL_SIZE, 5.5 * CELL_SIZE,
         DIRECTIONS.up, // Back side approach
         1.0,
         0.1,
         CELL_SIZE,
-        switchStates
+        false
       );
       
       // Should continue straight regardless of switch state
@@ -152,21 +127,16 @@ describe('Switch Movement Calculation', () => {
     });
 
     test('horizontal switch should ignore state when approaching from back side', () => {
-      const switchStates = {
-        '5,5': { isStraight: false } // Switch set to turning
-      };
-      
       // Horizontal switch approached from left (back side)
       const result = calculateNextPosition(
         CELL_TYPES.SWITCH_RIGHT_UP_H,
-        null,
         5, 5,
         5.5 * CELL_SIZE, 5.5 * CELL_SIZE,
         DIRECTIONS.right, // Back side approach
         1.0,
         0.1,
         CELL_SIZE,
-        switchStates
+        false
       );
       
       // Should continue straight regardless of switch state
@@ -177,18 +147,15 @@ describe('Switch Movement Calculation', () => {
 
   describe('Edge cases', () => {
     test('should handle missing switch state gracefully', () => {
-      const switchStates = {}; // No state for this switch
-      
       const result = calculateNextPosition(
         CELL_TYPES.SWITCH_RIGHT_UP_V,
-        null,
         5, 5,
         5.5 * CELL_SIZE, 5.5 * CELL_SIZE,
         DIRECTIONS.up,
         1.0,
         0.1,
         CELL_SIZE,
-        switchStates
+        undefined
       );
       
       // Should default to straight movement
@@ -199,7 +166,6 @@ describe('Switch Movement Calculation', () => {
     test('should handle null switchStates parameter', () => {
       const result = calculateNextPosition(
         CELL_TYPES.SWITCH_RIGHT_UP_V,
-        null,
         5, 5,
         5.5 * CELL_SIZE, 5.5 * CELL_SIZE,
         DIRECTIONS.up,

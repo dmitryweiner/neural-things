@@ -258,13 +258,10 @@ class Game {
 
       // Get current cell type
       const currentCellType = this.grid[trainPart.y][trainPart.x];
-      const baseCellType = isSemaphoreCell(currentCellType) ? getBaseCellType(currentCellType) : currentCellType;
-      const turnCell = TURN_DIRECTIONS[baseCellType];
       
       // Calculate next position using the shared function
       const nextPosition = calculateNextPosition(
         currentCellType,
-        turnCell,
         trainPart.x,
         trainPart.y,
         trainPart.pixelX,
@@ -273,7 +270,7 @@ class Game {
         trainPart.speed,
         deltaTime,
         CELL_SIZE,
-        this.switchStates
+        this.getSwitchState(trainPart.x, trainPart.y)
       );
 
       const nextPixelX = nextPosition.x;
@@ -291,17 +288,6 @@ class Game {
           // Update grid position first
           trainPart.x = nextGridX;
           trainPart.y = nextGridY;
-
-          // Then check for turn and update direction
-          const cellType = this.grid[trainPart.y][trainPart.x];
-          const baseCellTypeForTurn = isSemaphoreCell(cellType) ? getBaseCellType(cellType) : cellType;
-          if (
-            TURN_DIRECTIONS[baseCellTypeForTurn] &&
-            TURN_DIRECTIONS[baseCellTypeForTurn][trainPart.direction]
-          ) {
-            trainPart.direction =
-              TURN_DIRECTIONS[baseCellTypeForTurn][trainPart.direction];
-          }
         } else {
           locomotive.state = LOCOMOTIVE_STATES.CRASHED;
           this.gameOverScreen.style.display = "block";
@@ -327,6 +313,10 @@ class Game {
     return baseCellType !== CELL_TYPES.EMPTY;
   }
 
+  getSwitchState(x, y) {
+    return this.switchStates[`${x},${y}`]?.isStraight;
+  }
+
   draw() {
     // Clear canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -340,11 +330,10 @@ class Game {
         const cellType = this.grid[y][x];
         // Special handling for switches to show their state
         if (isSwitchCell(cellType)) {
-          const switchState = this.switchStates[`${x},${y}`];
-          drawSwitchCell(this.ctx, x, y, cellType, switchState ? switchState.isStraight : true);
+          drawSwitchCell(this.ctx, x, y, cellType, this.getSwitchState(x, y));
         } else if (isSemaphoreCell(cellType)) {
           const semaphoreState = this.semaphoreStates[`${x},${y}`];
-          drawSemaphoreCell(this.ctx, x, y, cellType, semaphoreState ? semaphoreState.isOpen : true);
+          drawSemaphoreCell(this.ctx, x, y, cellType, semaphoreState?.isOpen);
         } else {
           drawCell(this.ctx, x, y, cellType);
         }

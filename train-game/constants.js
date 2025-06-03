@@ -52,78 +52,6 @@ const LOCOMOTIVE_STATES = {
   CRASHED: "crashed",
 };
 
-// Direction mapping for turns
-const TURN_DIRECTIONS = {
-  [CELL_TYPES.TURN_RIGHT_DOWN]: {
-    // Поворот направо-вниз
-    entryPoints: {
-      [DIRECTIONS.right]: {
-        centerX: (x) => x * CELL_SIZE + CELL_SIZE,
-        centerY: (y) => y * CELL_SIZE,
-        startAngle: 0,
-        endAngle: Math.PI / 2
-      },
-      [DIRECTIONS.up]: {
-        centerX: (x) => x * CELL_SIZE,
-        centerY: (y) => y * CELL_SIZE,
-        startAngle: Math.PI,
-        endAngle: 3 * Math.PI / 2
-      }
-    }
-  },
-  [CELL_TYPES.TURN_LEFT_DOWN]: {
-    // Поворот налево-вниз
-    entryPoints: {
-      [DIRECTIONS.left]: {
-        centerX: (x) => x * CELL_SIZE,
-        centerY: (y) => y * CELL_SIZE,
-        startAngle: Math.PI,
-        endAngle: 3 * Math.PI / 2
-      },
-      [DIRECTIONS.up]: {
-        centerX: (x) => x * CELL_SIZE + CELL_SIZE,
-        centerY: (y) => y * CELL_SIZE,
-        startAngle: Math.PI,
-        endAngle: Math.PI / 2
-      }
-    }
-  },
-  [CELL_TYPES.TURN_RIGHT_UP]: {
-    // Поворот направо-вверх
-    entryPoints: {
-      [DIRECTIONS.left]: {
-        centerX: (x) => x * CELL_SIZE,
-        centerY: (y) => y * CELL_SIZE + CELL_SIZE,
-        startAngle: Math.PI,
-        endAngle: -Math.PI / 2
-      },
-      [DIRECTIONS.down]: {
-        centerX: (x) => x * CELL_SIZE + CELL_SIZE,
-        centerY: (y) => y * CELL_SIZE + CELL_SIZE,
-        startAngle: Math.PI / 2,
-        endAngle: 0
-      }
-    }
-  },
-  [CELL_TYPES.TURN_LEFT_UP]: {
-    // Поворот налево-вверх
-    entryPoints: {
-      [DIRECTIONS.right]: {
-        centerX: (x) => x * CELL_SIZE + CELL_SIZE,
-        centerY: (y) => y * CELL_SIZE + CELL_SIZE,
-        startAngle: 0,
-        endAngle: -Math.PI / 2
-      },
-      [DIRECTIONS.down]: {
-        centerX: (x) => x * CELL_SIZE,
-        centerY: (y) => y * CELL_SIZE + CELL_SIZE,
-        startAngle: Math.PI / 2,
-        endAngle: Math.PI
-      }
-    }
-  }
-};
-
 if (typeof module !== 'undefined' && module.exports) {
 module.exports = {
   CELL_SIZE,
@@ -137,8 +65,6 @@ module.exports = {
   TRAIN_DECELERATION,
   CELL_TYPES,
   DIRECTIONS,
-  TRAIN_STATES,
-  TURN_DIRECTIONS,
   LOCOMOTIVE_STATES,
   }; 
 }
