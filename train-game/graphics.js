@@ -458,14 +458,19 @@ function drawSemaphoreCell(ctx, x, y, cellType, isOpen) {
   ctx.stroke();
 }
 
-// Draw function for station cells with turquoise background
+// Draw function for station cells with house icon underneath
 function drawStationCell(ctx, x, y, cellType) {
   const cellX = x * CELL_SIZE;
   const cellY = y * CELL_SIZE;
+  const centerX = cellX + CELL_SIZE / 2;
+  const centerY = cellY + CELL_SIZE / 2;
   
-  // Draw turquoise background
-  ctx.fillStyle = "#40E0D0"; // Turquoise color
-  ctx.fillRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
+  // Draw house icon first (underneath the rails)
+  ctx.font = `${CELL_SIZE * 0.8}px Arial`; // Size is about half the cell
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#000"; // Black color for the house icon
+  ctx.fillText("🏠", centerX, centerY);
   
   // Draw the normal cell content on top
   drawCell(ctx, x, y, cellType);
