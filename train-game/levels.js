@@ -24,6 +24,7 @@ const levels = [
         x: 3,
         y: 0,
         direction: 0,
+        wagonType: 'wagon1',
       },
     ],
     targetPoint: {
@@ -56,12 +57,14 @@ const levels = [
         x: 3,
         y: 0,
         direction: 0,
+        wagonType: 'wagon1',
       },
       {
         type: 'wagon',
         x: 2,
         y: 0,
         direction: 0,
+        wagonType: 'wagon2',
       },
     ],
     targetPoint: {

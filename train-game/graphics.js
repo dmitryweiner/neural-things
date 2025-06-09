@@ -8,6 +8,9 @@ if (typeof window === 'undefined') {
   globalThis.TIE_SPACING = TIE_SPACING;
 }
 
+// Path to assets folder
+const ASSETS_PATH = 'assets/';
+
 // Helper function to check if a cell is a semaphore
 function isSemaphoreCell(cellType) {
   return [
@@ -337,16 +340,48 @@ function drawCell(ctx, x, y, cellType) {
   }
 }
 
-function drawTrain(ctx, train) {
-  ctx.save();
-  ctx.translate(train.pixelX, train.pixelY);
-  ctx.rotate(train.direction);
-  ctx.fillStyle = "#f00";
-  ctx.font = "30px Arial";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("🚃", 0, 0);
-  ctx.restore();
+// Object to store loaded train images
+const trainImages = {
+  locomotive: null,
+  wagon1: null,
+  wagon2: null,
+  loaded: false
+};
+
+// Function to load train images
+function loadTrainImages() {
+  if (typeof Image === 'undefined') {
+    // Node.js environment - skip image loading
+    trainImages.loaded = true;
+    return Promise.resolve();
+  }
+  
+  return new Promise((resolve) => {
+    let loadedCount = 0;
+    const totalImages = 3;
+    
+    function onImageLoad() {
+      loadedCount++;
+      if (loadedCount === totalImages) {
+        trainImages.loaded = true;
+        resolve();
+      }
+    }
+    
+    // Load locomotive image
+    trainImages.locomotive = new Image();
+    trainImages.locomotive.onload = onImageLoad;
+    trainImages.locomotive.src = ASSETS_PATH + 'locomotive.png';
+    
+    // Load wagon images
+    trainImages.wagon1 = new Image();
+    trainImages.wagon1.onload = onImageLoad;
+    trainImages.wagon1.src = ASSETS_PATH + 'wagon1.png';
+
+    trainImages.wagon2 = new Image();
+    trainImages.wagon2.onload = onImageLoad;
+    trainImages.wagon2.src = ASSETS_PATH + 'wagon2.png';
+  });
 }
 
 // New function to draw different train parts
@@ -354,16 +389,30 @@ function drawTrainPart(ctx, part) {
   ctx.save();
   ctx.translate(part.pixelX, part.pixelY);
   ctx.rotate(part.direction);
-  ctx.font = "30px Arial";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
   
-  // Draw different emoji based on part type
+  let image = null;
   if (part.type === 'locomotive') {
-    ctx.fillText("🚃", 0, 0); // Locomotive
+    image = trainImages.locomotive;
   } else if (part.type === 'wagon') {
-    ctx.fillText("🚋", 0, 0); // Wagon
+    image = trainImages[part.wagonType];
   }
+  
+  // Calculate scaled size while preserving aspect ratio
+  const maxSize = CELL_SIZE;
+  const aspectRatio = image.width / image.height;
+  
+  let drawWidth, drawHeight;
+  if (aspectRatio > 1) {
+    // Image is wider than tall
+    drawWidth = maxSize;
+    drawHeight = maxSize / aspectRatio;
+  } else {
+    // Image is taller than wide (or square)
+    drawHeight = maxSize;
+    drawWidth = maxSize * aspectRatio;
+  }
+  
+  ctx.drawImage(image, -drawWidth/2, -drawHeight/2, drawWidth, drawHeight);
   
   ctx.restore();
 }
@@ -513,11 +562,12 @@ function drawStationCell(ctx, x, y, cellType) {
 // Экспортируем функции для тестирования
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
+    ASSETS_PATH,
     seededRandom,
     generateBackground,
     drawCell,
-    drawTrain,
     drawTrainPart,
+    loadTrainImages,
     drawSwitchCell,
     drawSemaphoreCell,
     drawStationCell,

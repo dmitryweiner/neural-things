@@ -80,6 +80,8 @@ class Game {
       // Add locomotive state if it's a locomotive
       if (trainData.type === 'locomotive') {
         trainPart.state = LOCOMOTIVE_STATES.ACCELERATING;
+      } else {
+        trainPart.wagonType = trainData.wagonType;
       }
       
       this.trainParts.push(trainPart);
@@ -403,7 +405,10 @@ window.addEventListener("load", () => {
   const startGameBtn = document.getElementById("start-game-btn");
   
   // Handle PLAY button click
-  startGameBtn.addEventListener("click", () => {
+  startGameBtn.addEventListener("click", async () => {
+    // Load train images first
+    await loadTrainImages();
+    
     // Hide welcome screen
     welcomeScreen.style.display = "none";
     // Show game container

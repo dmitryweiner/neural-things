@@ -1,4 +1,4 @@
-const { drawCell, drawTrain } = require('../graphics');
+const { drawCell } = require('../graphics');
 
 // Функция для создания контекста-заглушки
 function createMockContext() {
@@ -24,27 +24,6 @@ function createMockContext() {
 }
 
 describe('Mock Context Tests', () => {
-  test('drawTrain calls expected methods', () => {
-    const ctx = createMockContext();
-    const train = {
-      pixelX: 100,
-      pixelY: 150,
-      direction: Math.PI / 4 // 45 градусов
-    };
-    
-    drawTrain(ctx, train);
-    
-    // Проверяем последовательность вызовов
-    expect(ctx.calls[0]).toEqual(['save']);
-    expect(ctx.calls[1]).toEqual(['translate', 100, 150]);
-    expect(ctx.calls[2]).toEqual(['rotate', Math.PI / 4]);
-    // Наличие вызова fillText для смайлика поезда
-    const fillTextCall = ctx.calls.find(call => call[0] === 'fillText' && call[1] === '🚃');
-    expect(fillTextCall).toBeTruthy();
-    // Последний вызов должен быть restore
-    expect(ctx.calls[ctx.calls.length - 1]).toEqual(['restore']);
-  });
-  
   test('drawCell with RAIL_H calls expected methods', () => {
     const ctx = createMockContext();
     
