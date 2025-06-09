@@ -445,17 +445,51 @@ function drawSemaphoreCell(ctx, x, y, cellType, isOpen) {
   const centerX = (x + 0.5) * CELL_SIZE;
   const centerY = (y + 0.5) * CELL_SIZE;
   
-  // Draw semaphore circle
-  const radius = 6;
-  ctx.fillStyle = isOpen ? "#00ff00" : "#ff0000"; // Green if open, red if closed
-  ctx.beginPath();
-  ctx.arc(centerX + 10, centerY - 10, radius, 0, Math.PI * 2); // Offset to corner
-  ctx.fill();
+  const radius = CELL_SIZE * 0.1;
+  const semaphoreX = centerX + 10;
+  const topCircleY = centerY - 10 - radius;    // Upper circle position
+  const bottomCircleY = centerY - 10 + radius; // Lower circle position
   
-  // Add border to make it more visible
-  ctx.strokeStyle = "#000";
-  ctx.lineWidth = 1;
-  ctx.stroke();
+  if (isOpen) {
+    // Semaphore is open: top circle is black, bottom circle is green with black border
+    
+    // Draw top black circle
+    ctx.fillStyle = "#000000";
+    ctx.beginPath();
+    ctx.arc(semaphoreX, topCircleY, radius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw bottom green circle with black border
+    ctx.fillStyle = "#00ff00";
+    ctx.beginPath();
+    ctx.arc(semaphoreX, bottomCircleY, radius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Add black border to green circle
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+  } else {
+    // Semaphore is closed: top circle is red with black border, bottom circle is black
+    
+    // Draw top red circle with black border
+    ctx.fillStyle = "#ff0000";
+    ctx.beginPath();
+    ctx.arc(semaphoreX, topCircleY, radius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Add black border to red circle
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+    // Draw bottom black circle
+    ctx.fillStyle = "#000000";
+    ctx.beginPath();
+    ctx.arc(semaphoreX, bottomCircleY, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 // Draw function for station cells with house icon underneath
