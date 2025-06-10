@@ -34,6 +34,20 @@ describe('Cell Rendering Tests', () => {
     expect(diffPixels).toBeLessThan(10);
   });
   
+  test('RAIL_H_V - пересечение рельсов', () => {
+    const canvas = createTestCanvas();
+    const ctx = canvas.getContext('2d');
+    
+    // Очищаем canvas перед отрисовкой
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, CELL_SIZE, CELL_SIZE);
+    
+    drawCell(ctx, 0, 0, CELL_TYPES.RAIL_H_V);
+    
+    const { diffPixels } = compareCanvasWithReference(canvas, 'rail-h-v');
+    expect(diffPixels).toBeLessThan(10);
+  });
+  
   test('TURN_RIGHT_DOWN - поворот вправо-вниз', () => {
     const canvas = createTestCanvas();
     const ctx = canvas.getContext('2d');

@@ -163,6 +163,8 @@ function getBaseCellType(cellType) {
       return CELL_TYPES.TURN_LEFT_UP;
     case CELL_TYPES.TURN_RIGHT_UP_SEMAPHORE:
       return CELL_TYPES.TURN_RIGHT_UP;
+    case CELL_TYPES.RAIL_H_V_SEMAPHORE:
+      return CELL_TYPES.RAIL_H_V;
     default:
       return cellType;
   }
@@ -304,6 +306,19 @@ function calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, d
             (baseCellType.includes("|") && isSwitchCell(baseCellType))) {
     // Если на вертикальных рельсах, "прилипаем" к вертикальному движению
     nextDirection = Math.sin(normalizedCurrentAngle) > 0 ? DIRECTIONS.down : DIRECTIONS.up;
+  } else if (baseCellType === CELL_TYPES.RAIL_H_V) {
+    // Пересечение рельсов - сохраняем текущее направление движения
+    // Определяем, движется ли поезд больше горизонтально или вертикально
+    const cosValue = Math.abs(Math.cos(normalizedCurrentAngle));
+    const sinValue = Math.abs(Math.sin(normalizedCurrentAngle));
+    
+    if (cosValue > sinValue) {
+      // Движение больше горизонтальное
+      nextDirection = Math.cos(normalizedCurrentAngle) > 0 ? DIRECTIONS.right : DIRECTIONS.left;
+    } else {
+      // Движение больше вертикальное
+      nextDirection = Math.sin(normalizedCurrentAngle) > 0 ? DIRECTIONS.down : DIRECTIONS.up;
+    }
   }
 
   // Обновляем позицию в зависимости от угла направления

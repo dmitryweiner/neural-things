@@ -374,6 +374,54 @@ describe('calculateStraightPosition', () => {
     });
   });
   
+  describe('Пересечение рельсов (RAIL_H_V)', () => {
+    const cellType = CELL_TYPES.RAIL_H_V;
+    
+    test('Горизонтальное движение слева направо сохраняется', () => {
+      const direction = DIRECTIONS.right;
+      const result = calculateStraightPosition(
+        cellType, pixelX, pixelY, direction, speed, deltaTime, CELL_SIZE
+      );
+      
+      expect(result.direction).toBe(DIRECTIONS.right);
+      expect(result.x).toBeGreaterThan(pixelX);
+      expect(result.y).toBe(pixelY);
+    });
+    
+    test('Горизонтальное движение справа налево сохраняется', () => {
+      const direction = DIRECTIONS.left;
+      const result = calculateStraightPosition(
+        cellType, pixelX, pixelY, direction, speed, deltaTime, CELL_SIZE
+      );
+      
+      expect(result.direction).toBe(DIRECTIONS.left);
+      expect(result.x).toBeLessThan(pixelX);
+      expect(result.y).toBe(pixelY);
+    });
+    
+    test('Вертикальное движение сверху вниз сохраняется', () => {
+      const direction = DIRECTIONS.down;
+      const result = calculateStraightPosition(
+        cellType, pixelX, pixelY, direction, speed, deltaTime, CELL_SIZE
+      );
+      
+      expect(result.direction).toBe(DIRECTIONS.down);
+      expect(result.y).toBeGreaterThan(pixelY);
+      expect(result.x).toBe(pixelX);
+    });
+    
+    test('Вертикальное движение снизу вверх сохраняется', () => {
+      const direction = DIRECTIONS.up;
+      const result = calculateStraightPosition(
+        cellType, pixelX, pixelY, direction, speed, deltaTime, CELL_SIZE
+      );
+      
+      expect(result.direction).toBe(DIRECTIONS.up);
+      expect(result.y).toBeLessThan(pixelY);
+      expect(result.x).toBe(pixelX);
+    });
+  });
+  
   describe('Другие типы клеток', () => {
     test('Для других типов клеток направление не меняется', () => {
       const direction = Math.PI / 6; // Произвольный угол

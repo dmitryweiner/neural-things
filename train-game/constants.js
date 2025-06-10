@@ -16,6 +16,8 @@ const CELL_TYPES = {
   EMPTY: " ",
   RAIL_H: "-",
   RAIL_V: "|",
+  RAIL_H_V: "┼",
+  RAIL_H_V_SEMAPHORE: "┼S",
   TURN_RIGHT_DOWN: "┐",
   TURN_LEFT_DOWN: "┌",
   TURN_LEFT_UP: "┘",

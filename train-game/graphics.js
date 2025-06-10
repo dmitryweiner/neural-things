@@ -11,6 +11,25 @@ if (typeof window === 'undefined') {
 // Path to assets folder
 const ASSETS_PATH = 'assets/';
 
+// Color constants
+const COLORS = {
+  // Background and grid colors
+  GRASS_BASE: "#a5ed32",
+  GRID_LINE: "#ccc",
+  
+  // Rail colors
+  RAIL_GRAY: "#555",
+  TIE_BROWN: "#CD853F",
+  
+  // General colors
+  BLACK: "#000000",
+  WHITE: "#ffffff",
+  
+  // Semaphore colors
+  SEMAPHORE_RED: "#ff0000",
+  SEMAPHORE_GREEN: "#00ff00",
+};
+
 // Helper function to check if a cell is a semaphore
 function isSemaphoreCell(cellType) {
   return [
@@ -67,7 +86,7 @@ function generateBackground(canvas) {
   const bgCtx = backgroundCanvas.getContext('2d');
   
   // Заполняем базовым зеленым цветом
-  bgCtx.fillStyle = "#a5ed32"; // LightGreen - базовый цвет травы
+  bgCtx.fillStyle = COLORS.GRASS_BASE; // LightGreen - базовый цвет травы
   bgCtx.fillRect(0, 0, backgroundCanvas.width, backgroundCanvas.height);
   
   // Количество зеленых пятен (примерно 8 на клетку)
@@ -95,7 +114,7 @@ function generateBackground(canvas) {
   }
   
   // Рисуем сетку для ориентировки
-  bgCtx.strokeStyle = "#ccc";
+  bgCtx.strokeStyle = COLORS.GRID_LINE;
   for (let y = 0; y < GRID_HEIGHT; y++) {
     for (let x = 0; x < GRID_WIDTH; x++) {
       bgCtx.strokeRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
@@ -105,6 +124,105 @@ function generateBackground(canvas) {
   return backgroundCanvas;
 }
 
+// Helper functions for drawing rail components
+function drawHorizontalTies(ctx, cellX, cellY, centerY) {
+  ctx.strokeStyle = COLORS.TIE_BROWN;
+  const numTies = Math.floor(CELL_SIZE / TIE_SPACING);
+  const tieSpacing = CELL_SIZE / numTies;
+  
+  for (let i = 0; i < numTies; i++) {
+    const tieX = cellX + i * tieSpacing + tieSpacing / 2;
+    
+    ctx.beginPath();
+    ctx.moveTo(tieX, centerY - RAIL_WIDTH - TIE_WIDTH/2);
+    ctx.lineTo(tieX, centerY + RAIL_WIDTH + TIE_WIDTH/2);
+    ctx.stroke();
+  }
+}
+
+function drawVerticalTies(ctx, cellX, cellY, centerX) {
+  ctx.strokeStyle = COLORS.TIE_BROWN;
+  const numTies = Math.floor(CELL_SIZE / TIE_SPACING);
+  const tieSpacing = CELL_SIZE / numTies;
+  
+  for (let i = 0; i < numTies; i++) {
+    const tieY = cellY + i * tieSpacing + tieSpacing / 2;
+    
+    ctx.beginPath();
+    ctx.moveTo(centerX - RAIL_WIDTH - TIE_WIDTH/2, tieY);
+    ctx.lineTo(centerX + RAIL_WIDTH + TIE_WIDTH/2, tieY);
+    ctx.stroke();
+  }
+}
+
+function drawCurvedTies(ctx, center, radius1, radius2, startAngle, endAngle) {
+  ctx.strokeStyle = COLORS.TIE_BROWN;
+  const arcLength = Math.abs(endAngle - startAngle) * CELL_SIZE/2;
+  const numTies = Math.floor(arcLength / TIE_SPACING);
+  const tieAngleSpacing = (endAngle - startAngle) / numTies;
+  
+  for (let i = 0; i < numTies; i++) {
+    const angle = startAngle + i * tieAngleSpacing + tieAngleSpacing / 2;
+    
+    ctx.beginPath();
+    ctx.moveTo(
+      center.x + (radius1 - TIE_WIDTH/2) * Math.cos(angle), 
+      center.y + (radius1 - TIE_WIDTH/2) * Math.sin(angle)
+    );
+    ctx.lineTo(
+      center.x + (radius2 + TIE_WIDTH/2) * Math.cos(angle), 
+      center.y + (radius2 + TIE_WIDTH/2) * Math.sin(angle)
+    );
+    ctx.stroke();
+  }
+}
+
+function drawHorizontalRails(ctx, cellX, cellY, centerY) {
+  ctx.strokeStyle = COLORS.RAIL_GRAY;
+  
+  // Верхний рельс
+  ctx.beginPath();
+  ctx.moveTo(cellX, centerY - RAIL_WIDTH);
+  ctx.lineTo(cellX + CELL_SIZE, centerY - RAIL_WIDTH);
+  ctx.stroke();
+
+  // Нижний рельс
+  ctx.beginPath();
+  ctx.moveTo(cellX, centerY + RAIL_WIDTH);
+  ctx.lineTo(cellX + CELL_SIZE, centerY + RAIL_WIDTH);
+  ctx.stroke();
+}
+
+function drawVerticalRails(ctx, cellX, cellY, centerX) {
+  ctx.strokeStyle = COLORS.RAIL_GRAY;
+  
+  // Левый рельс
+  ctx.beginPath();
+  ctx.moveTo(centerX - RAIL_WIDTH, cellY);
+  ctx.lineTo(centerX - RAIL_WIDTH, cellY + CELL_SIZE);
+  ctx.stroke();
+
+  // Правый рельс
+  ctx.beginPath();
+  ctx.moveTo(centerX + RAIL_WIDTH, cellY);
+  ctx.lineTo(centerX + RAIL_WIDTH, cellY + CELL_SIZE);
+  ctx.stroke();
+}
+
+function drawCurvedRails(ctx, center, radius1, radius2, startAngle, endAngle) {
+  ctx.strokeStyle = COLORS.RAIL_GRAY;
+  
+  // Внутренняя дуга
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, radius1, startAngle, endAngle);
+  ctx.stroke();
+  
+  // Внешняя дуга
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, radius2, startAngle, endAngle);
+  ctx.stroke();
+}
+
 function drawCell(ctx, x, y, cellType) {
   const cellX = x * CELL_SIZE;
   const cellY = y * CELL_SIZE;
@@ -112,65 +230,25 @@ function drawCell(ctx, x, y, cellType) {
   const centerY = cellY + CELL_SIZE / 2;
 
   // Настройки линий для рельсов
-  ctx.strokeStyle = "#555"; // Серый цвет для рельсов
+  ctx.strokeStyle = COLORS.RAIL_GRAY; // Серый цвет для рельсов
   ctx.lineWidth = 2;
 
   // Отрисовка в зависимости от типа клетки
   switch (cellType) {
     case CELL_TYPES.RAIL_H:
-      // Добавляем шпалы (рисуем их первыми)
-      ctx.strokeStyle = "#CD853F"; // Более светлый коричневый цвет для шпал (Peru)
-      const numTiesH = Math.floor(CELL_SIZE / TIE_SPACING);
-      const tieSpacingH = CELL_SIZE / numTiesH;
-      
-      for (let i = 0; i < numTiesH; i++) {
-        const tieX = cellX + i * tieSpacingH + tieSpacingH / 2;
-        
-        ctx.beginPath();
-        ctx.moveTo(tieX, centerY - RAIL_WIDTH - TIE_WIDTH/2);
-        ctx.lineTo(tieX, centerY + RAIL_WIDTH + TIE_WIDTH/2);
-        ctx.stroke();
-      }
-      
-      // Горизонтальные рельсы (две параллельные линии)
-      ctx.strokeStyle = "#555"; // Серый цвет для рельсов
-      ctx.beginPath();
-      ctx.moveTo(cellX, centerY - RAIL_WIDTH);
-      ctx.lineTo(cellX + CELL_SIZE, centerY - RAIL_WIDTH);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(cellX, centerY + RAIL_WIDTH);
-      ctx.lineTo(cellX + CELL_SIZE, centerY + RAIL_WIDTH);
-      ctx.stroke();
+      drawHorizontalTies(ctx, cellX, cellY, centerY);
+      drawHorizontalRails(ctx, cellX, cellY, centerY);
       break;
 
     case CELL_TYPES.RAIL_V:
-      // Добавляем шпалы (рисуем их первыми)
-      ctx.strokeStyle = "#CD853F"; // Более светлый коричневый цвет для шпал (Peru)
-      const numTiesV = Math.floor(CELL_SIZE / TIE_SPACING);
-      const tieSpacingV = CELL_SIZE / numTiesV;
-      
-      for (let i = 0; i < numTiesV; i++) {
-        const tieY = cellY + i * tieSpacingV + tieSpacingV / 2;
-        
-        ctx.beginPath();
-        ctx.moveTo(centerX - RAIL_WIDTH - TIE_WIDTH/2, tieY);
-        ctx.lineTo(centerX + RAIL_WIDTH + TIE_WIDTH/2, tieY);
-        ctx.stroke();
-      }
-      
-      // Вертикальные рельсы (две параллельные линии)
-      ctx.strokeStyle = "#555"; // Серый цвет для рельсов
-      ctx.beginPath();
-      ctx.moveTo(centerX - RAIL_WIDTH, cellY);
-      ctx.lineTo(centerX - RAIL_WIDTH, cellY + CELL_SIZE);
-      ctx.stroke();
+      drawVerticalTies(ctx, cellX, cellY, centerX);
+      drawVerticalRails(ctx, cellX, cellY, centerX);
+      break;
 
-      ctx.beginPath();
-      ctx.moveTo(centerX + RAIL_WIDTH, cellY);
-      ctx.lineTo(centerX + RAIL_WIDTH, cellY + CELL_SIZE);
-      ctx.stroke();
+    case CELL_TYPES.RAIL_H_V:
+      // Пересечение рельсов - рисуем горизонтальные и вертикальные рельсы
+      drawCell(ctx, x, y, CELL_TYPES.RAIL_H);
+      drawCell(ctx, x, y, CELL_TYPES.RAIL_V);
       break;
 
     case CELL_TYPES.TURN_RIGHT_DOWN:
@@ -178,37 +256,8 @@ function drawCell(ctx, x, y, cellType) {
       const radius2RD = CELL_SIZE / 2 + RAIL_WIDTH;
       const centerRD = { x: cellX, y: cellY + CELL_SIZE };
       
-      // Добавляем шпалы (рисуем их первыми)
-      ctx.strokeStyle = "#CD853F"; // Более светлый коричневый цвет для шпал (Peru)
-      const numTiesRD = Math.floor((Math.PI/2 * CELL_SIZE/2) / TIE_SPACING);
-      const tieAngleSpacingRD = Math.PI/2 / numTiesRD;
-      
-      for (let i = 0; i < numTiesRD; i++) {
-        const angle = -Math.PI/2 + i * tieAngleSpacingRD + tieAngleSpacingRD / 2;
-        
-        ctx.beginPath();
-        ctx.moveTo(
-          centerRD.x + (radius1RD - TIE_WIDTH/2) * Math.cos(angle), 
-          centerRD.y + (radius1RD - TIE_WIDTH/2) * Math.sin(angle)
-        );
-        ctx.lineTo(
-          centerRD.x + (radius2RD + TIE_WIDTH/2) * Math.cos(angle), 
-          centerRD.y + (radius2RD + TIE_WIDTH/2) * Math.sin(angle)
-        );
-        ctx.stroke();
-      }
-      
-      // Рельсы (дуги)
-      ctx.strokeStyle = "#555"; // Серый цвет для рельсов
-      // Внутренняя дуга
-      ctx.beginPath();
-      ctx.arc(centerRD.x, centerRD.y, radius1RD, -Math.PI/2, 0);
-      ctx.stroke();
-      
-      // Внешняя дуга
-      ctx.beginPath();
-      ctx.arc(centerRD.x, centerRD.y, radius2RD, -Math.PI/2, 0);
-      ctx.stroke();
+      drawCurvedTies(ctx, centerRD, radius1RD, radius2RD, -Math.PI/2, 0);
+      drawCurvedRails(ctx, centerRD, radius1RD, radius2RD, -Math.PI/2, 0);
       break;
 
     case CELL_TYPES.TURN_LEFT_DOWN:
@@ -216,37 +265,8 @@ function drawCell(ctx, x, y, cellType) {
       const radius2LD = CELL_SIZE / 2 + RAIL_WIDTH;
       const centerLD = { x: cellX + CELL_SIZE, y: cellY + CELL_SIZE };
       
-      // Добавляем шпалы (рисуем их первыми)
-      ctx.strokeStyle = "#CD853F"; // Более светлый коричневый цвет для шпал (Peru)
-      const numTiesLD = Math.floor((Math.PI/2 * CELL_SIZE/2) / TIE_SPACING);
-      const tieAngleSpacingLD = Math.PI/2 / numTiesLD;
-      
-      for (let i = 0; i < numTiesLD; i++) {
-        const angle = Math.PI + i * tieAngleSpacingLD + tieAngleSpacingLD / 2;
-        
-        ctx.beginPath();
-        ctx.moveTo(
-          centerLD.x + (radius1LD - TIE_WIDTH/2) * Math.cos(angle), 
-          centerLD.y + (radius1LD - TIE_WIDTH/2) * Math.sin(angle)
-        );
-        ctx.lineTo(
-          centerLD.x + (radius2LD + TIE_WIDTH/2) * Math.cos(angle), 
-          centerLD.y + (radius2LD + TIE_WIDTH/2) * Math.sin(angle)
-        );
-        ctx.stroke();
-      }
-      
-      // Рельсы (дуги)
-      ctx.strokeStyle = "#555"; // Серый цвет для рельсов
-      // Внутренняя дуга
-      ctx.beginPath();
-      ctx.arc(centerLD.x, centerLD.y, radius1LD, Math.PI, Math.PI * 3/2);
-      ctx.stroke();
-      
-      // Внешняя дуга
-      ctx.beginPath();
-      ctx.arc(centerLD.x, centerLD.y, radius2LD, Math.PI, Math.PI * 3/2);
-      ctx.stroke();
+      drawCurvedTies(ctx, centerLD, radius1LD, radius2LD, Math.PI, Math.PI * 3/2);
+      drawCurvedRails(ctx, centerLD, radius1LD, radius2LD, Math.PI, Math.PI * 3/2);
       break;
 
     case CELL_TYPES.TURN_RIGHT_UP:
@@ -254,37 +274,8 @@ function drawCell(ctx, x, y, cellType) {
       const radius2RU = CELL_SIZE / 2 + RAIL_WIDTH;
       const centerRU = { x: cellX + CELL_SIZE, y: cellY };
       
-      // Добавляем шпалы (рисуем их первыми)
-      ctx.strokeStyle = "#CD853F"; // Более светлый коричневый цвет для шпал (Peru)
-      const numTiesRU = Math.floor((Math.PI/2 * CELL_SIZE/2) / TIE_SPACING);
-      const tieAngleSpacingRU = Math.PI/2 / numTiesRU;
-      
-      for (let i = 0; i < numTiesRU; i++) {
-        const angle = Math.PI/2 + i * tieAngleSpacingRU + tieAngleSpacingRU / 2;
-        
-        ctx.beginPath();
-        ctx.moveTo(
-          centerRU.x + (radius1RU - TIE_WIDTH/2) * Math.cos(angle), 
-          centerRU.y + (radius1RU - TIE_WIDTH/2) * Math.sin(angle)
-        );
-        ctx.lineTo(
-          centerRU.x + (radius2RU + TIE_WIDTH/2) * Math.cos(angle), 
-          centerRU.y + (radius2RU + TIE_WIDTH/2) * Math.sin(angle)
-        );
-        ctx.stroke();
-      }
-      
-      // Рельсы (дуги)
-      ctx.strokeStyle = "#555"; // Серый цвет для рельсов
-      // Внутренняя дуга
-      ctx.beginPath();
-      ctx.arc(centerRU.x, centerRU.y, radius1RU, Math.PI / 2, Math.PI);
-      ctx.stroke();
-      
-      // Внешняя дуга
-      ctx.beginPath();
-      ctx.arc(centerRU.x, centerRU.y, radius2RU, Math.PI / 2, Math.PI);
-      ctx.stroke();
+      drawCurvedTies(ctx, centerRU, radius1RU, radius2RU, Math.PI / 2, Math.PI);
+      drawCurvedRails(ctx, centerRU, radius1RU, radius2RU, Math.PI / 2, Math.PI);
       break;
 
     case CELL_TYPES.TURN_LEFT_UP:
@@ -292,37 +283,8 @@ function drawCell(ctx, x, y, cellType) {
       const radius2LU = CELL_SIZE / 2 + RAIL_WIDTH;
       const centerLU = { x: cellX, y: cellY };
       
-      // Добавляем шпалы (рисуем их первыми)
-      ctx.strokeStyle = "#CD853F"; // Более светлый коричневый цвет для шпал (Peru)
-      const numTiesLU = Math.floor((Math.PI/2 * CELL_SIZE/2) / TIE_SPACING);
-      const tieAngleSpacingLU = Math.PI/2 / numTiesLU;
-      
-      for (let i = 0; i < numTiesLU; i++) {
-        const angle = i * tieAngleSpacingLU + tieAngleSpacingLU / 2;
-        
-        ctx.beginPath();
-        ctx.moveTo(
-          centerLU.x + (radius1LU - TIE_WIDTH/2) * Math.cos(angle), 
-          centerLU.y + (radius1LU - TIE_WIDTH/2) * Math.sin(angle)
-        );
-        ctx.lineTo(
-          centerLU.x + (radius2LU + TIE_WIDTH/2) * Math.cos(angle), 
-          centerLU.y + (radius2LU + TIE_WIDTH/2) * Math.sin(angle)
-        );
-        ctx.stroke();
-      }
-      
-      // Рельсы (дуги)
-      ctx.strokeStyle = "#555"; // Серый цвет для рельсов
-      // Внутренняя дуга
-      ctx.beginPath();
-      ctx.arc(centerLU.x, centerLU.y, radius1LU, 0, Math.PI / 2);
-      ctx.stroke();
-      
-      // Внешняя дуга
-      ctx.beginPath();
-      ctx.arc(centerLU.x, centerLU.y, radius2LU, 0, Math.PI / 2);
-      ctx.stroke();
+      drawCurvedTies(ctx, centerLU, radius1LU, radius2LU, 0, Math.PI / 2);
+      drawCurvedRails(ctx, centerLU, radius1LU, radius2LU, 0, Math.PI / 2);
       break;
 
     case CELL_TYPES.EMPTY:
@@ -331,7 +293,7 @@ function drawCell(ctx, x, y, cellType) {
 
     default:
       // Для других типов клеток оставляем текстовую отрисовку
-      ctx.fillStyle = "#000";
+      ctx.fillStyle = COLORS.BLACK;
       ctx.font = "20px Arial";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -503,19 +465,19 @@ function drawSemaphoreCell(ctx, x, y, cellType, isOpen) {
     // Semaphore is open: top circle is black, bottom circle is green with black border
     
     // Draw top black circle
-    ctx.fillStyle = "#000000";
+    ctx.fillStyle = COLORS.BLACK;
     ctx.beginPath();
     ctx.arc(semaphoreX, topCircleY, radius, 0, Math.PI * 2);
     ctx.fill();
     
     // Draw bottom green circle with black border
-    ctx.fillStyle = "#00ff00";
+    ctx.fillStyle = COLORS.SEMAPHORE_GREEN;
     ctx.beginPath();
     ctx.arc(semaphoreX, bottomCircleY, radius, 0, Math.PI * 2);
     ctx.fill();
     
     // Add black border to green circle
-    ctx.strokeStyle = "#000";
+    ctx.strokeStyle = COLORS.BLACK;
     ctx.lineWidth = 1;
     ctx.stroke();
     
@@ -523,18 +485,18 @@ function drawSemaphoreCell(ctx, x, y, cellType, isOpen) {
     // Semaphore is closed: top circle is red with black border, bottom circle is black
     
     // Draw top red circle with black border
-    ctx.fillStyle = "#ff0000";
+    ctx.fillStyle = COLORS.SEMAPHORE_RED;
     ctx.beginPath();
     ctx.arc(semaphoreX, topCircleY, radius, 0, Math.PI * 2);
     ctx.fill();
     
     // Add black border to red circle
-    ctx.strokeStyle = "#000";
+    ctx.strokeStyle = COLORS.BLACK;
     ctx.lineWidth = 1;
     ctx.stroke();
     
     // Draw bottom black circle
-    ctx.fillStyle = "#000000";
+    ctx.fillStyle = COLORS.BLACK;
     ctx.beginPath();
     ctx.arc(semaphoreX, bottomCircleY, radius, 0, Math.PI * 2);
     ctx.fill();
@@ -552,7 +514,7 @@ function drawStationCell(ctx, x, y, cellType) {
   ctx.font = `${CELL_SIZE * 0.8}px Arial`; // Size is about half the cell
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillStyle = "#000"; // Black color for the house icon
+  ctx.fillStyle = COLORS.BLACK; // Black color for the house icon
   ctx.fillText("🏠", centerX, centerY);
   
   // Draw the normal cell content on top
