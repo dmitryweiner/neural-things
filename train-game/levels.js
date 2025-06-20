@@ -13,20 +13,22 @@ const levels = [
       [" ", " ", "└", "-", "-", "-", "-", "-S","-", "-", "-", "-", "┘", " ", " "]
 
     ],
-    train: [
-      {
-        type: 'locomotive',
-        x: 4,
-        y: 0,
-        direction: 0,
-      },
-      {
-        type: 'wagon',
-        x: 3,
-        y: 0,
-        direction: 0,
-        wagonType: 'wagon1',
-      },
+    trains: [
+      [
+        {
+          type: 'locomotive',
+          x: 4,
+          y: 0,
+          direction: 0,
+        },
+        {
+          type: 'wagon',
+          x: 3,
+          y: 0,
+          direction: 0,
+          wagonType: 'wagon1',
+        },
+      ],
     ],
     targetPoint: {
       x: 7,
@@ -46,31 +48,99 @@ const levels = [
       [" ", " ", "|", " ", " ", " ", " ", " ", " ", " ", " ", " ", "|", " ", " "],
       [" ", " ", "└", "-", "-", "-", "-", "-S","-", "-", "-", "-", "┘", " ", " "]
     ],
-    train: [
-      {
-        type: 'locomotive',
-        x: 4,
-        y: 0,
-        direction: 0,
-      },
-      {
-        type: 'wagon',
-        x: 3,
-        y: 0,
-        direction: 0,
-        wagonType: 'wagon1',
-      },
-      {
-        type: 'wagon',
-        x: 2,
-        y: 0,
-        direction: 0,
-        wagonType: 'wagon2',
-      },
+    trains: [
+      [
+        {
+          type: 'locomotive',
+          x: 4,
+          y: 0,
+          direction: 0,
+        },
+        {
+          type: 'wagon',
+          x: 3,
+          y: 0,
+          direction: 0,
+          wagonType: 'wagon1',
+        },
+        {
+          type: 'wagon',
+          x: 2,
+          y: 0,
+          direction: 0,
+          wagonType: 'wagon2',
+        },
+      ],
     ],
     targetPoint: {
       x: 0,
       y: 2,
+    },
+  },
+  {
+    grid: [
+      ["┌", "-", "-", "-", "┐", " ", " ", " ", " ", " ", "┌", "-", "-", "-", "┐"],
+      ["|", " ", " ", " ", "|", " ", " ", " ", " ", " ", "|", " ", " ", " ", "|"],
+      ["|", " ", " ", " ", "|S","┌", "-", "-", "-", "┐", "|S"," ", " ", " ", "|"],
+      ["└", "-", "-", "-", "-└","┐|"," ", " ", " ", "|┌","┘-","-", "-", "-", "┘"],
+      [" ", " ", " ", " ", " ", "|", " ", " ", " ", "|", " ", " ", " ", " ", " "],
+      [" ", " ", " ", " ", " ", "|", " ", " ", " ", "|", " ", " ", " ", " ", " "],
+      ["┌", "-", "-", "-", "-┌","┘|"," ", " ", " ", "|└","┐-", "-","-", "-", "┐"],
+      ["|", " ", " ", " ", "|", "└", "-", "-", "-", "┘", "|", " ", " ", " ", "|"],
+      ["|", " ", " ", " ", "|S"," ", " ", " ", " ", " ", "|S"," ", " ", " ", "|"],
+      ["└", "-", "-", "-", "┘", " ", " ", " ", " ", " ", "└", "-", "-", "-", "┘"]
+    ],
+    trains: [
+      // #1
+      [
+        {
+          type: 'locomotive',
+          x: 3,
+          y: 0,
+          direction: 0,
+        },
+        {
+          type: 'wagon',
+          x: 2,
+          y: 0,
+          direction: 0,
+          wagonType: 'wagon1',
+        },
+        {
+          type: 'wagon',
+          x: 1,
+          y: 0,
+          direction: 0,
+          wagonType: 'wagon2',
+        },
+      ],
+      // #2
+      [
+        {
+          type: 'locomotive',
+          x: 3,
+          y: 9,
+          direction: 0,
+        },
+        {
+          type: 'wagon',
+          x: 2,
+          y: 9,
+          direction: 0,
+          wagonType: 'wagon2',
+        },
+        {
+          type: 'wagon',
+          x: 1,
+          y: 9,
+          direction: 0,
+          wagonType: 'wagon1',
+        },
+      ],
+    ],
+    targetPoint: {
+      x: 13,
+      y: 9,
     },
   }
 ];

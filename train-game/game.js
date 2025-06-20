@@ -5,6 +5,7 @@ class Game {
     this.gameOverScreen = document.getElementById("gameOver");
     this.levelCompleteScreen = document.getElementById("levelComplete");
     this.gameWinScreen = document.getElementById("gameWin");
+    this.levelDisplay = document.getElementById("level-display");
     this.playAgainButton = document.getElementById("playAgain");
     this.nextLevelButton = document.getElementById("nextLevel");
     this.playAgainWinButton = document.getElementById("playAgainWin");
@@ -21,6 +22,10 @@ class Game {
   setupCanvas() {
     this.canvas.width = GRID_WIDTH * CELL_SIZE;
     this.canvas.height = GRID_HEIGHT * CELL_SIZE;
+  }
+
+  updateLevelDisplay() {
+    this.levelDisplay.textContent = `Level #${this.currentLevelIndex + 1}`;
   }
 
   initGame() {
@@ -61,34 +66,39 @@ class Game {
     }
     
     // Create train parts from level data
-    this.trainParts = [];
+    this.trains = [];
+    for (let trainIndex = 0; trainIndex < currentLevel.trains.length; trainIndex++) {
+      this.trains[trainIndex] = [];
+      for(let trainPartIndex = 0; trainPartIndex < currentLevel.trains[trainIndex].length; trainPartIndex++) {
+        const trainData = currentLevel.trains[trainIndex][trainPartIndex];
+        const direction = trainData.direction;
         
-    for (let i = 0; i < currentLevel.train.length; i++) {
-      const trainData = currentLevel.train[i];
-      const direction = trainData.direction;
-      
-      const trainPart = {
-        type: trainData.type,
-        x: trainData.x,
-        y: trainData.y,
-        direction: direction,
-        speed: 0,
-        pixelX: (trainData.x + 0.5) * CELL_SIZE,
-        pixelY: (trainData.y + 0.5) * CELL_SIZE,
-      };
-      
-      // Add locomotive state if it's a locomotive
-      if (trainData.type === 'locomotive') {
-        trainPart.state = LOCOMOTIVE_STATES.ACCELERATING;
-      } else {
-        trainPart.wagonType = trainData.wagonType;
+        const trainPart = {
+          type: trainData.type,
+          x: trainData.x,
+          y: trainData.y,
+          direction: direction,
+          speed: 0,
+          pixelX: (trainData.x + 0.5) * CELL_SIZE,
+          pixelY: (trainData.y + 0.5) * CELL_SIZE,
+        };
+        
+        // Add locomotive state if it's a locomotive
+        if (trainData.type === 'locomotive') {
+          trainPart.state = LOCOMOTIVE_STATES.ACCELERATING;
+        } else {
+          trainPart.wagonType = trainData.wagonType;
+        }
+        
+        this.trains[trainIndex].push(trainPart);
       }
-      
-      this.trainParts.push(trainPart);
     }
     
     // Создаем фон
     this.backgroundCanvas = generateBackground(this.canvas);
+    
+    // Обновляем отображение уровня
+    this.updateLevelDisplay();
   }
 
 
@@ -115,14 +125,13 @@ class Game {
 
   // Check if any train part is on the given cell
   isTrainOnSwitch(x, y) {
-    return this.trainParts.some(part => part.x === x && part.y === y);
+    return this.trains.some(trainParts => trainParts.some(part => part.x === x && part.y === y));
   }
 
   setupEventListeners() {
     this.playAgainButton.addEventListener("click", () => {
       // Hide game over screen
       this.gameOverScreen.style.display = "none";
-      this.currentLevelIndex = 0; // Reset to first level
       this.initGame();
     });
     
@@ -222,123 +231,137 @@ class Game {
   }
 
   update(deltaTime) {
-    const locomotive = this.trainParts[0];
-    if (locomotive.state === LOCOMOTIVE_STATES.CRASHED) {
-      return;
-    }
-
-    // Check if locomotive is on a semaphore
-    const locomotiveCell = this.grid[locomotive.y][locomotive.x];
-    if (isSemaphoreCell(locomotiveCell)) {
-      const semaphoreKey = `${locomotive.x},${locomotive.y}`;
-      const semaphoreState = this.semaphoreStates[semaphoreKey];
-      
-      if (semaphoreState) {
-        if (!semaphoreState.isOpen) {
-          if (locomotive.speed > 0) {
-            locomotive.state = LOCOMOTIVE_STATES.DECELERATING;
-          } else {
-            locomotive.state = LOCOMOTIVE_STATES.STOPPED;
-          }
-        } else {
-          locomotive.state = LOCOMOTIVE_STATES.ACCELERATING;
-        }
-      }
-    }
-
-    switch (locomotive.state) {
-      case LOCOMOTIVE_STATES.ACCELERATING:
-        if (locomotive.speed < TRAIN_MAX_SPEED) {
-          locomotive.speed = Math.min(
-            TRAIN_MAX_SPEED,
-            locomotive.speed + TRAIN_ACCELERATION * deltaTime
-          );
-        }
-        break;
-      case LOCOMOTIVE_STATES.DECELERATING:
-        if (locomotive.speed > 0) {
-          locomotive.speed = Math.max(0, locomotive.speed - TRAIN_DECELERATION * deltaTime);
-        }
-        break;
-      case LOCOMOTIVE_STATES.STOPPED:
-        locomotive.speed = 0;
-        break;
-      case LOCOMOTIVE_STATES.IDLE:
-        break;
-      default:
-        break;
-    }
-
-    // Process all train parts in a single loop
-    for (let i = 0; i < this.trainParts.length; i++) {
-      const trainPart = this.trainParts[i];
-      
-      // For wagons, use locomotive's speed
-      if (i > 0) {
-        trainPart.speed = locomotive.speed;
+    for (let trainIndex = 0; trainIndex < this.trains.length; trainIndex++) {
+      const locomotive = this.trains[trainIndex][0];
+      if (locomotive.state === LOCOMOTIVE_STATES.CRASHED) {
+        return;
       }
 
-      // Get current cell type
-      const currentCellType = this.grid[trainPart.y][trainPart.x];
-      
-      // Calculate next position using the shared function
-      const nextPosition = calculateNextPosition(
-        currentCellType,
-        trainPart.x,
-        trainPart.y,
-        trainPart.pixelX,
-        trainPart.pixelY,
-        trainPart.direction,
-        trainPart.speed,
-        deltaTime,
-        CELL_SIZE,
-        this.getSwitchState(trainPart.x, trainPart.y)
-      );
+      // Check if locomotive is on a semaphore
+      const locomotiveCell = this.grid[locomotive.y][locomotive.x];
+      if (isSemaphoreCell(locomotiveCell)) {
+        const semaphoreKey = `${locomotive.x},${locomotive.y}`;
+        const semaphoreState = this.semaphoreStates[semaphoreKey];
 
-      const nextPixelX = nextPosition.x;
-      const nextPixelY = nextPosition.y;
-      trainPart.direction = nextPosition.direction;
-
-      // Convert pixel position to grid position (using center points)
-      const nextGridX = Math.floor(nextPixelX / CELL_SIZE);
-      const nextGridY = Math.floor(nextPixelY / CELL_SIZE);
-
-      // Check if train part moved to a new cell
-      if (nextGridX !== trainPart.x || nextGridY !== trainPart.y) {
-        // Check if the new cell is valid
-        if (this.isValidMove(nextGridX, nextGridY)) {
-          // Update grid position first
-          trainPart.x = nextGridX;
-          trainPart.y = nextGridY;
-          
-          // Check if locomotive reached the target point (station)
-          if (i === 0) { // Only check for locomotive (first train part)
-            const currentLevel = levels[this.currentLevelIndex];
-            const targetPoint = currentLevel.targetPoint;
-            
-            if (trainPart.x === targetPoint.x && trainPart.y === targetPoint.y) {
-              // Level completed!
-              if (this.currentLevelIndex < levels.length - 1) {
-                // More levels available
-                this.levelCompleteScreen.style.display = "block";
-              } else {
-                // All levels completed
-                this.gameWinScreen.style.display = "block";
-              }
-              locomotive.state = LOCOMOTIVE_STATES.CRASHED;
-              return;
+        if (semaphoreState) {
+          if (!semaphoreState.isOpen) {
+            if (locomotive.speed > 0) {
+              locomotive.state = LOCOMOTIVE_STATES.DECELERATING;
+            } else {
+              locomotive.state = LOCOMOTIVE_STATES.STOPPED;
             }
+          } else {
+            locomotive.state = LOCOMOTIVE_STATES.ACCELERATING;
           }
-        } else {
-          locomotive.state = LOCOMOTIVE_STATES.CRASHED;
-          this.gameOverScreen.style.display = "block";
-          return;
         }
       }
 
-      // Update train part pixel position
-      trainPart.pixelX = nextPixelX;
-      trainPart.pixelY = nextPixelY;
+      switch (locomotive.state) {
+        case LOCOMOTIVE_STATES.ACCELERATING:
+          if (locomotive.speed < TRAIN_MAX_SPEED) {
+            locomotive.speed = Math.min(
+              TRAIN_MAX_SPEED,
+              locomotive.speed + TRAIN_ACCELERATION * deltaTime
+            );
+          }
+          break;
+        case LOCOMOTIVE_STATES.DECELERATING:
+          if (locomotive.speed > 0) {
+            locomotive.speed = Math.max(
+              0,
+              locomotive.speed - TRAIN_DECELERATION * deltaTime
+            );
+          }
+          break;
+        case LOCOMOTIVE_STATES.STOPPED:
+          locomotive.speed = 0;
+          break;
+        case LOCOMOTIVE_STATES.IDLE:
+          break;
+        default:
+          break;
+      }
+
+      // Process all train parts in a single loop
+      for (let i = 0; i < this.trains[trainIndex].length; i++) {
+        const trainPart = this.trains[trainIndex][i];
+
+        // For wagons, use locomotive's speed
+        if (i > 0) {
+          trainPart.speed = locomotive.speed;
+        }
+
+        // Get current cell type
+        const currentCellType = this.grid[trainPart.y][trainPart.x];
+
+        // Calculate next position using the shared function
+        const nextPosition = calculateNextPosition(
+          currentCellType,
+          trainPart.x,
+          trainPart.y,
+          trainPart.pixelX,
+          trainPart.pixelY,
+          trainPart.direction,
+          trainPart.speed,
+          deltaTime,
+          CELL_SIZE,
+          this.getSwitchState(trainPart.x, trainPart.y)
+        );
+
+        const nextPixelX = nextPosition.x;
+        const nextPixelY = nextPosition.y;
+        trainPart.direction = nextPosition.direction;
+
+        // Convert pixel position to grid position (using center points)
+        const nextGridX = Math.floor(nextPixelX / CELL_SIZE);
+        const nextGridY = Math.floor(nextPixelY / CELL_SIZE);
+
+        // Check if train part moved to a new cell
+        if (nextGridX !== trainPart.x || nextGridY !== trainPart.y) {
+          // Check if the new cell is valid
+          if (this.isValidMove(nextGridX, nextGridY)) {
+            // Update grid position first
+            trainPart.x = nextGridX;
+            trainPart.y = nextGridY;
+
+            // Check if locomotive reached the target point (station)
+            if (i === 0) {
+              // Only check for locomotive (first train part)
+              const currentLevel = levels[this.currentLevelIndex];
+              const targetPoint = currentLevel.targetPoint;
+
+              if (
+                trainPart.x === targetPoint.x &&
+                trainPart.y === targetPoint.y
+              ) {
+                // Level completed!
+                if (this.currentLevelIndex < levels.length - 1) {
+                  // More levels available
+                  this.levelCompleteScreen.style.display = "block";
+                } else {
+                  // All levels completed
+                  this.gameWinScreen.style.display = "block";
+                }
+                locomotive.state = LOCOMOTIVE_STATES.CRASHED;
+                return;
+              }
+            }
+          } else {
+            this.crashTrain(trainIndex);
+            return;
+          }
+        }
+
+        // Update train part pixel position
+        trainPart.pixelX = nextPixelX;
+        trainPart.pixelY = nextPixelY;
+      }
+
+      // Check for collisions between train parts
+      if (this.checkCollisions()) {
+        this.crashTrain(trainIndex);
+        return;
+      }
     }
   }
 
@@ -356,6 +379,37 @@ class Game {
 
   getSwitchState(x, y) {
     return this.switchStates[`${x},${y}`]?.isStraight;
+  }
+
+  checkCollisions() {
+    const collisionDistance = CELL_SIZE / 2;
+
+    const trainParts = this.trains.flat();
+    
+    // Check all pairs of train parts
+    for (let i = 0; i < trainParts.length; i++) {
+      for (let j = i + 1; j < trainParts.length; j++) {
+        const part1 = trainParts[i];
+        const part2 = trainParts[j];
+        
+        // Calculate distance between the two train parts
+        const dx = part1.pixelX - part2.pixelX;
+        const dy = part1.pixelY - part2.pixelY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Check if parts are too close (collision)
+        if (distance < collisionDistance) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  crashTrain(trainIndex) {
+    this.trains[trainIndex][0].state = LOCOMOTIVE_STATES.CRASHED;
+    this.gameOverScreen.style.display = "block";
   }
 
   draw() {
@@ -389,8 +443,10 @@ class Game {
     }
 
     // Draw train and all wagons
-    this.trainParts.forEach(part => {
-      drawTrainPart(this.ctx, part);
+    this.trains.forEach(train => {
+      train.forEach(part => {
+        drawTrainPart(this.ctx, part);
+      });
     });
   }
 }
@@ -412,7 +468,7 @@ window.addEventListener("load", () => {
     // Hide welcome screen
     welcomeScreen.style.display = "none";
     // Show game container
-    gameContainer.style.display = "block";
+    gameContainer.style.display = "flex";
     // Start the game
     gameInstance = new Game();
   });
