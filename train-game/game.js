@@ -189,34 +189,20 @@ class Game {
         clientY = e.clientY;
       }
       
-      // Calculate relative coordinates within the canvas
-      let relativeX = clientX - rect.left;
-      let relativeY = clientY - rect.top;
+      // Calculate relative coordinates within the canvas element
+      const relativeX = clientX - rect.left;
+      const relativeY = clientY - rect.top;
       
-      // Check if we're on mobile (screen width <= 900px) and adjust for CSS scaling
-      if (window.innerWidth <= 900) {
-        // Get the game container to check for CSS transform scaling
-        const gameContainer = document.getElementById('game-container');
-        const computedStyle = window.getComputedStyle(gameContainer);
-        const transform = computedStyle.transform;
-        
-        // Extract scale factor from CSS transform matrix
-        let scaleFactor = 1;
-        if (transform && transform !== 'none') {
-          const matrixValues = transform.match(/matrix\(([^)]+)\)/);
-          if (matrixValues) {
-            const values = matrixValues[1].split(',').map(v => parseFloat(v.trim()));
-            scaleFactor = values[0]; // First value in matrix is scaleX
-          }
-        }
-        
-        // Adjust coordinates for the scaling
-        relativeX = relativeX / scaleFactor;
-        relativeY = relativeY / scaleFactor;
-      }
+      // Convert from displayed canvas coordinates to actual canvas coordinates
+      // rect.width/height give us the displayed size, this.canvas.width/height give us actual size
+      const scaleX = this.canvas.width / rect.width;
+      const scaleY = this.canvas.height / rect.height;
       
-      const x = Math.floor(relativeX / CELL_SIZE);
-      const y = Math.floor(relativeY / CELL_SIZE);
+      const actualX = relativeX * scaleX;
+      const actualY = relativeY * scaleY;
+      
+      const x = Math.floor(actualX / CELL_SIZE);
+      const y = Math.floor(actualY / CELL_SIZE);
       
       // Check if valid grid position
       if (x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT) {
