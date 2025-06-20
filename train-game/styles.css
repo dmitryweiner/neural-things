@@ -316,12 +316,68 @@ body {
         padding-bottom: 20px; /* Добавляем отступ снизу для лучшей видимости при прокрутке */
         justify-content: center; /* Center content horizontally */
         padding-left: 0; /* Remove left padding since we're centering */
+        overflow-x: hidden; /* Предотвращаем горизонтальную прокрутку */
     }
     
     #game-container {
         margin-top: 20px; /* Добавляем отступ сверху для контейнера игры */
-        max-width: 100%; /* Ensure the game container respects viewport width */
+        max-width: 100vw; /* Используем всю ширину viewport */
         margin-left: auto; /* Center the container */
         margin-right: auto; /* Center the container */
+        padding: 0 10px; /* Небольшие отступы по бокам */
+        box-sizing: border-box;
+        
+        /* Масштабируем содержимое для заполнения экрана */
+        transform-origin: top center;
+        transform: scale(calc(min(100vw - 20px, 100vh - 120px) / 600));
+    }
+    
+    #gameCanvas {
+        display: block;
+        margin: 0 auto;
+        max-width: 100%;
+        height: auto;
+    }
+    
+    #level-display {
+        font-size: 14px; /* Уменьшаем размер шрифта на мобильных */
+        margin-bottom: 10px;
+        padding: 8px 16px;
+    }
+    
+    /* Адаптируем размеры модальных окон */
+    #gameOver, #levelComplete, #gameWin {
+        max-width: 90vw;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+    
+    #gameOver h2, #levelComplete h2, #gameWin h2 {
+        font-size: 16px;
+    }
+    
+    #gameOver p, #levelComplete p, #gameWin p {
+        font-size: 10px;
+    }
+    
+    /* Адаптируем инструкции */
+    #instructions-container {
+        max-width: 90vw;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+    
+    #instructions-container h2 {
+        font-size: 18px;
+    }
+    
+    #instructions-content p {
+        font-size: 10px;
+        line-height: 1.6;
+    }
+    
+    #game-title {
+        font-size: 24px;
+        margin-bottom: 10px;
     }
 } 
