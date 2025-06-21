@@ -30,38 +30,6 @@ const COLORS = {
   SEMAPHORE_GREEN: "#00ff00",
 };
 
-// Helper function to check if a cell is a semaphore
-function isSemaphoreCell(cellType) {
-  return [
-    CELL_TYPES.RAIL_H_SEMAPHORE,
-    CELL_TYPES.RAIL_V_SEMAPHORE,
-    CELL_TYPES.TURN_RIGHT_DOWN_SEMAPHORE,
-    CELL_TYPES.TURN_LEFT_DOWN_SEMAPHORE,
-    CELL_TYPES.TURN_LEFT_UP_SEMAPHORE,
-    CELL_TYPES.TURN_RIGHT_UP_SEMAPHORE
-  ].includes(cellType);
-}
-
-// Helper function to get the base cell type for a semaphore cell
-function getBaseCellType(cellType) {
-  switch (cellType) {
-    case CELL_TYPES.RAIL_H_SEMAPHORE:
-      return CELL_TYPES.RAIL_H;
-    case CELL_TYPES.RAIL_V_SEMAPHORE:
-      return CELL_TYPES.RAIL_V;
-    case CELL_TYPES.TURN_RIGHT_DOWN_SEMAPHORE:
-      return CELL_TYPES.TURN_RIGHT_DOWN;
-    case CELL_TYPES.TURN_LEFT_DOWN_SEMAPHORE:
-      return CELL_TYPES.TURN_LEFT_DOWN;
-    case CELL_TYPES.TURN_LEFT_UP_SEMAPHORE:
-      return CELL_TYPES.TURN_LEFT_UP;
-    case CELL_TYPES.TURN_RIGHT_UP_SEMAPHORE:
-      return CELL_TYPES.TURN_RIGHT_UP;
-    default:
-      return cellType;
-  }
-}
-
 // Функция для генерации псевдослучайного числа на основе seed
 function seededRandom(seed) {
   const x = Math.sin(seed) * 10000;
@@ -447,10 +415,10 @@ function drawSwitchCell(ctx, x, y, cellType, isStraight) {
 }
 
 // Draw function for semaphore cells with visual indication of state
+// Now cellType is the base rail/turn type, not a special semaphore type
 function drawSemaphoreCell(ctx, x, y, cellType, isOpen) {
   // First draw the base rail/turn
-  const baseCellType = getBaseCellType(cellType);
-  drawCell(ctx, x, y, baseCellType);
+  drawCell(ctx, x, y, cellType);
   
   // Then draw the semaphore indicator
   const centerX = (x + 0.5) * CELL_SIZE;

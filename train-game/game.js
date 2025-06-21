@@ -50,18 +50,15 @@ class Game {
       }
     }
     
-    // Initialize semaphore states
+    // Initialize semaphore states from level data
     this.semaphoreStates = {};
     
-    // Scan grid for semaphores and set default states
-    for (let y = 0; y < this.grid.length; y++) {
-      for (let x = 0; x < this.grid[y].length; x++) {
-        const cell = this.grid[y][x];
-        if (isSemaphoreCell(cell)) {
-          this.semaphoreStates[`${x},${y}`] = { 
-            isOpen: true // Default state - semaphore is open
-          };
-        }
+    // Initialize semaphores from level data
+    if (currentLevel.semaphores) {
+      for (const semaphore of currentLevel.semaphores) {
+        this.semaphoreStates[`${semaphore.x},${semaphore.y}`] = { 
+          isOpen: semaphore.isOpen
+        };
       }
     }
     
@@ -126,6 +123,13 @@ class Game {
   // Check if any train part is on the given cell
   isTrainOnSwitch(x, y) {
     return this.trains.some(trainParts => trainParts.some(part => part.x === x && part.y === y));
+  }
+
+  // Check if there is a semaphore at given coordinates
+  isSemaphoreAtPosition(x, y) {
+    const currentLevel = levels[this.currentLevelIndex];
+    return currentLevel.semaphores && 
+           currentLevel.semaphores.some(semaphore => semaphore.x === x && semaphore.y === y);
   }
 
   setupEventListeners() {
@@ -209,7 +213,7 @@ class Game {
         const cellType = this.grid[y][x];
         if (isSwitchCell(cellType)) {
           this.toggleSwitch(x, y);
-        } else if (isSemaphoreCell(cellType)) {
+        } else if (this.isSemaphoreAtPosition(x, y)) {
           this.toggleSemaphore(x, y);
         }
       }
@@ -250,8 +254,7 @@ class Game {
       }
 
       // Check if locomotive is on a semaphore
-      const locomotiveCell = this.grid[locomotive.y][locomotive.x];
-      if (isSemaphoreCell(locomotiveCell)) {
+      if (this.isSemaphoreAtPosition(locomotive.x, locomotive.y)) {
         const semaphoreKey = `${locomotive.x},${locomotive.y}`;
         const semaphoreState = this.semaphoreStates[semaphoreKey];
 
@@ -385,8 +388,7 @@ class Game {
 
     // Check if there are rails at the position
     const cellType = this.grid[y][x];
-    const baseCellType = isSemaphoreCell(cellType) ? getBaseCellType(cellType) : cellType;
-    return baseCellType !== CELL_TYPES.EMPTY;
+    return cellType !== CELL_TYPES.EMPTY;
   }
 
   getSwitchState(x, y) {
@@ -445,7 +447,7 @@ class Game {
           drawStationCell(this.ctx, x, y, cellType);
         } else if (isSwitchCell(cellType)) {
           drawSwitchCell(this.ctx, x, y, cellType, this.getSwitchState(x, y));
-        } else if (isSemaphoreCell(cellType)) {
+        } else if (this.isSemaphoreAtPosition(x, y)) {
           const semaphoreState = this.semaphoreStates[`${x},${y}`];
           drawSemaphoreCell(this.ctx, x, y, cellType, semaphoreState?.isOpen);
         } else {
