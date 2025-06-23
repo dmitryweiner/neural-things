@@ -322,6 +322,9 @@ class Game {
           CELL_SIZE,
           this.getSwitchState(trainPart.x, trainPart.y)
         );
+        if (trainPart.type === 'wagon') {
+          console.log(trainPart, currentCellType, nextPosition);
+        }
 
         const nextPixelX = nextPosition.x;
         const nextPixelY = nextPosition.y;
