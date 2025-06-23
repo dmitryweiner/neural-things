@@ -160,14 +160,14 @@ const levels = [
           y: 0,
           direction: 0,
           wagonType: 'wagon1',
-        },/*
+        },
         {
           type: 'wagon',
           x: 1,
           y: 0,
           direction: 0,
           wagonType: 'wagon2',
-        },
+        },/*
       ],
       // #2
       [
