@@ -28,7 +28,7 @@ function isClockwise(cellType, direction) {
     case CELL_TYPES.TURN_LEFT_UP:
     case CELL_TYPES.SWITCH_LEFT_UP_V:
     case CELL_TYPES.SWITCH_LEFT_UP_H:
-      if (normalized === 0 || (normalized > 3 * Math.PI / 2 && normalized <= 2 * Math.PI)) {
+      if (closeTo(normalized, 0) || (normalized > 3 * Math.PI / 2 && normalized <= 2 * Math.PI)) {
         return false;
       }
       if (normalized > Math.PI / 2 && normalized <= Math.PI) {
