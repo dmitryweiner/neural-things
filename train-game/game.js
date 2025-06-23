@@ -10,7 +10,7 @@ class Game {
     this.nextLevelButton = document.getElementById("nextLevel");
     this.playAgainWinButton = document.getElementById("playAgainWin");
 
-    this.currentLevelIndex = 0; // Track current level
+    this.currentLevelIndex = 2; // Track current level
     this.lastTime = performance.now();
     this.isPaused = false; // Add pause state
     this.setupCanvas();
