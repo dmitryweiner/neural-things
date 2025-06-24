@@ -106,6 +106,7 @@ function calculateTurnPosition(cellType, cellX, cellY, pixelX, pixelY, direction
   const nextY = cy + radius * Math.sin(newTheta);
   const nextDirection = direction + deltaTheta;
 
+  console.log({direction, speed, deltaTime, nextX, nextY, nextDirection, clockwise});
   return { x: nextX, y: nextY, direction: nextDirection };
 }
 
