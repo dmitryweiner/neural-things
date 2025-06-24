@@ -9,6 +9,7 @@ class Game {
     this.playAgainButton = document.getElementById("playAgain");
     this.nextLevelButton = document.getElementById("nextLevel");
     this.playAgainWinButton = document.getElementById("playAgainWin");
+    this.levelDisplay = document.getElementById("level-display");
 
     this.currentLevelIndex = 2; // Track current level
     this.lastTime = performance.now();
@@ -146,6 +147,15 @@ class Game {
       this.initGame();
     });
     
+    this.levelDisplay.addEventListener("click", () => {
+      if (this.isPaused) {
+        this.isPaused = false;
+        this.lastTime = performance.now();
+      } else {
+        this.isPaused = true;
+      }
+    });
+
     this.playAgainWinButton.addEventListener("click", () => {
       // Hide game win screen
       this.gameWinScreen.style.display = "none";
@@ -320,10 +330,11 @@ class Game {
           trainPart.speed,
           deltaTime,
           CELL_SIZE,
-          this.getSwitchState(trainPart.x, trainPart.y)
+          this.getSwitchState(trainPart.x, trainPart.y),
+          { trainPartIndex: i, trainPart }
         );
         if (trainPart.type === 'wagon' && i === 1) {
-          console.log(trainPart, currentCellType, nextPosition);
+          console.log('nextPosition: trainPartIndex = ', i, trainPart , currentCellType, nextPosition);
         }
 
         const nextPixelX = nextPosition.x;
