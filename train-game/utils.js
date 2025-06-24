@@ -8,7 +8,7 @@ if (typeof window === 'undefined') {
 
 const normalizeAngle = angle => ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 
-const closeTo = (a, b, epsilon = 0.1) => Math.abs(a - b) < epsilon;
+const closeTo = (a, b, epsilon = 0.05) => Math.abs(a - b) < epsilon;
 
 const isBetween = (value, min, max, epsilon = 0.1) => value <= (max + epsilon) && value >= (min - epsilon);
 
