@@ -303,6 +303,7 @@ function calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, d
 function calculateNextPosition(cellType, cellX, cellY, pixelX, pixelY, direction, speed, deltaTime, cellSize, isStraight) {
   // Check if cell is a switch
   if (isSwitchCell(cellType)) {
+    console.log('shouldTurnOnSwitch = ', shouldTurnOnSwitch(cellType, direction, isStraight), {cellType, cellX, cellY, pixelX, pixelY, direction, speed, deltaTime, cellSize, isStraight});
     if (shouldTurnOnSwitch(cellType, direction, isStraight)) {
       // Use turn movement if switch is set to turning
       return calculateTurnPosition(
