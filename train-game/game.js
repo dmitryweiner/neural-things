@@ -322,7 +322,7 @@ class Game {
           CELL_SIZE,
           this.getSwitchState(trainPart.x, trainPart.y)
         );
-        if (trainPart.type === 'wagon') {
+        if (trainPart.type === 'wagon' && i === 1) {
           console.log(trainPart, currentCellType, nextPosition);
         }
 
