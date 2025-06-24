@@ -10,6 +10,8 @@ const normalizeAngle = angle => ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.
 
 const closeTo = (a, b, epsilon = 0.1) => Math.abs(a - b) < epsilon;
 
+const isBetween = (value, min, max, epsilon = 0.1) => value <= (max + epsilon) && value >= (min - epsilon);
+
 function isClockwise(cellType, direction) {
   // Нормализуем угол от 0 до 2π
   const normalized = normalizeAngle(direction);
@@ -150,10 +152,10 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
       if (closeTo(normalizedDirection, DIRECTIONS.down)) { // backward
         return false;
       }
-      if (normalizedDirection >= DIRECTIONS.right && normalizedDirection <= DIRECTIONS.down) { // backward
+      if (isBetween(normalizedDirection, DIRECTIONS.right, DIRECTIONS.down)) { // backward
         return true;
       }
-      if (normalizedDirection >= DIRECTIONS.left && normalizedDirection <= DIRECTIONS.up) { // working direction
+      if (isBetween(normalizedDirection, DIRECTIONS.left, DIRECTIONS.up)) { // working direction
         return !isStraight;
       }
       return false;
@@ -163,10 +165,10 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
       if (closeTo(normalizedDirection, DIRECTIONS.down)) { // backward
         return false;
       }
-      if (normalizedDirection >= DIRECTIONS.down && normalizedDirection <= DIRECTIONS.left) { // backward
+      if (isBetween(normalizedDirection, DIRECTIONS.down, DIRECTIONS.left)) { // backward
         return true;
       }
-      if (normalizedDirection >= DIRECTIONS.up && normalizedDirection <= 2 * Math.PI) { // working direction
+      if (isBetween(normalizedDirection, DIRECTIONS.up, 2 * Math.PI)) { // working direction
         return !isStraight;
       }
       return false;
@@ -176,11 +178,11 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
       if (closeTo(normalizedDirection, DIRECTIONS.up)) { // backward
         return false;
       }
-      if (normalizedDirection >= DIRECTIONS.up && direction <= 2 * Math.PI 
+      if (isBetween(normalizedDirection, DIRECTIONS.up, 2 * Math.PI)
         || closeTo(normalizedDirection, DIRECTIONS.right)) { // backward
         return true;
       }
-      if (normalizedDirection >= DIRECTIONS.down && normalizedDirection <= DIRECTIONS.left) { // working direction
+      if (isBetween(normalizedDirection, DIRECTIONS.down, DIRECTIONS.left)) { // working direction
         return !isStraight;
       }
       return false;
@@ -190,10 +192,10 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
       if (closeTo(normalizedDirection, DIRECTIONS.up)) { // backward
         return false;
       }
-      if (normalizedDirection >= DIRECTIONS.left && normalizedDirection <= DIRECTIONS.up) { // backward
+      if (isBetween(normalizedDirection, DIRECTIONS.left, DIRECTIONS.up)) { // backward
         return true;
       }
-      if (normalizedDirection >= DIRECTIONS.right && normalizedDirection <= DIRECTIONS.down) { // working direction
+      if (isBetween(normalizedDirection, DIRECTIONS.right, DIRECTIONS.down)) { // working direction
         return !isStraight;
       }
       return false;
@@ -203,10 +205,10 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
       if (closeTo(normalizedDirection, DIRECTIONS.left)) { // backward
         return false;
       }
-      if (normalizedDirection >= DIRECTIONS.left && normalizedDirection <= DIRECTIONS.up) { // backward
+      if (isBetween(normalizedDirection, DIRECTIONS.left, DIRECTIONS.up)) { // backward
         return true;
       }
-      if (normalizedDirection >= DIRECTIONS.right && normalizedDirection <= DIRECTIONS.down) { // working direction
+      if (isBetween(normalizedDirection, DIRECTIONS.right, DIRECTIONS.down)) { // working direction
         return !isStraight;
       }
       return false;
@@ -216,10 +218,10 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
       if (closeTo(normalizedDirection, DIRECTIONS.right)) { // backward
         return false;
       }
-      if (normalizedDirection >= DIRECTIONS.up && normalizedDirection <= 2 * Math.PI) { // backward
+      if (isBetween(normalizedDirection, DIRECTIONS.up, 2 * Math.PI)) { // backward
         return true;
       }
-      if (normalizedDirection >= DIRECTIONS.down && normalizedDirection <= DIRECTIONS.left) { // working direction
+      if (isBetween(normalizedDirection, DIRECTIONS.down, DIRECTIONS.left)) { // working direction
         return !isStraight;
       }
       return false;
@@ -229,11 +231,11 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
       if (closeTo(normalizedDirection, DIRECTIONS.left)) { // backward
         return false;
       }
-      if (normalizedDirection >= DIRECTIONS.down && normalizedDirection <= DIRECTIONS.left) { // backward
+      if (isBetween(normalizedDirection, DIRECTIONS.down, DIRECTIONS.left)) { // backward
         return true;
       }
       if (closeTo(normalizedDirection, DIRECTIONS.right) || 
-        normalizedDirection >= DIRECTIONS.up && normalizedDirection <= 2 * Math.PI) { // working direction
+        isBetween(normalizedDirection, DIRECTIONS.up, 2 * Math.PI)) { // working direction
         return !isStraight;
       }
       return false;
@@ -243,10 +245,10 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
       if (closeTo(normalizedDirection, DIRECTIONS.right)) { // backward
         return false;
       }
-      if (normalizedDirection >= DIRECTIONS.right && normalizedDirection <= DIRECTIONS.down) { // backward
+      if (isBetween(normalizedDirection, DIRECTIONS.right, DIRECTIONS.down)) { // backward
         return true;
       }
-      if (normalizedDirection >= DIRECTIONS.left && normalizedDirection <= DIRECTIONS.up) { // working direction
+      if (isBetween(normalizedDirection, DIRECTIONS.left, DIRECTIONS.up)) { // working direction
         return !isStraight;
       }
       return false;
