@@ -333,9 +333,7 @@ class Game {
           this.getSwitchState(trainPart.x, trainPart.y),
           { trainPartIndex: i, trainPart }
         );
-        if (trainPart.type === 'wagon' && i === 1) {
-          console.log('nextPosition: trainPartIndex = ', i, trainPart , currentCellType, nextPosition);
-        }
+        console.log('nextPosition: trainPartIndex = ', i, trainPart , currentCellType, nextPosition);
 
         const nextPixelX = nextPosition.x;
         const nextPixelY = nextPosition.y;

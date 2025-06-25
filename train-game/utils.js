@@ -20,40 +20,40 @@ function isClockwise(cellType, direction) {
     case CELL_TYPES.TURN_RIGHT_UP:
     case CELL_TYPES.SWITCH_RIGHT_UP_V:
     case CELL_TYPES.SWITCH_RIGHT_UP_H:
-      if (normalized > 0 && normalized <= Math.PI / 2) {
+      if (isBetween(normalized, 0, Math.PI / 2)) {
         return false;
       }
-      if (normalized > Math.PI && normalized <= 3 * Math.PI / 2) {
+      if (isBetween(normalized, Math.PI, 3 * Math.PI / 2)) {
         return true;
       }
       return true;
     case CELL_TYPES.TURN_LEFT_UP:
     case CELL_TYPES.SWITCH_LEFT_UP_V:
     case CELL_TYPES.SWITCH_LEFT_UP_H:
-      if (closeTo(normalized, 0) || (normalized > 3 * Math.PI / 2 && normalized <= 2 * Math.PI)) {
+      if (closeTo(normalized, 0) || isBetween(normalized, 3 * Math.PI / 2, 2 * Math.PI)) {
         return false;
       }
-      if (normalized > Math.PI / 2 && normalized <= Math.PI) {
+      if (isBetween(normalized, Math.PI / 2, Math.PI)) {
         return true;
       }
       return true;
     case CELL_TYPES.TURN_RIGHT_DOWN:
     case CELL_TYPES.SWITCH_RIGHT_DOWN_V:
     case CELL_TYPES.SWITCH_RIGHT_DOWN_H:
-      if (normalized > Math.PI && normalized <= 3 * Math.PI / 2) {
+      if (isBetween(normalized, Math.PI, 3 * Math.PI / 2)) {
         return false;
       }
-      if (normalized >= 0 && normalized <= Math.PI / 2) {
+      if (isBetween(normalized, 0, Math.PI / 2)) {
         return true;
       }
       return true;
     case CELL_TYPES.TURN_LEFT_DOWN:
     case CELL_TYPES.SWITCH_LEFT_DOWN_V:
     case CELL_TYPES.SWITCH_LEFT_DOWN_H:
-      if (normalized > Math.PI / 2 && normalized <= Math.PI) {
+      if (isBetween(normalized, Math.PI / 2, Math.PI)) {
         return false;
       }
-      if (normalized > 3 * Math.PI / 2 && normalized <= 2 * Math.PI) {
+      if (isBetween(normalized, 3 * Math.PI / 2, 2 * Math.PI)) {
         return true;
       }
       return true;
