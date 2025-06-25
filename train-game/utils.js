@@ -108,7 +108,6 @@ function calculateTurnPosition(cellType, cellX, cellY, pixelX, pixelY, direction
   const nextY = cy + radius * Math.sin(newTheta);
   const nextDirection = direction + deltaTheta;
 
-  console.log('calculateTurnPosition', {direction, nextDirection, clockwise});
   return { x: nextX, y: nextY, direction: nextDirection };
 }
 
@@ -302,12 +301,10 @@ function calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, d
 }
 
 // Вычисляет следующую позицию поезда в зависимости от текущей клетки
-function calculateNextPosition(cellType, cellX, cellY, pixelX, pixelY, direction, speed, deltaTime, cellSize, isStraight, { trainPartIndex, trainPart }) {
-  console.log('trainPartIndex = ', trainPartIndex, 'trainPart = ', trainPart, {cellType, cellX, cellY, pixelX, pixelY, direction, isStraight});
+function calculateNextPosition(cellType, cellX, cellY, pixelX, pixelY, direction, speed, deltaTime, cellSize, isStraight) {
   // Check if cell is a switch
   if (isSwitchCell(cellType)) {
     if (shouldTurnOnSwitch(cellType, direction, isStraight)) {
-      console.log('shouldTurnOnSwitch');
       // Use turn movement if switch is set to turning
       return calculateTurnPosition(
         cellType,
@@ -320,7 +317,6 @@ function calculateNextPosition(cellType, cellX, cellY, pixelX, pixelY, direction
         deltaTime
       );
     } else {
-      console.log('shouldTurnOnSwitch = false, calculateStraightPosition');
       // Use straight movement if switch is set to straight
       return calculateStraightPosition(
         cellType,
@@ -336,7 +332,6 @@ function calculateNextPosition(cellType, cellX, cellY, pixelX, pixelY, direction
   
   // Original logic for non-switch cells
   if (isTurnCell(cellType)) {
-    console.log('calculateTurnPosition')
     // Перемещение на повороте
     return calculateTurnPosition(
       cellType,
@@ -349,7 +344,6 @@ function calculateNextPosition(cellType, cellX, cellY, pixelX, pixelY, direction
       deltaTime
     );
   } else {
-    console.log('calculateStraightPosition')
     // Перемещение по прямой
     return calculateStraightPosition(
       cellType,

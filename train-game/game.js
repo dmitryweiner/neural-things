@@ -11,7 +11,7 @@ class Game {
     this.playAgainWinButton = document.getElementById("playAgainWin");
     this.levelDisplay = document.getElementById("level-display");
 
-    this.currentLevelIndex = 2; // Track current level
+    this.currentLevelIndex = 0; // Track current level
     this.lastTime = performance.now();
     this.isPaused = false; // Add pause state
     this.setupCanvas();
@@ -331,9 +331,7 @@ class Game {
           deltaTime,
           CELL_SIZE,
           this.getSwitchState(trainPart.x, trainPart.y),
-          { trainPartIndex: i, trainPart }
         );
-        console.log('nextPosition: trainPartIndex = ', i, trainPart , currentCellType, nextPosition);
 
         const nextPixelX = nextPosition.x;
         const nextPixelY = nextPosition.y;
