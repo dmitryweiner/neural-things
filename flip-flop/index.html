@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flip-Flop Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .game-container {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .grid {
+            display: inline-grid;
+            grid-template-columns: repeat(4, 80px);
+            grid-template-rows: repeat(4, 80px);
+            gap: 2px;
+            background-color: #ccc;
+            padding: 2px;
+            border-radius: 5px;
+        }
+
+        .cell {
+            width: 80px;
+            height: 80px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            border-radius: 3px;
+        }
+
+        .cell:hover {
+            opacity: 0.8;
+        }
+
+        .cell.black {
+            background-color: #333;
+        }
+
+        .cell.white {
+            background-color: #fff;
+        }
+
+        .instructions {
+            margin-top: 20px;
+            color: #666;
+            max-width: 400px;
+        }
+
+        .reset-button {
+            margin-top: 15px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .reset-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Flip-Flop Game</h1>
+        <div class="grid" id="gameGrid"></div>
+        <div class="instructions">
+            <p>Нажмите на любую клетку, чтобы изменить её цвет и цвета всех клеток в той же строке и столбце.</p>
+        </div>
+        <button class="reset-button" onclick="resetGame()">Сбросить игру</button>
+    </div>
+
+    <script>
+        // Создаем сетку 4x4 с изначально черными клетками (значение 0)
+        let grid = Array(4).fill(null).map(() => Array(4).fill(0));
+        
+        // Функция для инвертирования цветов
+        function flip(row, col) {
+            // Инвертируем цвет выбранной клетки
+            grid[row][col] = 1 - grid[row][col];
+            
+            // Инвертируем цвета всех клеток в той же строке
+            for (let i = 0; i < 4; i++) {
+                grid[row][i] = 1 - grid[row][i];
+            }
+            
+            // Инвертируем цвета всех клеток в том же столбце
+            for (let i = 0; i < 4; i++) {
+                grid[i][col] = 1 - grid[i][col];
+            }
+        }
+        
+        // Функция для обновления сетки после клика
+        function updateGrid(row, col) {
+            flip(row, col);
+            updateButtons();
+        }
+        
+        // Функция для обновления отображения кнопок
+        function updateButtons() {
+            for (let row = 0; row < 4; row++) {
+                for (let col = 0; col < 4; col++) {
+                    const button = document.getElementById(`cell-${row}-${col}`);
+                    if (grid[row][col] === 0) {
+                        button.className = 'cell black';
+                    } else {
+                        button.className = 'cell white';
+                    }
+                }
+            }
+        }
+        
+        // Функция для сброса игры
+        function resetGame() {
+            grid = Array(4).fill(null).map(() => Array(4).fill(0));
+            updateButtons();
+        }
+        
+        // Функция для создания игрового поля
+        function createGameGrid() {
+            const gameGrid = document.getElementById('gameGrid');
+            gameGrid.innerHTML = '';
+            
+            for (let row = 0; row < 4; row++) {
+                for (let col = 0; col < 4; col++) {
+                    const button = document.createElement('button');
+                    button.id = `cell-${row}-${col}`;
+                    button.className = 'cell black';
+                    button.onclick = () => updateGrid(row, col);
+                    gameGrid.appendChild(button);
+                }
+            }
+        }
+        
+        // Инициализация игры при загрузке страницы
+        window.onload = function() {
+            createGameGrid();
+            updateButtons();
+        };
+    </script>
+</body>
+</html> 
