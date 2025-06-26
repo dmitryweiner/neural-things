@@ -344,12 +344,27 @@ class LevelEditor {
             targetPoint: this.targetPoint
         };
         
-        // Format as JavaScript object
-        const configStr = JSON.stringify(config, null, 2)
-            .replace(/"([^"]+)":/g, '$1:') // Remove quotes from keys
-            .replace(/"/g, '"'); // Keep quotes on strings
+        // Format as JavaScript object with special grid formatting
+        const configStr = this.formatConfig(config);
         
         this.configTextarea.value = configStr;
+    }
+    
+    formatConfig(config) {
+        // Format grid with each row on a single line
+        const gridLines = config.grid.map(row => 
+            '      [' + row.map(cell => '"' + cell + '"').join(', ') + ']'
+        );
+        const gridStr = '    grid: [\n' + gridLines.join(',\n') + '\n    ]';
+        
+        // Format other properties normally
+        const otherProps = Object.keys(config).filter(key => key !== 'grid');
+        const otherPropsStr = otherProps.map(key => {
+            const value = JSON.stringify(config[key], null, 4);
+            return `    ${key}: ${value}`;
+        }).join(',\n');
+        
+        return `{\n${gridStr}${otherPropsStr ? ',\n' + otherPropsStr : ''}\n}`;
     }
     
     clearGrid() {
