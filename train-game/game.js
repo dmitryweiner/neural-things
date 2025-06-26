@@ -329,7 +329,6 @@ class Game {
           trainPart.direction,
           trainPart.speed,
           deltaTime,
-          CELL_SIZE,
           this.getSwitchState(trainPart.x, trainPart.y),
         );
 

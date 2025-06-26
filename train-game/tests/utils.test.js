@@ -226,7 +226,7 @@ describe('calculateStraightPosition', () => {
     
     test('Движение сверху вниз (направление - down)', () => {
       const direction = DIRECTIONS.down;
-      const result = calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, deltaTime, CELL_SIZE);
+      const result = calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, deltaTime);
       
       expect(result.direction).toBe(DIRECTIONS.down);
       expect(result.x).toBe(pixelX);
@@ -235,7 +235,7 @@ describe('calculateStraightPosition', () => {
     
     test('Движение снизу вверх (направление - up)', () => {
       const direction = DIRECTIONS.up;
-      const result = calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, deltaTime, CELL_SIZE);
+      const result = calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, deltaTime);
       
       expect(result.direction).toBe(DIRECTIONS.up);
       expect(result.x).toBe(pixelX);
@@ -248,7 +248,7 @@ describe('calculateStraightPosition', () => {
     
     test('Преимущественно горизонтальное движение', () => {
       const direction = DIRECTIONS.right + 0.1; // Небольшое отклонение от горизонтали
-      const result = calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, deltaTime, CELL_SIZE);
+      const result = calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, deltaTime);
       
       expect(result.direction).toBe(DIRECTIONS.right);
       expect(result.x).toBeGreaterThan(pixelX);
@@ -257,7 +257,7 @@ describe('calculateStraightPosition', () => {
     
     test('Преимущественно вертикальное движение', () => {
       const direction = DIRECTIONS.down + 0.1; // Небольшое отклонение от вертикали
-      const result = calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, deltaTime, CELL_SIZE);
+      const result = calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, deltaTime);
       
       expect(result.direction).toBe(DIRECTIONS.down);
       expect(result.x).toBe(pixelX);

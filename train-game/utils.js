@@ -258,7 +258,7 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
 }
 
 // Вычисляет следующую позицию при движении по прямой клетке
-function calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, deltaTime, cellSize) {
+function calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, deltaTime) {
   let nextPixelX = pixelX;
   let nextPixelY = pixelY;
   let nextDirection = direction;
@@ -290,8 +290,8 @@ function calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, d
   }
 
   // Обновляем позицию в зависимости от угла направления
-  nextPixelX += Math.cos(nextDirection) * speed * cellSize * deltaTime;
-  nextPixelY += Math.sin(nextDirection) * speed * cellSize * deltaTime;
+  nextPixelX += Math.cos(nextDirection) * speed * CELL_SIZE * deltaTime;
+  nextPixelY += Math.sin(nextDirection) * speed * CELL_SIZE * deltaTime;
 
   return { 
     x: nextPixelX, 
@@ -301,7 +301,7 @@ function calculateStraightPosition(cellType, pixelX, pixelY, direction, speed, d
 }
 
 // Вычисляет следующую позицию поезда в зависимости от текущей клетки
-function calculateNextPosition(cellType, cellX, cellY, pixelX, pixelY, direction, speed, deltaTime, cellSize, isStraight) {
+function calculateNextPosition(cellType, cellX, cellY, pixelX, pixelY, direction, speed, deltaTime, isStraight) {
   // Check if cell is a switch
   if (isSwitchCell(cellType)) {
     if (shouldTurnOnSwitch(cellType, direction, isStraight)) {
@@ -325,7 +325,6 @@ function calculateNextPosition(cellType, cellX, cellY, pixelX, pixelY, direction
         direction,
         speed,
         deltaTime,
-        cellSize
       );
     }
   }
@@ -352,7 +351,6 @@ function calculateNextPosition(cellType, cellX, cellY, pixelX, pixelY, direction
       direction,
       speed,
       deltaTime,
-      cellSize
     );
   }
 }
