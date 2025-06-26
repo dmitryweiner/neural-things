@@ -30,6 +30,8 @@ const COLORS = {
   SEMAPHORE_GREEN: "#00ff00",
 };
 
+const NATURE_OBJECT_PROBABILITY = 0.1;
+
 // Функция для генерации псевдослучайного числа на основе seed
 function seededRandom(seed) {
   const x = Math.sin(seed) * 10000;
@@ -37,7 +39,7 @@ function seededRandom(seed) {
 }
 
 // Генерация единого фонового изображения для всей игры
-function generateBackground(canvas) {
+function generateBackground(canvas, grid) {
   // Создаем отдельный canvas для фона
   let backgroundCanvas;
   if (typeof document !== 'undefined') {
@@ -80,7 +82,27 @@ function generateBackground(canvas) {
     bgCtx.arc(patchX, patchY, size, 0, Math.PI * 2);
     bgCtx.fill();
   }
-  
+
+  for (let y = 0; y < grid.length; y++) {
+    for (let x = 0; x < grid[y].length; x++) {
+      if (grid[y][x] === CELL_TYPES.EMPTY) {
+        const objects = ['🏔️', '🌋', '🌲', '🌳', '🌾', '🌵', '🌱', '☘️', '🌿', '🏕️', '🛖', '🌼'];
+        const randomObject = objects[Math.floor(Math.random() * objects.length)];
+        const shouldDrawObject = Math.random() < NATURE_OBJECT_PROBABILITY;
+        if (shouldDrawObject) {
+          const centerX = x * CELL_SIZE + CELL_SIZE / 2;
+          const centerY = y * CELL_SIZE + CELL_SIZE / 2;        
+          bgCtx.fillStyle = COLORS.BLACK;
+          bgCtx.font = "20px Arial";
+          bgCtx.textAlign = "center";
+          bgCtx.textBaseline = "middle";
+          bgCtx.fillText(randomObject, centerX, centerY);
+        }
+      }
+    }
+  }
+
+
   // Рисуем сетку для ориентировки
   bgCtx.strokeStyle = COLORS.GRID_LINE;
   for (let y = 0; y < GRID_HEIGHT; y++) {

@@ -93,7 +93,7 @@ class Game {
     }
     
     // Создаем фон
-    this.backgroundCanvas = generateBackground(this.canvas);
+    this.backgroundCanvas = generateBackground(this.canvas, this.grid);
     
     // Обновляем отображение уровня
     this.updateLevelDisplay();

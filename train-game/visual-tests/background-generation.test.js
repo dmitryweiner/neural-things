@@ -2,6 +2,8 @@ const { createCanvas } = require('canvas');
 const { compareCanvasWithReference } = require('./setup');
 const { generateBackground, seededRandom } = require('../graphics');
 
+const createGrid = (maxX, maxY, fillValue) => Array(maxX).fill(Array(maxY).fill(fillValue));
+
 describe('Background Generation Tests', () => {
   test('seededRandom generates consistent values', () => {
     // Проверяем, что функция seededRandom для одинаковых seed даёт одинаковые значения
@@ -22,10 +24,11 @@ describe('Background Generation Tests', () => {
     // Создаём canvas для генерации фона
     const canvasWidth = CELL_SIZE * 5;
     const canvasHeight = CELL_SIZE * 5;
+    const grid = createGrid(5, 5, CELL_TYPES.EMPTY);
     const canvas = createCanvas(canvasWidth, canvasHeight);
     
     // Генерируем фон
-    const backgroundCanvas = generateBackground(canvas);
+    const backgroundCanvas = generateBackground(canvas, grid);
     
     // Проверяем, что размеры соответствуют исходному canvas
     expect(backgroundCanvas.width).toBe(canvasWidth);
@@ -39,13 +42,14 @@ describe('Background Generation Tests', () => {
   test('Background scales with canvas size', () => {
     // Генерируем фоны разных размеров
     const sizes = [
-      { width: CELL_SIZE * 3, height: CELL_SIZE * 3 },
-      { width: CELL_SIZE * 7, height: CELL_SIZE * 4 }
+      { x: 3, width: CELL_SIZE * 3, y: 3, height: CELL_SIZE * 3 },
+      { x: 7, width: CELL_SIZE * 7, y: 4, height: CELL_SIZE * 4 }
     ];
     
     for (const size of sizes) {
       const canvas = createCanvas(size.width, size.height);
-      const backgroundCanvas = generateBackground(canvas);
+      const grid = createGrid(size.x, size.y, CELL_TYPES.EMPTY);
+      const backgroundCanvas = generateBackground(canvas, grid);
       
       // Проверяем размер
       expect(backgroundCanvas.width).toBe(size.width);
@@ -65,8 +69,9 @@ describe('Background Generation Tests', () => {
     const canvasWidth = CELL_SIZE * 4;
     const canvasHeight = CELL_SIZE * 4;
     const canvas = createCanvas(canvasWidth, canvasHeight);
+    const grid = createGrid(4, 4, CELL_TYPES.EMPTY);
     
-    const backgroundCanvas = generateBackground(canvas);
+    const backgroundCanvas = generateBackground(canvas, grid);
     
     // Проверяем пиксели на границах ячеек, они должны быть цвета сетки
     const ctx = backgroundCanvas.getContext('2d');
