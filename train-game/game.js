@@ -257,11 +257,12 @@ class Game {
   }
 
   update(deltaTime) {
+    if (this.trains.some(train => train[0].state === LOCOMOTIVE_STATES.CRASHED)) {
+      return;
+    }
+
     for (let trainIndex = 0; trainIndex < this.trains.length; trainIndex++) {
       const locomotive = this.trains[trainIndex][0];
-      if (locomotive.state === LOCOMOTIVE_STATES.CRASHED) {
-        return;
-      }
 
       // Check if locomotive is on a semaphore
       if (this.isSemaphoreAtPosition(locomotive.x, locomotive.y)) {
