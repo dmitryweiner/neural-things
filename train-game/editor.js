@@ -57,7 +57,7 @@ class LevelEditor {
         this.canvas.height = GRID_HEIGHT * CELL_SIZE;
         
         // Generate background
-        this.backgroundCanvas = generateBackground(this.canvas);
+        this.backgroundCanvas = generateBackground(this.canvas, this.grid);
     }
     
     setupEventListeners() {
