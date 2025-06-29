@@ -311,38 +311,102 @@ const levels = [
     trains: [
       [
         {
-            "x": 2,
-            "y": 0,
-            "direction": 0,
-            "type": "locomotive"
+          "x": 2,
+          "y": 0,
+          "direction": 0,
+          "type": "locomotive"
         },
         {
-            "x": 1,
-            "y": 0,
-            "direction": 0,
-            "type": "wagon",
-            "wagonType": "wagon1"
+          "x": 1,
+          "y": 0,
+          "direction": 0,
+          "type": "wagon",
+          "wagonType": "wagon1"
         }
       ],
       [
         {
-            "x": 12,
-            "y": 9,
-            "direction": Math.PI,
-            "type": "locomotive"
+          "x": 12,
+          "y": 9,
+          "direction": Math.PI,
+          "type": "locomotive"
         },
         {
-            "x": 13,
-            "y": 9,
-            "direction": Math.PI,
-            "type": "wagon",
-            "wagonType": "wagon1"
+          "x": 13,
+          "y": 9,
+          "direction": Math.PI,
+          "type": "wagon",
+          "wagonType": "wagon1"
         }
       ],
     ],
     targetPoint: {
       "x": 14,
       "y": 9
+    }
+  },
+  { // Level #6
+    grid: [
+      ["┌", "-", "-", "-", "┐", "┌", "┐", " ", "┌", "┐", "┌", "-", "-", "-", "┐"],
+      ["|", " ", " ", " ", "|", "└", "┼", "-", "┼", "┘", "|", " ", " ", " ", "|"],
+      ["|", " ", " ", " ", "|", " ", "|", " ", "|", " ", "|", " ", " ", " ", "|"],
+      ["|", " ", " ", " ", "|", "┌", "┘-", "-", "-└", "┐", "|", " ", " ", " ", "|"],
+      ["|└", "-", "-", "-", "┼", "┘|", " ", " ", " ", "|└", "┼", "-", "-", "-┌", "┘|"],
+      ["|┌", "-", "-", "-", "┼", "┐|", " ", " ", " ", "|┌", "┼", "-", "-", "┘-", "┐|"],
+      ["|", " ", " ", " ", "|", "└", "┐-", "-", "-┌", "┘", "|", " ", " ", " ", "|"],
+      ["|", " ", " ", " ", "|", " ", "|", " ", "|", " ", "|", " ", " ", " ", "|"],
+      ["|", " ", " ", " ", "|", "┌", "┼", "-", "┼", "┐", "|", " ", " ", " ", "|"],
+      ["└", "-", "-", "-", "┘", "└", "┘", " ", "└", "┘", "└", "-", "-", "-", "┘"]
+    ],
+    semaphores: [],
+    trains: [
+      [
+        {
+          "x": 0,
+          "y": 1,
+          "direction": Math.PI * 1.5,
+          "type": "locomotive"
+        },
+        {
+          "x": 0,
+          "y": 2,
+          "direction": Math.PI * 1.5,
+          "type": "wagon",
+          "wagonType": "wagon2"
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "direction": Math.PI * 1.5,
+          "type": "wagon",
+          "wagonType": "wagon2"
+        },
+        {
+          "x": 0,
+          "y": 4,
+          "direction": Math.PI * 1.5,
+          "type": "wagon",
+          "wagonType": "wagon2"
+        },
+        {
+          "x": 0,
+          "y": 5,
+          "direction": Math.PI * 1.5,
+          "type": "wagon",
+          "wagonType": "wagon2"
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "direction": Math.PI * 1.5,
+          "type": "wagon",
+          "wagonType": "wagon2"
+        },
+      ]
+    ],
+    targetPoint: {
+      "x": 6,
+      "y": 2
     }
   }
 ];
