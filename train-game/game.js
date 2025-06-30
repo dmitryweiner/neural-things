@@ -11,13 +11,33 @@ class Game {
     this.playAgainWinButton = document.getElementById("playAgainWin");
     this.levelDisplay = document.getElementById("level-display");
 
-    this.currentLevelIndex = 0; // Track current level
+    this.currentLevelIndex = this.loadCurrentLevel(); // Load saved level or start from 0
     this.lastTime = performance.now();
     this.isPaused = false; // Add pause state
     this.setupCanvas();
     this.initGame();
     this.setupEventListeners();
     this.gameLoop(performance.now());
+  }
+
+  loadCurrentLevel() {
+    const savedLevel = Storage.get(STORAGE_KEYS.CURRENT_LEVEL);
+    if (savedLevel !== null) {
+      const levelIndex = parseInt(savedLevel, 10);
+      // Убедимся, что сохраненный уровень существует в массиве levels
+      if (levelIndex >= 0 && levelIndex < levels.length) {
+        return levelIndex;
+      }
+    }
+    return 0; // Default to first level
+  }
+
+  saveCurrentLevel() {
+    Storage.set(STORAGE_KEYS.CURRENT_LEVEL, this.currentLevelIndex);
+  }
+
+  clearSavedLevel() {
+    Storage.remove(STORAGE_KEYS.CURRENT_LEVEL);
   }
 
   setupCanvas() {
@@ -144,6 +164,7 @@ class Game {
       // Hide level complete screen
       this.levelCompleteScreen.style.display = "none";
       this.currentLevelIndex++;
+      this.saveCurrentLevel(); // Save progress
       this.initGame();
     });
     
@@ -160,6 +181,7 @@ class Game {
       // Hide game win screen
       this.gameWinScreen.style.display = "none";
       this.currentLevelIndex = 0; // Reset to first level
+      this.clearSavedLevel(); // Clear saved progress
       this.initGame();
     });
     

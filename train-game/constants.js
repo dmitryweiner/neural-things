@@ -47,6 +47,11 @@ const LOCOMOTIVE_STATES = {
   CRASHED: "crashed",
 };
 
+// Storage keys
+const STORAGE_KEYS = {
+  CURRENT_LEVEL: 'trainGameCurrentLevel',
+};
+
 if (typeof module !== 'undefined' && module.exports) {
 module.exports = {
   CELL_SIZE,
@@ -61,5 +66,6 @@ module.exports = {
   CELL_TYPES,
   DIRECTIONS,
   LOCOMOTIVE_STATES,
+  STORAGE_KEYS,
   }; 
 }
