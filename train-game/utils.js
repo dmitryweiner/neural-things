@@ -6,11 +6,13 @@ if (typeof window === 'undefined') {
   globalThis.DIRECTIONS = DIRECTIONS;
 }
 
+const EPSILON = 0.1;
+
 const normalizeAngle = angle => ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 
-const closeTo = (a, b, epsilon = 0.05) => Math.abs(a - b) < epsilon;
+const closeTo = (a, b, epsilon = EPSILON) => Math.abs(a - b) < epsilon;
 
-const isBetween = (value, min, max, epsilon = 0.1) => value <= (max + epsilon) && value >= (min - epsilon);
+const isBetween = (value, min, max, epsilon = EPSILON) => value <= (max + epsilon) && value >= (min - epsilon);
 
 function isClockwise(cellType, direction) {
   // Нормализуем угол от 0 до 2π
@@ -214,7 +216,7 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
     
     // SWITCH_LEFT_DOWN_H: "-┌" - движется вверх или вправо
     case CELL_TYPES.SWITCH_LEFT_DOWN_H:
-      if (closeTo(normalizedDirection, DIRECTIONS.right)) { // backward
+      if (closeTo(normalizedDirection, DIRECTIONS.right) || closeTo(normalizedDirection, 2 * Math.PI)) { // backward
         return false;
       }
       if (isBetween(normalizedDirection, DIRECTIONS.up, 2 * Math.PI)) { // backward
@@ -241,7 +243,7 @@ function shouldTurnOnSwitch(switchType, direction, isStraight) {
     
     // SWITCH_RIGHT_UP_H: "-└" - движется вниз или вправо
     case CELL_TYPES.SWITCH_RIGHT_UP_H:
-      if (closeTo(normalizedDirection, DIRECTIONS.right)) { // backward
+      if (closeTo(normalizedDirection, DIRECTIONS.right) || closeTo(normalizedDirection, 2 * Math.PI)) { // backward
         return false;
       }
       if (isBetween(normalizedDirection, DIRECTIONS.right, DIRECTIONS.down)) { // backward
