@@ -37,6 +37,8 @@ body {
     justify-content: center;
     align-items: center;
     margin-top: 20px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 #instructions-container {
@@ -379,5 +381,48 @@ body {
     #game-title {
         font-size: 24px;
         margin-bottom: 10px;
+    }
+}
+
+/* Footer Styles */
+#footer {
+    margin-top: 40px;
+    padding: 20px;
+    text-align: center;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    border: 2px solid #333;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#footer p {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 10px;
+    color: #555;
+    margin: 0;
+    line-height: 1.5;
+}
+
+#footer a {
+    color: #333;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+#footer a:hover {
+    color: #4CAF50;
+    text-shadow: 1px 1px 0 #aaa;
+}
+
+@media screen and (max-width: 900px) {
+    #footer {
+        margin-top: 20px;
+        padding: 15px;
+    }
+    
+    #footer p {
+        font-size: 8px;
     }
 } 
