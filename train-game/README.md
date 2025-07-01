@@ -1,6 +1,6 @@
 # Happy Train
 
-Проект перенесён сюда https://github.com/dmitryweiner/happy-train
+Проект перенесён [сюда](https://github.com/dmitryweiner/happy-train)
 
 ### [Поиграть можно тут](http://dmitryweiner.github.io/happy-train)
 
