@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tijd leren - Klokken</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .clocks-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+
+        .clock-wrapper {
+            text-align: center;
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .clock-wrapper:hover {
+            transform: translateY(-5px);
+        }
+
+        .clock-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #444;
+        }
+
+        .clock {
+            width: 250px;
+            height: 250px;
+            margin: 0 auto;
+        }
+
+        .clock-face {
+            fill: #f8f9fa;
+            stroke: #333;
+            stroke-width: 3;
+        }
+
+        .hour-mark {
+            stroke: #333;
+            stroke-width: 2;
+        }
+
+        .minute-mark {
+            stroke: #666;
+            stroke-width: 1;
+        }
+
+        .hour-hand {
+            stroke: #333;
+            stroke-width: 6;
+            stroke-linecap: round;
+        }
+
+        .minute-hand {
+            stroke: #666;
+            stroke-width: 4;
+            stroke-linecap: round;
+        }
+
+        .second-hand {
+            stroke: #e74c3c;
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+
+        .center-dot {
+            fill: #333;
+        }
+
+        .number-text {
+            font-family: 'Arial', sans-serif;
+            font-size: 16px;
+            font-weight: bold;
+            fill: #333;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+
+        .minute-text {
+            font-family: 'Arial', sans-serif;
+            font-size: 12px;
+            font-weight: bold;
+            fill: #666;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+
+        .current-time {
+            margin-top: 15px;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #555;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .clocks-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .clock {
+                width: 200px;
+                height: 200px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🕐 Tijd leren aflezen</h1>
+        
+        <div class="clocks-container">
+            <!-- Eerste klok: gewone klok zonder cijfers -->
+            <div class="clock-wrapper">
+                <div class="clock-title">Gewone klok</div>
+                <svg class="clock" id="clock1" viewBox="0 0 200 200">
+                    <!-- Wijzerplaat -->
+                    <circle class="clock-face" cx="100" cy="100" r="95"/>
+                    
+                    <!-- Uurstrepen -->
+                    <g id="hour-marks1"></g>
+                    
+                    <!-- Minuutstrepen -->
+                    <g id="minute-marks1"></g>
+                    
+                    <!-- Wijzers -->
+                    <line class="hour-hand" id="hour-hand1" x1="100" y1="100" x2="100" y2="60"/>
+                    <line class="minute-hand" id="minute-hand1" x1="100" y1="100" x2="100" y2="40"/>
+                    <line class="second-hand" id="second-hand1" x1="100" y1="100" x2="100" y2="35"/>
+                    
+                    <!-- Middelpunt -->
+                    <circle class="center-dot" cx="100" cy="100" r="4"/>
+                </svg>
+                <div class="current-time" id="time1"></div>
+            </div>
+
+            <!-- Tweede klok: alleen uren -->
+            <div class="clock-wrapper">
+                <div class="clock-title">Uren (1-12)</div>
+                <svg class="clock" id="clock2" viewBox="0 0 200 200">
+                    <!-- Wijzerplaat -->
+                    <circle class="clock-face" cx="100" cy="100" r="95"/>
+                    
+                    <!-- Uurstrepen -->
+                    <g id="hour-marks2"></g>
+                    
+                    <!-- Uurnummers -->
+                    <g id="hour-numbers"></g>
+                    
+                    <!-- Alleen uurwijzer -->
+                    <line class="hour-hand" id="hour-hand2" x1="100" y1="100" x2="100" y2="60"/>
+                    
+                    <!-- Middelpunt -->
+                    <circle class="center-dot" cx="100" cy="100" r="4"/>
+                </svg>
+                <div class="current-time" id="time2"></div>
+            </div>
+
+            <!-- Derde klok: alleen minuten -->
+            <div class="clock-wrapper">
+                <div class="clock-title">Minuten (5-60)</div>
+                <svg class="clock" id="clock3" viewBox="0 0 200 200">
+                    <!-- Wijzerplaat -->
+                    <circle class="clock-face" cx="100" cy="100" r="95"/>
+                    
+                    <!-- Minuutstrepen -->
+                    <g id="minute-marks3"></g>
+                    
+                    <!-- Minuutnummers -->
+                    <g id="minute-numbers"></g>
+                    
+                    <!-- Alleen minuutwijzer -->
+                    <line class="minute-hand" id="minute-hand3" x1="100" y1="100" x2="100" y2="40"/>
+                    
+                    <!-- Middelpunt -->
+                    <circle class="center-dot" cx="100" cy="100" r="4"/>
+                </svg>
+                <div class="current-time" id="time3"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Functie voor het maken van uurstrepen
+        function createHourMarks(containerId) {
+            const container = document.getElementById(containerId);
+            for (let i = 1; i <= 12; i++) {
+                const angle = (i * 30 - 90) * Math.PI / 180;
+                const x1 = 100 + 85 * Math.cos(angle);
+                const y1 = 100 + 85 * Math.sin(angle);
+                const x2 = 100 + 75 * Math.cos(angle);
+                const y2 = 100 + 75 * Math.sin(angle);
+                
+                const mark = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                mark.setAttribute("class", "hour-mark");
+                mark.setAttribute("x1", x1);
+                mark.setAttribute("y1", y1);
+                mark.setAttribute("x2", x2);
+                mark.setAttribute("y2", y2);
+                container.appendChild(mark);
+            }
+        }
+
+        // Functie voor het maken van minuutstrepen
+        function createMinuteMarks(containerId) {
+            const container = document.getElementById(containerId);
+            for (let i = 1; i <= 60; i++) {
+                if (i % 5 !== 0) { // Sla uurstrepen over
+                    const angle = (i * 6 - 90) * Math.PI / 180;
+                    const x1 = 100 + 85 * Math.cos(angle);
+                    const y1 = 100 + 85 * Math.sin(angle);
+                    const x2 = 100 + 80 * Math.cos(angle);
+                    const y2 = 100 + 80 * Math.sin(angle);
+                    
+                    const mark = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                    mark.setAttribute("class", "minute-mark");
+                    mark.setAttribute("x1", x1);
+                    mark.setAttribute("y1", y1);
+                    mark.setAttribute("x2", x2);
+                    mark.setAttribute("y2", y2);
+                    container.appendChild(mark);
+                }
+            }
+        }
+
+        // Functie voor het maken van uurnummers
+        function createHourNumbers() {
+            const container = document.getElementById('hour-numbers');
+            for (let i = 1; i <= 12; i++) {
+                const angle = (i * 30 - 90) * Math.PI / 180;
+                const x = 100 + 65 * Math.cos(angle);
+                const y = 100 + 65 * Math.sin(angle);
+                
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("class", "number-text");
+                text.setAttribute("x", x);
+                text.setAttribute("y", y);
+                text.textContent = i;
+                container.appendChild(text);
+            }
+        }
+
+        // Functie voor het maken van minuutnummers
+        function createMinuteNumbers() {
+            const container = document.getElementById('minute-numbers');
+            for (let i = 1; i <= 12; i++) {
+                const minute = i * 5;
+                const angle = (i * 30 - 90) * Math.PI / 180;
+                const x = 100 + 65 * Math.cos(angle);
+                const y = 100 + 65 * Math.sin(angle);
+                
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("class", "minute-text");
+                text.setAttribute("x", x);
+                text.setAttribute("y", y);
+                text.textContent = minute === 60 ? "00" : minute;
+                container.appendChild(text);
+            }
+        }
+
+        // Functie voor het bijwerken van wijzerpositie
+        function updateHand(handId, angle, length) {
+            const hand = document.getElementById(handId);
+            const radian = (angle - 90) * Math.PI / 180;
+            const x = 100 + length * Math.cos(radian);
+            const y = 100 + length * Math.sin(radian);
+            
+            hand.setAttribute("x2", x);
+            hand.setAttribute("y2", y);
+        }
+
+        // Functie voor tijdformattering
+        function formatTime(hours, minutes, seconds) {
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Functie voor het bijwerken van alle klokken
+        function updateClocks() {
+            const now = new Date();
+            const hours = now.getHours() % 12;
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+
+            // Hoeken voor wijzers
+            const hourAngle = (hours * 30) + (minutes * 0.5);
+            const minuteAngle = minutes * 6;
+            const secondAngle = seconds * 6;
+
+            // Bijwerken van eerste klok (alle wijzers)
+            updateHand('hour-hand1', hourAngle, 40);
+            updateHand('minute-hand1', minuteAngle, 60);
+            updateHand('second-hand1', secondAngle, 65);
+            document.getElementById('time1').textContent = `Tijd: ${formatTime(now.getHours(), minutes, seconds)}`;
+
+            // Bijwerken van tweede klok (alleen uurwijzer)
+            updateHand('hour-hand2', hourAngle, 40);
+            const hourDisplay = now.getHours() === 0 ? 12 : (now.getHours() > 12 ? now.getHours() - 12 : now.getHours());
+            document.getElementById('time2').textContent = `Uur: ${hourDisplay}`;
+
+            // Bijwerken van derde klok (alleen minuutwijzer)
+            updateHand('minute-hand3', minuteAngle, 60);
+            document.getElementById('time3').textContent = `Minuten: ${minutes}`;
+        }
+
+        // Initialisatie van klokken
+        function initClocks() {
+            // Strepen maken voor eerste klok
+            createHourMarks('hour-marks1');
+            createMinuteMarks('minute-marks1');
+
+            // Strepen maken voor tweede klok
+            createHourMarks('hour-marks2');
+            createHourNumbers();
+
+            // Strepen maken voor derde klok
+            createMinuteMarks('minute-marks3');
+            createMinuteNumbers();
+
+            // Tijdupdate starten
+            updateClocks();
+            setInterval(updateClocks, 1000);
+        }
+
+        // Starten bij het laden van de pagina
+        window.addEventListener('load', initClocks);
+    </script>
+</body>
+</html>
