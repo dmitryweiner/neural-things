@@ -3,26 +3,26 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Illegal Uzumaki</title>
+  <title>Illegal Uzumaki (harmonic sum)</title>
   <style>
     html, body { margin:0; height:100%; background:#000; overflow:hidden; }
     canvas { display:block; width:100vw; height:100vh; }
-    .ui {
+    .ui{
       position:fixed; left:12px; top:12px;
       color:#eee; font:14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
       background:rgba(0,0,0,.55);
       border:1px solid rgba(255,255,255,.12);
       border-radius:12px;
-      padding:12px 12px 10px;
+      padding:12px;
+      min-width: 280px;
       backdrop-filter: blur(6px);
-      min-width: 260px;
     }
-    .row { display:flex; align-items:center; gap:10px; margin:8px 0; }
-    .row label { width:72px; opacity:.9; }
-    .row input[type="range"] { flex:1; }
-    .val { width:72px; text-align:right; opacity:.9; font-variant-numeric: tabular-nums; }
-    .hint { opacity:.7; font-size:12px; margin-top:8px; }
-    .btn {
+    .row{ display:flex; align-items:center; gap:10px; margin:8px 0; }
+    .row label{ width:70px; opacity:.9; }
+    .row input[type="range"]{ flex:1; }
+    .val{ width:76px; text-align:right; opacity:.9; font-variant-numeric: tabular-nums; }
+    .hint{ opacity:.7; font-size:12px; margin-top:8px; }
+    button{
       cursor:pointer; user-select:none;
       padding:6px 10px; border-radius:10px;
       border:1px solid rgba(255,255,255,.15);
@@ -32,171 +32,75 @@
   </style>
 </head>
 <body>
-  <canvas id="c"></canvas>
+<canvas id="c"></canvas>
 
-  <div class="ui">
-    <div class="row">
-      <label for="t">t max</label>
-      <input id="t" type="range" min="0" max="60" step="0.01" value="20">
-      <div class="val" id="tVal"></div>
-    </div>
-
-    <div class="row">
-      <label for="nMax">n max</label>
-      <input id="nMax" type="range" min="50" max="1500" step="1" value="800">
-      <div class="val" id="nVal"></div>
-    </div>
-
-    <div class="row">
-      <label for="samples">samples</label>
-      <input id="samples" type="range" min="200" max="4000" step="1" value="1400">
-      <div class="val" id="sVal"></div>
-    </div>
-
-    <div class="row">
-      <label for="gain">gain</label>
-      <input id="gain" type="range" min="2" max="30" step="0.1" value="10">
-      <div class="val" id="gVal"></div>
-    </div>
-
-    <div class="row" style="justify-content:space-between; gap:8px;">
-      <button class="btn" id="fit">Fit to screen</button>
-      <button class="btn" id="redraw">Redraw</button>
-    </div>
-
-    <div class="hint">
-      Если тормозит: уменьшай <b>n max</b> или <b>samples</b>.<br>
-      “Fit” подберёт масштаб автоматически.
-    </div>
+<div class="ui">
+  <div class="row">
+    <label for="T">time T</label>
+    <input id="T" type="range" min="0" max="60" step="0.001" value="8">
+    <div class="val" id="TVal"></div>
   </div>
 
-  <script>
-    const canvas = document.getElementById('c');
-    const ctx = canvas.getContext('2d', { alpha: false });
+  <div class="row">
+    <label for="N">N</label>
+    <input id="N" type="range" min="20" max="600" step="1" value="220">
+    <div class="val" id="NVal"></div>
+  </div>
 
-    const tInp = document.getElementById('t');
-    const nInp = document.getElementById('nMax');
-    const sInp = document.getElementById('samples');
-    const gInp = document.getElementById('gain');
+  <div class="row">
+    <label for="S">samples</label>
+    <input id="S" type="range" min="300" max="6000" step="1" value="2200">
+    <div class="val" id="SVal"></div>
+  </div>
 
-    const tVal = document.getElementById('tVal');
-    const nVal = document.getElementById('nVal');
-    const sVal = document.getElementById('sVal');
-    const gVal = document.getElementById('gVal');
+  <div class="row">
+    <label for="gain">gain</label>
+    <input id="gain" type="range" min="20" max="800" step="1" value="220">
+    <div class="val" id="GVal"></div>
+  </div>
 
-    const fitBtn = document.getElementById('fit');
-    const redrawBtn = document.getElementById('redraw');
+  <div class="row" style="justify-content:space-between;">
+    <button id="animate">Play</button>
+    <button id="reset">Reset</button>
+  </div>
 
-    let W = 0, H = 0, dpr = 1;
+  <div class="hint">
+    Если “каша” — уменьшай <b>N</b>.<br/>
+    Если “рвано” — увеличивай <b>samples</b>.
+  </div>
+</div>
 
-    function resize() {
-      dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
-      W = Math.floor(window.innerWidth * dpr);
-      H = Math.floor(window.innerHeight * dpr);
-      canvas.width = W;
-      canvas.height = H;
-      draw();
-    }
+<script>
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha:false });
 
-    // Формула (полярная -> декартова):
-    // theta = 0.1 * n * t
-    // r = (n^(3/2)/(n+1000)) * sin(0.1*n*sin(83.3333*t))
-    // x = r cos(theta), y = r sin(theta)
-    function point(n, t) {
-      const theta = 0.1 * n * t;
-      const amp = Math.pow(n, 1.5) / (n + 1000.0);
-      const r = amp * Math.sin(0.1 * n * Math.sin(83.3333 * t));
-      return [r * Math.cos(theta), r * Math.sin(theta)];
-    }
+  const TInp = document.getElementById('T');
+  const NInp = document.getElementById('N');
+  const SInp = document.getElementById('S');
+  const GInp = document.getElementById('gain');
 
-    function draw() {
-      const tMax = parseFloat(tInp.value);
-      const nMax = parseInt(nInp.value, 10);
-      const samples = parseInt(sInp.value, 10);
-      const gain = parseFloat(gInp.value);
+  const TVal = document.getElementById('TVal');
+  const NVal = document.getElementById('NVal');
+  const SVal = document.getElementById('SVal');
+  const GVal = document.getElementById('GVal');
 
-      tVal.textContent = tMax.toFixed(2);
-      nVal.textContent = String(nMax);
-      sVal.textContent = String(samples);
-      gVal.textContent = gain.toFixed(1);
+  const animateBtn = document.getElementById('animate');
+  const resetBtn = document.getElementById('reset');
 
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, W, H);
+  let W=0, H=0, dpr=1;
+  let playing = false;
+  let lastTs = 0;
 
-      const cx = W / 2;
-      const cy = H / 2;
+  function resize(){
+    dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+    W = Math.floor(innerWidth * dpr);
+    H = Math.floor(innerHeight * dpr);
+    canvas.width = W;
+    canvas.height = H;
+    draw();
+  }
+  window.addEventListener('resize', resize);
 
-      // чуть прозрачные линии, чтобы пересечения выглядели "мягко"
-      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-      ctx.lineWidth = Math.max(1, 1.1 * dpr);
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
-
-      // Для скорости: реже рисуем большие n, можно шагом > 1
-      // Но оставим шаг=1 по умолчанию, и дадим пользователю регулировать nMax/samples.
-      const dt = (tMax <= 0) ? 0 : (tMax / (samples - 1));
-
-      for (let n = 1; n <= nMax; n++) {
-        ctx.beginPath();
-
-        // первая точка
-        let t = 0;
-        let [x, y] = point(n, t);
-        ctx.moveTo(cx + x * gain * dpr, cy + y * gain * dpr);
-
-        for (let i = 1; i < samples; i++) {
-          t = i * dt;
-          [x, y] = point(n, t);
-          ctx.lineTo(cx + x * gain * dpr, cy + y * gain * dpr);
-        }
-        ctx.stroke();
-      }
-    }
-
-    // Автоподбор масштаба: грубо оценим max |r| при выбранном nMax
-    function fitToScreen() {
-      const tMax = parseFloat(tInp.value);
-      const nMax = parseInt(nInp.value, 10);
-      const samples = Math.min(1200, Math.max(200, parseInt(sInp.value, 10)));
-
-      let rMax = 0;
-      const dt = (tMax <= 0) ? 0 : (tMax / (samples - 1));
-
-      for (let n = 1; n <= nMax; n += Math.max(1, Math.floor(nMax / 400))) {
-        for (let i = 0; i < samples; i++) {
-          const t = i * dt;
-          const theta = 0.1 * n * t;
-          const amp = Math.pow(n, 1.5) / (n + 1000.0);
-          const r = amp * Math.sin(0.1 * n * Math.sin(83.3333 * t));
-          rMax = Math.max(rMax, Math.abs(r));
-          // theta не нужен для rMax
-        }
-      }
-
-      // Подбираем gain так, чтобы rMax * gain занимал ~45% меньшей стороны
-      const minSide = Math.min(W, H);
-      const target = 0.45 * (minSide / dpr);
-      const newGain = rMax > 1e-9 ? (target / rMax) : 10;
-      gInp.value = String(Math.max(2, Math.min(30, newGain)));
-      draw();
-    }
-
-    // debounce для перерисовки при движении слайдера
-    let raf = 0;
-    function scheduleDraw() {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(draw);
-    }
-
-    tInp.addEventListener('input', scheduleDraw);
-    nInp.addEventListener('input', scheduleDraw);
-    sInp.addEventListener('input', scheduleDraw);
-    gInp.addEventListener('input', scheduleDraw);
-    fitBtn.addEventListener('click', fitToScreen);
-    redrawBtn.addEventListener('click', draw);
-
-    window.addEventListener('resize', resize);
-    resize();
-  </script>
-</body>
-</html>
+  // ---- ВАЖНО: тут та самая F(n,T) со скрина (как скалярная "амплитуда") ----
+  // Интерпретация записи:
+  // F(n,T) = (n^(3/2)/(
