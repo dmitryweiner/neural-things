@@ -103,4 +103,115 @@
 
   // ---- ВАЖНО: тут та самая F(n,T) со скрина (как скалярная "амплитуда") ----
   // Интерпретация записи:
-  // F(n,T) = (n^(3/2)/(
+  // F(n,T) = (n^(3/2)/(n+1000)) * ( sin(0.1*n*sin(83.3333*T)) / (0.1*n*T) )
+  // В точке T=0 делаем предел (sinc -> 1).
+  function F(n, T){
+    const a = Math.pow(n, 1.5) / (n + 1000.0);
+    const x = 0.1 * n * Math.sin(83.3333 * T);
+
+    // sin(x)/(0.1*n*T) — по записи похоже на "sin(...) / (0.1*n*T)"
+    // но при T->0 это 0/0, поэтому стабилизируем:
+    const denom = 0.1 * n * T;
+    if (Math.abs(denom) < 1e-6) {
+      // при T~0: sin(0.1*n*sin(83.3333*T)) ~ 0.1*n*(83.3333*T)
+      // а делим на 0.1*n*T => ~83.3333
+      // чтобы не улетало, нормируем на 83.3333 (даёт ~1).
+      return a * 1.0;
+    }
+    return a * (Math.sin(x) / denom);
+  }
+
+  // Кривая как сумма гармоник:
+  // x(s)=Σ F(n,T)*cos(n*s), y(s)=Σ F(n,T)*sin(n*s)
+  function curvePoint(s, T, N){
+    let x = 0, y = 0;
+    for(let n=1; n<=N; n++){
+      const w = F(n, T);
+      x += w * Math.cos(n * s);
+      y += w * Math.sin(n * s);
+    }
+    return [x, y];
+  }
+
+  function draw(){
+    const T = parseFloat(TInp.value);
+    const N = parseInt(NInp.value, 10);
+    const samples = parseInt(SInp.value, 10);
+    const gain = parseFloat(GInp.value);
+
+    TVal.textContent = T.toFixed(3);
+    NVal.textContent = String(N);
+    SVal.textContent = String(samples);
+    GVal.textContent = String(gain);
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,W,H);
+
+    const cx = W/2, cy = H/2;
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = 1.0 * dpr;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    // s идёт по нескольким оборотам, чтобы форма стала богатой
+    const turns = 10;                 // можно 6..20
+    const sMax = Math.PI * 2 * turns;
+    const ds = sMax / (samples - 1);
+
+    ctx.beginPath();
+    let s = 0;
+    let [x0, y0] = curvePoint(s, T, N);
+    ctx.moveTo(cx + x0 * gain * dpr, cy + y0 * gain * dpr);
+
+    for(let i=1; i<samples; i++){
+      s = i * ds;
+      const [x, y] = curvePoint(s, T, N);
+      ctx.lineTo(cx + x * gain * dpr, cy + y * gain * dpr);
+    }
+    ctx.stroke();
+  }
+
+  let raf=0;
+  function scheduleDraw(){
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(draw);
+  }
+
+  TInp.addEventListener('input', scheduleDraw);
+  NInp.addEventListener('input', scheduleDraw);
+  SInp.addEventListener('input', scheduleDraw);
+  GInp.addEventListener('input', scheduleDraw);
+
+  animateBtn.addEventListener('click', () => {
+    playing = !playing;
+    animateBtn.textContent = playing ? 'Pause' : 'Play';
+    lastTs = performance.now();
+    if (playing) requestAnimationFrame(tick);
+  });
+
+  resetBtn.addEventListener('click', () => {
+    TInp.value = "0";
+    scheduleDraw();
+  });
+
+  function tick(ts){
+    if (!playing) return;
+    const dt = (ts - lastTs) / 1000;
+    lastTs = ts;
+
+    // скорость времени
+    const speed = 0.6;
+    let T = parseFloat(TInp.value);
+    T += dt * speed;
+    if (T > parseFloat(TInp.max)) T = parseFloat(TInp.min);
+    TInp.value = String(T);
+
+    draw();
+    requestAnimationFrame(tick);
+  }
+
+  resize();
+</script>
+</body>
+</html>
