@@ -26,9 +26,9 @@
     .formula { border-top:1px solid #1d2a3a; padding-top: 12px; margin-top: 12px; }
     .formula:first-child { border-top:0; padding-top:0; margin-top:0; }
     .fhead { display:flex; justify-content: space-between; gap: 10px; align-items: baseline; }
-    .fhead h3 { margin:0; font-size: 13px; }
+    .fhead h3 { margin:0; font-size: 13px; display:flex; align-items:center; gap:10px; }
     .fhead .tag { font-size: 11px; color:#bcd0e6; background:#0f1b29; border:1px solid #1d2a3a; padding:3px 8px; border-radius: 999px; }
-    .ctrl { display:grid; grid-template-columns: 140px 1fr 70px; gap: 10px; align-items: center; margin-top: 8px;}
+    .ctrl { display:grid; grid-template-columns: 160px 1fr 70px; gap: 10px; align-items: center; margin-top: 8px;}
     .ctrl label { font-size: 12px; color:#cfe1ff; }
     input[type="range"] { width: 100%; }
     input[type="checkbox"] { transform: scale(1.15); }
@@ -43,7 +43,7 @@
     <button id="startBtn">Start Audio</button>
     <button id="stopBtn" disabled>Stop</button>
     <span class="pill" id="status">Status: not started</span>
-    <span class="pill">Tip: включай несколько формул и крути параметры во время звучания</span>
+    <span class="pill" id="scopeInfo">Scope: auto</span>
   </div>
 </header>
 
@@ -59,14 +59,10 @@
             <input id="masterGain" type="range" min="0" max="1" step="0.001" value="0.25">
             <div class="small" id="masterGainVal">0.25</div>
           </div>
-          <div class="ctrl">
-            <label>Oscilloscope gain</label>
-            <input id="scopeGain" type="range" min="0.2" max="6" step="0.01" value="1.2">
-            <div class="small" id="scopeGainVal">1.20</div>
-          </div>
         </div>
         <div class="muted">
-          Осциллограф показывает time-domain waveform. Если “плющит” в прямоугольник — уменьши master volume или громкости отдельных формул.
+          Осциллограф теперь сам подбирает масштаб по Y (авто-усиление с плавной адаптацией).
+          Если звук клиппит — уменьши Master volume или Gain у отдельных формул.
         </div>
       </div>
     </div>
@@ -91,17 +87,27 @@
       this.sr = sampleRate;
       this.t = 0;
       this.phase = 0;
-      this.phase2 = 0;
 
-      // for logistic
+      // logistic
       this.logi = 0.33;
 
-      // for Lorenz
+      // Lorenz
       this.lx = 0.1; this.ly = 0.0; this.lz = 0.0;
 
-      // default params
+      // Karplus-Strong
+      this.ksBuf = null;
+      this.ksIdx = 0;
+      this.ksN = 0;
+      this.ksLp = 0;
+
+      // Noise LP
+      this.nlp = 0;
+
+      // Bitcrusher
+      this.bcHold = 0;
+      this.bcCount = 0;
+
       this.p = Object.assign({
-        // common
         gain: 0.2,
 
         // fm
@@ -133,7 +139,20 @@
 
         // lorenz
         sigma: 10, rho: 28, beta: 2.6667,
-        lBase: 120, lFreqScale: 40, lAmp: 0.25
+        lBase: 120, lFreqScale: 40, lAmp: 0.25,
+
+        // karplus-strong
+        ksFreq: 110,
+        ksDamp: 0.985,  // ближе к 1 = дольше звучит
+        ksBright: 0.5,  // 0..1 (0 = мягче, 1 = ярче)
+
+        // bitcrusher
+        bcFreq: 220,
+        bcBits: 6,
+        bcDown: 8,
+
+        // noise lowpass
+        nCut: 800
       }, o.params || {});
 
       this.port.onmessage = (e) => {
@@ -143,17 +162,39 @@
             this.p[k] = v;
           }
         } else if (msg.type === 'reset') {
-          this.t = 0; this.phase = 0; this.phase2 = 0;
+          this.t = 0; this.phase = 0;
           this.logi = 0.33;
           this.lx = 0.1; this.ly = 0.0; this.lz = 0.0;
+
+          this.nlp = 0;
+          this.bcHold = 0; this.bcCount = 0;
+
+          // reset KS buffer (re-pluck)
+          this._initKS(true);
         }
       };
+
+      this._initKS(true);
     }
 
-    // helpers
-    sin(x){ return Math.sin(x); }
-    tanh(x){ return Math.tanh(x); }
     clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
+
+    _initKS(force){
+      const p = this.p;
+      const freq = Math.max(20, p.ksFreq || 110);
+      const N = Math.max(2, Math.floor(this.sr / freq));
+      if (!force && this.ksBuf && this.ksN === N) return;
+
+      this.ksN = N;
+      this.ksBuf = new Float32Array(N);
+      this.ksIdx = 0;
+      this.ksLp = 0;
+
+      // fill with noise
+      for (let i=0;i<N;i++){
+        this.ksBuf[i] = (Math.random()*2 - 1);
+      }
+    }
 
     process(inputs, outputs){
       const out = outputs[0];
@@ -164,34 +205,30 @@
 
       let p = this.p;
       let phase = this.phase;
-      let phase2 = this.phase2;
       let t = this.t;
       let logi = this.logi;
       let lx = this.lx, ly = this.ly, lz = this.lz;
+
+      let nlp = this.nlp;
+      let bcHold = this.bcHold;
+      let bcCount = this.bcCount;
 
       for (let i=0;i<n;i++){
         let x = 0;
 
         switch(this.formula){
           case 'fm': {
-            // x(t)=sin(2π fc t + I sin(2π fm t))
-            const fc = p.fc, fm = p.fm, I = p.I;
-            x = Math.sin(twoPi*fc*t + I*Math.sin(twoPi*fm*t));
+            x = Math.sin(twoPi*p.fc*t + (p.I)*Math.sin(twoPi*p.fm*t));
             break;
           }
           case 'am': {
-            // x(t)=sin(2π f1 t)*sin(2π f2 t)
             x = Math.sin(twoPi*p.f1*t) * Math.sin(twoPi*p.f2*t);
             break;
           }
           case 'logistic': {
-            // logistic map as fast-changing mod source; used to modulate frequency of a sine
-            // x_{n+1} = r x_n (1-x_n)
-            // update at lfoHz rate (control-ish)
             const lfoStep = Math.max(1, Math.floor(sr / Math.max(1e-3, p.lfoHz)));
             if ((i % lfoStep) === 0){
-              const r = p.r;
-              logi = r * logi * (1 - logi);
+              logi = (p.r) * logi * (1 - logi);
               logi = this.clamp(logi, 0, 1);
             }
             const freq = p.base + p.depth * (logi - 0.5);
@@ -200,14 +237,12 @@
             break;
           }
           case 'gliss': {
-            // f(t)=f0*e^{k t}
             const f = p.f0 * Math.exp(p.k * t);
             phase += twoPi * (f / sr);
             x = Math.sin(phase);
             break;
           }
           case 'additive': {
-            // x(t)=sum_{n=1..N} a_n(t) sin(2π n fund t), a_n(t)=(1/n)*sin(move*t + n)
             const fund = p.fund;
             const N = Math.max(1, Math.floor(p.N));
             const move = p.move;
@@ -216,28 +251,23 @@
               const ak = (1/k) * Math.sin(twoPi*move*t + k);
               s += ak * Math.sin(twoPi*(k*fund)*t);
             }
-            // normalize a bit
             x = s * (1.0 / Math.log2(N+1));
             break;
           }
           case 'pm': {
-            // x(t)=sin(2π f t + phi(t)), phi(t)=sin(sin(2π f2 t))
             const phi = Math.sin(Math.sin(twoPi*p.f2pm*t));
             x = Math.sin(twoPi*p.f*t + phi*5.0);
             break;
           }
           case 'beats': {
-            // x(t)=sin(2π f t)+sin(2π (f+df) t)
             x = 0.5*(Math.sin(twoPi*p.fbeat*t) + Math.sin(twoPi*(p.fbeat + p.df)*t));
             break;
           }
           case 'dist': {
-            // x(t)=tanh(alpha*sin(2π f t))
             x = Math.tanh(p.alpha * Math.sin(twoPi*p.fd*t));
             break;
           }
           case 'quasi': {
-            // f(t)=fq + Aq*sin(sin(sin(wq*t)))
             const mod = Math.sin(Math.sin(Math.sin(p.wq * t)));
             const f = Math.max(0, p.fq + p.Aq*mod);
             phase += twoPi * (f / sr);
@@ -245,7 +275,6 @@
             break;
           }
           case 'lorenz': {
-            // Lorenz attractor integration at audio rate (simple Euler)
             const sigma = p.sigma, rho = p.rho, beta = p.beta;
             const dt = 1/sr;
 
@@ -257,7 +286,6 @@
             ly += dy * dt;
             lz += dz * dt;
 
-            // Map x/y into audio
             const freq = Math.max(0, p.lBase + p.lFreqScale * Math.abs(lx));
             const amp = this.clamp(p.lAmp * (0.3 + 0.7 * (0.5 + 0.5*Math.tanh(ly))), 0, 1);
 
@@ -265,6 +293,65 @@
             x = amp * Math.sin(phase);
             break;
           }
+
+          // --- NEW: Karplus-Strong plucked string ---
+          case 'karplus': {
+            this._initKS(false);
+
+            const buf = this.ksBuf;
+            const N = this.ksN;
+            let idx = this.ksIdx;
+
+            const y0 = buf[idx];
+            const y1 = buf[(idx + 1) % N];
+
+            // simple averaging + damping
+            const damp = this.clamp(p.ksDamp, 0.8, 0.99999);
+            const bright = this.clamp(p.ksBright, 0, 1);
+
+            // "bright" = how much we keep raw vs smoothed
+            const avg = 0.5 * (y0 + y1);
+            const next = damp * (bright * y0 + (1 - bright) * avg);
+
+            buf[idx] = next;
+            idx = (idx + 1) % N;
+            this.ksIdx = idx;
+
+            x = y0;
+            break;
+          }
+
+          // --- NEW: Bitcrusher / Downsampler ---
+          case 'bitcrush': {
+            const f = Math.max(0, p.bcFreq);
+            phase += twoPi * (f / sr);
+            const raw = Math.sin(phase);
+
+            const down = Math.max(1, Math.floor(p.bcDown));
+            if (bcCount <= 0) {
+              bcCount = down;
+              const bits = this.clamp(Math.floor(p.bcBits), 1, 16);
+              const levels = Math.pow(2, bits - 1); // signed
+              bcHold = Math.round(raw * levels) / levels;
+            }
+            bcCount--;
+
+            x = bcHold;
+            break;
+          }
+
+          // --- NEW: Noise -> 1-pole lowpass ---
+          case 'noiselp': {
+            const white = (Math.random()*2 - 1);
+
+            const cut = this.clamp(p.nCut, 20, 18000);
+            const a = 1 - Math.exp(-2*Math.PI*cut/sr); // 1-pole smoothing coefficient
+            nlp = nlp + a * (white - nlp);
+
+            x = nlp;
+            break;
+          }
+
           default:
             x = 0;
         }
@@ -272,16 +359,18 @@
         ch0[i] = x * (p.gain ?? 0.2);
         t += 1/sr;
 
-        // keep phases bounded
         if (phase > 1e9) phase %= twoPi;
-        if (phase2 > 1e9) phase2 %= twoPi;
       }
 
       this.phase = phase;
-      this.phase2 = phase2;
       this.t = t;
       this.logi = logi;
+
       this.lx = lx; this.ly = ly; this.lz = lz;
+
+      this.nlp = nlp;
+      this.bcHold = bcHold; this.bcCount = bcCount;
+
       return true;
     }
   }
@@ -389,6 +478,36 @@
         {k:'lAmp', name:'Amp scale', min:0, max:1, step:0.001, value:0.25},
       ]
     },
+
+    // --- NEW FORMULAS ---
+    {
+      id:'karplus', title:'Karplus–Strong (струна)', tag:'физ. моделирование',
+      desc:'Короткий шум в delay-линии + усреднение + затухание → “щипок струны”. Reset = “пере-щипнуть”.',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.14},
+        {k:'ksFreq', name:'Freq (Hz)', min:40, max:880, step:1, value:110},
+        {k:'ksDamp', name:'Damping', min:0.90, max:0.9999, step:0.0001, value:0.985},
+        {k:'ksBright', name:'Brightness', min:0, max:1, step:0.001, value:0.5},
+      ]
+    },
+    {
+      id:'bitcrush', title:'Bitcrusher / Downsample', tag:'lo-fi цифровая грязь',
+      desc:'Квантизация по битам + удержание сэмпла N раз → “8-bit / gameboy”.',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
+        {k:'bcFreq', name:'Input f (Hz)', min:20, max:2000, step:1, value:220},
+        {k:'bcBits', name:'Bits', min:1, max:16, step:1, value:6},
+        {k:'bcDown', name:'Downsample', min:1, max:64, step:1, value:8},
+      ]
+    },
+    {
+      id:'noiselp', title:'Noise → Low-pass', tag:'шум/ветер/океан',
+      desc:'Белый шум через 1-pole LPF: y += a(x−y), a=1−e^{−2πfc/sr}.',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
+        {k:'nCut', name:'Cutoff (Hz)', min:20, max:18000, step:1, value:800},
+      ]
+    },
   ];
 
   // ---------- DOM helpers ----------
@@ -417,7 +536,7 @@
       <div class="sep"></div>
       <div class="row">
         <button id="reset_${f.id}" disabled>Reset state</button>
-        <span class="small">Reset полезен для gliss / Lorenz / логистики, чтобы начать “сначала”.</span>
+        <span class="small">Reset полезен для gliss / Lorenz / логистики / Karplus (пере-щипнуть).</span>
       </div>
     `;
     formulasRoot.appendChild(wrap);
@@ -443,7 +562,7 @@
   let masterGain = null;
   let scopeRAF = null;
 
-  const nodes = new Map(); // id -> {node, gain, params}
+  const nodes = new Map(); // id -> {aw, g, params}
 
   function buildWorkletURL(){
     const blob = new Blob([workletCode], {type:'application/javascript'});
@@ -463,11 +582,9 @@
     analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
 
-    // connect: masterGain -> analyser -> destination
     masterGain.connect(analyser);
     analyser.connect(ctx.destination);
 
-    // Create generator nodes (one per formula) but initially muted/unconnected
     for (const f of FORMULAS){
       const initParams = {};
       for (const s of f.sliders) initParams[s.k] = Number(s.value);
@@ -479,7 +596,6 @@
         processorOptions: { formula: f.id, params: initParams }
       });
 
-      // each formula has its own gain before master mix
       const g = ctx.createGain();
       g.gain.value = 0; // off by default
 
@@ -493,7 +609,6 @@
     $('#stopBtn').disabled = false;
     $('#startBtn').disabled = true;
 
-    // start scope
     startScope();
   }
 
@@ -502,7 +617,6 @@
     cancelAnimationFrame(scopeRAF);
     scopeRAF = null;
 
-    // fade out quickly to avoid clicks
     const now = ctx.currentTime;
     masterGain.gain.setTargetAtTime(0, now, 0.01);
 
@@ -513,12 +627,15 @@
       $('#status').textContent = 'Status: stopped';
       $('#stopBtn').disabled = true;
       $('#startBtn').disabled = false;
+      $('#scopeInfo').textContent = 'Scope: auto';
     }, 80);
   }
 
-  // ---------- Oscilloscope ----------
+  // ---------- Oscilloscope (auto Y scale) ----------
   const canvas = $('#scope');
   const c2d = canvas.getContext('2d');
+
+  let scopeAutoGain = 1.0; // smooth-follow
 
   function resizeCanvas(){
     const dpr = window.devicePixelRatio || 1;
@@ -538,14 +655,31 @@
 
       analyser.getByteTimeDomainData(buf);
 
+      // compute peak amplitude for auto-scale
+      let peak = 1e-4;
+      for (let i=0;i<buf.length;i++){
+        const v = (buf[i] - 128) / 128;
+        const a = Math.abs(v);
+        if (a > peak) peak = a;
+      }
+
+      // target so that peak fits ~85% height
+      let target = 0.85 / peak;
+      target = Math.max(0.25, Math.min(12.0, target));
+
+      // smooth follow to avoid jitter
+      scopeAutoGain += (target - scopeAutoGain) * 0.08;
+
+      $('#scopeInfo').textContent = `Scope: auto ×${scopeAutoGain.toFixed(2)} (peak ${peak.toFixed(3)})`;
+
       const w = canvas.width, h = canvas.height;
       c2d.clearRect(0,0,w,h);
 
-      // background grid
-      c2d.globalAlpha = 1;
+      // background
       c2d.fillStyle = '#060a0f';
       c2d.fillRect(0,0,w,h);
 
+      // grid
       c2d.strokeStyle = '#122033';
       c2d.lineWidth = 1;
       c2d.beginPath();
@@ -560,13 +694,13 @@
       c2d.stroke();
 
       // waveform
-      const gain = Number($('#scopeGain').value);
       const mid = h/2;
 
       c2d.strokeStyle = '#8ab4ff';
       c2d.lineWidth = 2;
       c2d.beginPath();
 
+      const gain = scopeAutoGain;
       for (let i=0;i<buf.length;i++){
         const v = (buf[i] - 128) / 128; // -1..1
         const y = mid - v * (mid * 0.9) * gain;
@@ -588,10 +722,6 @@
     $('#masterGainVal').textContent = v.toFixed(3);
     if (masterGain) masterGain.gain.value = v;
   });
-  $('#scopeGain').addEventListener('input', (e)=>{
-    const v = Number(e.target.value);
-    $('#scopeGainVal').textContent = v.toFixed(2);
-  });
 
   // ---------- Build formula UIs + connect to audio nodes ----------
   for (const f of FORMULAS){
@@ -605,7 +735,6 @@
       const st = nodes.get(f.id);
       const on = en.checked;
 
-      // Smooth fade
       const now = ctx.currentTime;
       st.g.gain.cancelScheduledValues(now);
       st.g.gain.setTargetAtTime(on ? (st.params.gain ?? 0.15) : 0, now, 0.02);
@@ -632,7 +761,7 @@
 
         st.params[s.k] = v;
 
-        // If gain changes, also update the gain node target (so UI gain immediately affects loudness)
+        // if "gain" changes, update mix gain too
         if (s.k === 'gain'){
           const now = ctx.currentTime;
           if (document.getElementById(`en_${f.id}`).checked){
@@ -641,7 +770,6 @@
           }
         }
 
-        // Send to worklet
         st.aw.port.postMessage({type:'set', params: {[s.k]: v}});
       });
     }
