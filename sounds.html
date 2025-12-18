@@ -8,7 +8,6 @@
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color-scheme: dark; }
     body { margin: 0; background:#0b0f14; color:#e8eef6; }
 
-    /* --- Sticky top panel --- */
     .topbar {
       position: sticky;
       top: 0;
@@ -17,25 +16,61 @@
       border-bottom: 1px solid #1d2a3a;
       padding: 12px 14px;
     }
-    .topbar h1 { margin: 0 0 8px; font-size: 16px; font-weight: 750; }
+    .topbar h1 { margin: 0 0 10px; font-size: 16px; font-weight: 750; }
+
     .row { display:flex; gap:10px; flex-wrap: wrap; align-items:center; }
+
     button {
       background:#1d3557; color:#fff; border:0; padding:9px 11px;
       border-radius:10px; cursor:pointer; font-weight:650;
     }
     button:disabled { opacity:.5; cursor:not-allowed; }
+
+    .collapseBtn{
+      background:#0f1b29;
+      border:1px solid #1d2a3a;
+      color:#cfe1ff;
+      padding:6px 10px;
+      border-radius: 999px;
+      font-weight:650;
+      cursor:pointer;
+    }
+
     .pill {
-      padding:6px 10px; border-radius:999px; background:#0f1b29;
-      border:1px solid #1d2a3a; font-size:12px; color:#bcd0e6;
+      padding:6px 10px;
+      border-radius:999px;
+      background:#0f1b29;
+      border:1px solid #1d2a3a;
+      font-size:12px;
+      color:#bcd0e6;
       white-space: nowrap;
     }
 
+    .meter {
+      display:flex; align-items:center; gap:10px;
+      padding:6px 10px; border-radius:999px;
+      background:#0f1b29; border:1px solid #1d2a3a;
+      font-size:12px; color:#bcd0e6;
+    }
+    .lamp{
+      width:10px; height:10px; border-radius:50%;
+      border:1px solid #1d2a3a;
+      background:#1a2330;
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,.35);
+    }
+    .lamp.on{
+      background:#ff3b30;
+      box-shadow: 0 0 10px rgba(255,59,48,.65);
+      border-color: rgba(255,59,48,.65);
+    }
+    .meter b{ color:#e8eef6; font-weight: 700; }
+
     .topgrid{
       display:grid;
-      grid-template-columns: 1fr 320px;
+      grid-template-columns: 1fr 340px;
       gap: 12px;
-      align-items: center;
-      margin-top: 8px;
+      align-items: start;
+      margin-top: 10px;
     }
     @media (max-width: 980px){
       .topgrid{ grid-template-columns: 1fr; }
@@ -47,7 +82,18 @@
       background:#060a0f;
       padding: 8px;
     }
+
+    .scopeHeader{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .scopeHeader .left { display:flex; align-items:center; gap:10px; }
+    .scopeTitle { font-size: 12px; color:#bcd0e6; }
     canvas { width:100%; height: 120px; display:block; border-radius: 10px; }
+
     .ctrl { display:grid; grid-template-columns: 130px 1fr 70px; gap: 10px; align-items: center; margin-top: 8px;}
     .ctrl label { font-size: 12px; color:#cfe1ff; }
     input[type="range"] { width: 100%; }
@@ -58,10 +104,7 @@
       padding: 8px 10px;
     }
     .small { font-size: 11px; color:#9fb6d3; }
-    .muted { color:#9fb6d3; font-size: 12px; line-height: 1.35; }
 
-    /* Effects panel */
-    .effectsToggleRow{ margin-top: 8px; }
     .effectsPanel{
       margin-top: 10px;
       border:1px solid #1d2a3a;
@@ -89,7 +132,6 @@
     .fxCard h2 { margin: 0 0 8px; font-size: 13px; color:#d9e7ff; display:flex; justify-content:space-between; align-items:center; }
     .sep { height:1px; background:#1d2a3a; margin: 10px 0; }
 
-    /* Main layout */
     main { padding: 14px; max-width: 1200px; margin: 0 auto; }
     .card {
       background:#0d131b; border: 1px solid #1d2a3a; border-radius: 14px;
@@ -104,55 +146,71 @@
     .fhead h3 { margin:0; font-size: 13px; display:flex; align-items:center; gap:10px; }
     .tag { font-size: 11px; color:#bcd0e6; background:#0f1b29; border:1px solid #1d2a3a; padding:3px 8px; border-radius: 999px; }
     .factions{ display:flex; gap: 8px; align-items:center; flex-wrap:wrap; }
-    .collapseBtn{
-      background:#0f1b29;
-      border:1px solid #1d2a3a;
-      color:#cfe1ff;
-      padding:6px 10px;
-      border-radius: 999px;
-      font-weight:650;
-      cursor:pointer;
-    }
     .fbody{ margin-top: 10px; }
     .fbody.collapsed{ display:none; }
+
+    /* Scope collapsing */
+    .scopeArea{ display:block; }
+    .scopeWrap.scopeCollapsed .scopeArea{ display:none; }
+
+    /* Mobile: start with collapsed scope to save height */
+    @media (max-width: 600px){
+      .scopeWrap{ padding: 8px; }
+      .scopeWrap.scopeCollapsed .scopeArea{ display:none; }
+    }
   </style>
 </head>
 
 <body>
 
-<!-- Sticky top panel with oscilloscope + global effects -->
 <section class="topbar">
   <h1>Formula Audio Lab — формулы как звук</h1>
 
   <div class="row">
     <button id="startBtn">Start Audio</button>
     <button id="stopBtn" disabled>Stop</button>
+    <button id="recBtn" disabled>Record WAV</button>
+
+    <button id="savePresetBtn" class="collapseBtn" type="button">Сохранить пресет</button>
+    <button id="loadPresetBtn" class="collapseBtn" type="button">Загрузить пресет</button>
+    <button id="shareBtn" class="collapseBtn" type="button">Поделиться</button>
+
     <span class="pill" id="status">Status: not started</span>
-    <span class="pill" id="scopeInfo">Scope: auto</span>
+
+    <span class="meter">
+      <span class="lamp" id="clipLamp" title="CLIP"></span>
+      <b>CLIP</b>
+      <span>RMS:</span>
+      <span id="rmsVal">—</span>
+    </span>
+
     <button id="effectsBtn" class="collapseBtn" type="button">Effects ▾</button>
   </div>
 
   <div class="topgrid">
-    <div class="scopeWrap">
-      <canvas id="scope"></canvas>
-      <div class="ctrl">
-        <label>Master volume</label>
-        <input id="masterGain" type="range" min="0" max="1" step="0.001" value="0.25">
-        <div class="small" id="masterGainVal">0.25</div>
+    <div class="scopeWrap" id="scopeWrap">
+      <div class="scopeHeader">
+        <div class="left">
+          <span class="scopeTitle">Oscilloscope</span>
+          <button id="scopeToggleBtn" class="collapseBtn" type="button">Scope ▾</button>
+        </div>
       </div>
-      <div class="muted">
-        Осциллограф всегда сверху и сам подбирает масштаб по Y. Если слышен клиппинг — включи Limiter в Effects или убавь громкости.
+
+      <div class="scopeArea" id="scopeArea">
+        <canvas id="scope"></canvas>
+        <div class="ctrl">
+          <label>Master volume</label>
+          <input id="masterGain" type="range" min="0" max="1" step="0.001" value="0.25">
+          <div class="small" id="masterGainVal">0.25</div>
+        </div>
       </div>
     </div>
 
-    <div class="muted">
-      Подсказка: включай несколько формул одновременно. Для “Экспоненциального глиссандо” и “Лоренца” кнопка Reset даёт классные перезапуски.
-      <div class="sep"></div>
-      <div class="small">Лучшие сочетания: <b>Lorenz + Reverb</b>, <b>Additive + Chorus</b>, <b>Karplus + Filter</b>.</div>
+    <div>
+      <!-- специально пусто/минимально, чтобы на мобиле не “съедать” экран -->
     </div>
   </div>
 
-  <!-- Collapsible effects panel -->
   <div id="effectsPanel" class="effectsPanel">
     <div class="effectsGrid">
 
@@ -232,7 +290,6 @@
           <input id="fxReverbMix" type="range" min="0" max="1" step="0.001" value="0.25">
           <div class="small" id="fxReverbMixVal">0.25</div>
         </div>
-        <div class="small muted">Импульс генерируется на лету (шум с экспоненциальным спадом) — быстро и довольно музыкально.</div>
       </div>
 
       <div class="fxCard">
@@ -250,7 +307,6 @@
           <input id="fxLimiterRel" type="range" min="0.02" max="1" step="0.01" value="0.15">
           <div class="small" id="fxLimiterRelVal">0.15</div>
         </div>
-        <div class="small muted">Это DynamicsCompressor с большим ratio. Очень полезно, когда миксуешь 3–5 формул.</div>
       </div>
 
     </div>
@@ -266,122 +322,67 @@
 
 <script>
 (async function(){
-  // ---------- AudioWorklet code (inline module) ----------
+  // ---------- AudioWorklet code (generator + recorder tap) ----------
   const workletCode = `
   class FormulaGeneratorProcessor extends AudioWorkletProcessor {
     constructor(options){
       super();
       const o = (options && options.processorOptions) || {};
       this.formula = o.formula || 'fm';
-
       this.sr = sampleRate;
       this.t = 0;
       this.phase = 0;
 
-      // logistic
       this.logi = 0.33;
-
-      // Lorenz
       this.lx = 0.1; this.ly = 0.0; this.lz = 0.0;
 
-      // Karplus-Strong
-      this.ksBuf = null;
-      this.ksIdx = 0;
-      this.ksN = 0;
-
-      // Noise LP
+      this.ksBuf = null; this.ksIdx = 0; this.ksN = 0;
       this.nlp = 0;
 
-      // Bitcrusher
-      this.bcHold = 0;
-      this.bcCount = 0;
+      this.bcHold = 0; this.bcCount = 0;
 
       this.p = Object.assign({
         gain: 0.2,
-
-        // fm
         fc: 220, fm: 2, I: 2,
-
-        // am
         f1: 220, f2: 221,
-
-        // logistic
         base: 110, depth: 330, r: 3.86, lfoHz: 40,
-
-        // gliss
         f0: 55, k: 0.15,
-
-        // additive
         fund: 110, N: 12, move: 0.35,
-
-        // phase modulation
         f: 220, f2pm: 3,
-
-        // beats
         fbeat: 220, df: 0.8,
-
-        // distortion
         fd: 110, alpha: 3.0,
-
-        // quasi LFO
         fq: 120, Aq: 220, wq: 0.8,
-
-        // lorenz
         sigma: 10, rho: 28, beta: 2.6667,
         lBase: 120, lFreqScale: 40, lAmp: 0.25,
-
-        // karplus-strong
-        ksFreq: 110,
-        ksDamp: 0.985,
-        ksBright: 0.5,
-
-        // bitcrusher
-        bcFreq: 220,
-        bcBits: 6,
-        bcDown: 8,
-
-        // noise lowpass
+        ksFreq: 110, ksDamp: 0.985, ksBright: 0.5,
+        bcFreq: 220, bcBits: 6, bcDown: 8,
         nCut: 800
       }, o.params || {});
 
       this.port.onmessage = (e) => {
         const msg = e.data || {};
         if (msg.type === 'set') {
-          for (const [k,v] of Object.entries(msg.params || {})) {
-            this.p[k] = v;
-          }
+          for (const [k,v] of Object.entries(msg.params || {})) this.p[k] = v;
         } else if (msg.type === 'reset') {
           this.t = 0; this.phase = 0;
           this.logi = 0.33;
           this.lx = 0.1; this.ly = 0.0; this.lz = 0.0;
-
-          this.nlp = 0;
-          this.bcHold = 0; this.bcCount = 0;
-
-          this._initKS(true); // re-pluck
+          this.nlp = 0; this.bcHold = 0; this.bcCount = 0;
+          this._initKS(true);
         }
       };
 
       this._initKS(true);
     }
-
     clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
-
     _initKS(force){
       const p = this.p;
       const freq = Math.max(20, p.ksFreq || 110);
       const N = Math.max(2, Math.floor(this.sr / freq));
       if (!force && this.ksBuf && this.ksN === N) return;
-
-      this.ksN = N;
-      this.ksBuf = new Float32Array(N);
-      this.ksIdx = 0;
-
-      for (let i=0;i<N;i++){
-        this.ksBuf[i] = (Math.random()*2 - 1);
-      }
+      this.ksN = N; this.ksBuf = new Float32Array(N); this.ksIdx = 0;
+      for (let i=0;i<N;i++) this.ksBuf[i] = (Math.random()*2 - 1);
     }
-
     process(inputs, outputs){
       const out = outputs[0];
       const ch0 = out[0];
@@ -394,31 +395,19 @@
       let t = this.t;
       let logi = this.logi;
       let lx = this.lx, ly = this.ly, lz = this.lz;
-
       let nlp = this.nlp;
-      let bcHold = this.bcHold;
-      let bcCount = this.bcCount;
+      let bcHold = this.bcHold, bcCount = this.bcCount;
 
       for (let i=0;i<n;i++){
         let x = 0;
-
         switch(this.formula){
-          case 'fm': {
-            x = Math.sin(twoPi*p.fc*t + (p.I)*Math.sin(twoPi*p.fm*t));
-            break;
-          }
-          case 'am': {
-            x = Math.sin(twoPi*p.f1*t) * Math.sin(twoPi*p.f2*t);
-            break;
-          }
+          case 'fm': x = Math.sin(twoPi*p.fc*t + (p.I)*Math.sin(twoPi*p.fm*t)); break;
+          case 'am': x = Math.sin(twoPi*p.f1*t) * Math.sin(twoPi*p.f2*t); break;
           case 'logistic': {
-            const lfoStep = Math.max(1, Math.floor(sr / Math.max(1e-3, p.lfoHz)));
-            if ((i % lfoStep) === 0){
-              logi = (p.r) * logi * (1 - logi);
-              logi = this.clamp(logi, 0, 1);
-            }
-            const freq = p.base + p.depth * (logi - 0.5);
-            phase += twoPi * (Math.max(0, freq) / sr);
+            const step = Math.max(1, Math.floor(sr / Math.max(1e-3, p.lfoHz)));
+            if ((i % step) === 0){ logi = (p.r) * logi * (1 - logi); logi = this.clamp(logi,0,1); }
+            const f = p.base + p.depth * (logi - 0.5);
+            phase += twoPi * (Math.max(0, f) / sr);
             x = Math.sin(phase);
             break;
           }
@@ -445,14 +434,8 @@
             x = Math.sin(twoPi*p.f*t + phi*5.0);
             break;
           }
-          case 'beats': {
-            x = 0.5*(Math.sin(twoPi*p.fbeat*t) + Math.sin(twoPi*(p.fbeat + p.df)*t));
-            break;
-          }
-          case 'dist': {
-            x = Math.tanh(p.alpha * Math.sin(twoPi*p.fd*t));
-            break;
-          }
+          case 'beats': x = 0.5*(Math.sin(twoPi*p.fbeat*t) + Math.sin(twoPi*(p.fbeat + p.df)*t)); break;
+          case 'dist': x = Math.tanh(p.alpha * Math.sin(twoPi*p.fd*t)); break;
           case 'quasi': {
             const mod = Math.sin(Math.sin(Math.sin(p.wq * t)));
             const f = Math.max(0, p.fq + p.Aq*mod);
@@ -461,39 +444,28 @@
             break;
           }
           case 'lorenz': {
-            const sigma = p.sigma, rho = p.rho, beta = p.beta;
             const dt = 1/sr;
-
-            const dx = sigma * (ly - lx);
-            const dy = lx * (rho - lz) - ly;
-            const dz = lx * ly - beta * lz;
-
-            lx += dx * dt;
-            ly += dy * dt;
-            lz += dz * dt;
+            const dx = p.sigma * (ly - lx);
+            const dy = lx * (p.rho - lz) - ly;
+            const dz = lx * ly - p.beta * lz;
+            lx += dx * dt; ly += dy * dt; lz += dz * dt;
 
             const freq = Math.max(0, p.lBase + p.lFreqScale * Math.abs(lx));
             const amp = this.clamp(p.lAmp * (0.3 + 0.7 * (0.5 + 0.5*Math.tanh(ly))), 0, 1);
-
             phase += twoPi * (freq / sr);
             x = amp * Math.sin(phase);
             break;
           }
           case 'karplus': {
             this._initKS(false);
-            const buf = this.ksBuf;
-            const N = this.ksN;
-            let idx = this.ksIdx;
-
+            const buf = this.ksBuf, N = this.ksN;
+            const idx = this.ksIdx;
             const y0 = buf[idx];
             const y1 = buf[(idx + 1) % N];
-
             const damp = this.clamp(p.ksDamp, 0.8, 0.99999);
             const bright = this.clamp(p.ksBright, 0, 1);
-
             const avg = 0.5 * (y0 + y1);
             const next = damp * (bright * y0 + (1 - bright) * avg);
-
             buf[idx] = next;
             this.ksIdx = (idx + 1) % N;
             x = y0;
@@ -503,7 +475,6 @@
             const f = Math.max(0, p.bcFreq);
             phase += twoPi * (f / sr);
             const raw = Math.sin(phase);
-
             const down = Math.max(1, Math.floor(p.bcDown));
             if (bcCount <= 0) {
               bcCount = down;
@@ -523,8 +494,7 @@
             x = nlp;
             break;
           }
-          default:
-            x = 0;
+          default: x = 0;
         }
 
         ch0[i] = x * (p.gain ?? 0.2);
@@ -532,110 +502,109 @@
         if (phase > 1e9) phase %= twoPi;
       }
 
-      this.phase = phase;
-      this.t = t;
-      this.logi = logi;
+      this.phase = phase; this.t = t; this.logi = logi;
       this.lx = lx; this.ly = ly; this.lz = lz;
-      this.nlp = nlp;
-      this.bcHold = bcHold; this.bcCount = bcCount;
-
+      this.nlp = nlp; this.bcHold = bcHold; this.bcCount = bcCount;
       return true;
     }
   }
+
+  // Pass-through recorder tap: outputs audio unchanged + streams chunks to main thread when armed
+  class RecorderTapProcessor extends AudioWorkletProcessor {
+    constructor(){
+      super();
+      this.armed = false;
+      this.port.onmessage = (e) => {
+        const msg = e.data || {};
+        if (msg.type === 'arm') this.armed = true;
+        if (msg.type === 'disarm') this.armed = false;
+      };
+    }
+    process(inputs, outputs){
+      const input = inputs[0];
+      const output = outputs[0];
+      if (!input || input.length === 0) return true;
+
+      const in0 = input[0];
+      const out0 = output[0];
+
+      // Copy audio
+      out0.set(in0);
+
+      if (this.armed) {
+        // Send a copy to main thread
+        this.port.postMessage(in0.slice(0));
+      }
+      return true;
+    }
+  }
+
   registerProcessor('formula-generator', FormulaGeneratorProcessor);
+  registerProcessor('recorder-tap', RecorderTapProcessor);
   `;
 
   // ---------- UI schema ----------
   const FORMULAS = [
-    {
-      id:'fm', title:'FM-синус', tag:'частотная модуляция',
-      desc:'sin(2π f_c t + I sin(2π f_m t)) → от вибрато до “колоколов”.',
+    { id:'fm', title:'FM-синус', tag:'FM', desc:'sin(2π f_c t + I sin(2π f_m t))',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.15},
         {k:'fc', name:'f_c (Hz)', min:20, max:2000, step:1, value:220},
         {k:'fm', name:'f_m (Hz)', min:0.1, max:60, step:0.1, value:2.0},
         {k:'I', name:'Index I', min:0, max:20, step:0.01, value:3.0},
-      ]
-    },
-    {
-      id:'am', title:'AM / биения (умножение)', tag:'амплитудная модуляция',
-      desc:'sin(2π f1 t)·sin(2π f2 t) → пульсации и биения.',
+      ]},
+    { id:'am', title:'AM / биения', tag:'AM', desc:'sin(2π f1 t)·sin(2π f2 t)',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.15},
         {k:'f1', name:'f1 (Hz)', min:20, max:2000, step:1, value:220},
         {k:'f2', name:'f2 (Hz)', min:20, max:2000, step:1, value:221},
-      ]
-    },
-    {
-      id:'logistic', title:'Логистическое отображение', tag:'детерминированный хаос',
-      desc:'xₙ₊₁ = r xₙ(1−xₙ) → используем x как модулятор частоты.',
+      ]},
+    { id:'logistic', title:'Логистическое отображение', tag:'Chaos', desc:'xₙ₊₁ = r xₙ(1−xₙ)',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
         {k:'base', name:'Base f (Hz)', min:20, max:800, step:1, value:110},
         {k:'depth', name:'Depth (Hz)', min:0, max:1200, step:1, value:330},
         {k:'r', name:'r', min:2.8, max:4.0, step:0.0001, value:3.86},
         {k:'lfoHz', name:'Update rate (Hz)', min:1, max:400, step:1, value:40},
-      ]
-    },
-    {
-      id:'gliss', title:'Экспоненциальный глиссандо', tag:'сирена / подъём',
-      desc:'f(t)=f0·e^{k t} → непрерывный рост/падение высоты.',
+      ]},
+    { id:'gliss', title:'Экспоненциальный глиссандо', tag:'Gliss', desc:'f(t)=f0·e^{k t}',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'f0', name:'f0 (Hz)', min:10, max:400, step:1, value:55},
         {k:'k', name:'k', min:-2.0, max:2.0, step:0.001, value:0.15},
-      ]
-    },
-    {
-      id:'additive', title:'Сумма гармоник', tag:'“дышащий” тембр',
-      desc:'Σ aₙ(t) sin(2π n f t), aₙ(t)=(1/n)·sin(move·t+n).',
+      ]},
+    { id:'additive', title:'Сумма гармоник', tag:'Additive', desc:'Σ aₙ(t) sin(2π n f t)',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
         {k:'fund', name:'Fund (Hz)', min:20, max:500, step:1, value:110},
         {k:'N', name:'Harmonics N', min:1, max:40, step:1, value:12},
         {k:'move', name:'Move (Hz)', min:0.01, max:5, step:0.01, value:0.35},
-      ]
-    },
-    {
-      id:'pm', title:'Фазовая модуляция', tag:'шевелящийся спектр',
-      desc:'sin(2π f t + 5·sin(sin(2π f2 t))).',
+      ]},
+    { id:'pm', title:'Фазовая модуляция', tag:'PM', desc:'sin(2π f t + 5·sin(sin(2π f2 t)))',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
         {k:'f', name:'f (Hz)', min:20, max:2000, step:1, value:220},
         {k:'f2pm', name:'f2 (Hz)', min:0.1, max:40, step:0.1, value:3},
-      ]
-    },
-    {
-      id:'beats', title:'Два синуса (биения)', tag:'пульс/дыхание',
-      desc:'sin(2π f t)+sin(2π(f+Δf)t).',
+      ]},
+    { id:'beats', title:'Два синуса (биения)', tag:'Beats', desc:'sin(2π f t)+sin(2π(f+Δf)t)',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
         {k:'fbeat', name:'f (Hz)', min:20, max:2000, step:1, value:220},
         {k:'df', name:'Δf (Hz)', min:0, max:20, step:0.01, value:0.8},
-      ]
-    },
-    {
-      id:'dist', title:'Нелинейная сатурация', tag:'tanh-дисторшн',
-      desc:'tanh(α·sin(2π f t)) → тёплые гармоники.',
+      ]},
+    { id:'dist', title:'Нелинейная сатурация', tag:'tanh', desc:'tanh(α·sin(2π f t))',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'fd', name:'f (Hz)', min:20, max:2000, step:1, value:110},
         {k:'alpha', name:'α', min:0, max:10, step:0.01, value:3.0},
-      ]
-    },
-    {
-      id:'quasi', title:'Квазислучайный LFO', tag:'почти-органика',
-      desc:'f(t)=fq + Aq·sin(sin(sin(w·t))).',
+      ]},
+    { id:'quasi', title:'Квазислучайный LFO', tag:'Quasi', desc:'f(t)=fq + Aq·sin(sin(sin(w·t)))',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'fq', name:'Base f (Hz)', min:20, max:500, step:1, value:120},
         {k:'Aq', name:'Depth (Hz)', min:0, max:1200, step:1, value:220},
         {k:'wq', name:'w', min:0.05, max:6, step:0.01, value:0.8},
-      ]
-    },
-    {
-      id:'lorenz', title:'Аттрактор Лоренца', tag:'хаос, но “погодный”',
-      desc:'Система ОДУ (Lorenz), x→частота, y→амплитуда.',
+      ]},
+    { id:'lorenz', title:'Аттрактор Лоренца', tag:'Lorenz', desc:'Lorenz ODE mapped to freq/amp',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'sigma', name:'σ', min:0, max:30, step:0.01, value:10},
@@ -644,48 +613,57 @@
         {k:'lBase', name:'Base f (Hz)', min:20, max:400, step:1, value:120},
         {k:'lFreqScale', name:'Freq scale', min:0, max:200, step:0.1, value:40},
         {k:'lAmp', name:'Amp scale', min:0, max:1, step:0.001, value:0.25},
-      ]
-    },
-    {
-      id:'karplus', title:'Karplus–Strong (струна)', tag:'физ. моделирование',
-      desc:'Шум в delay-линии + усреднение + затухание → “щипок струны”. Reset = “пере-щипнуть”.',
+      ]},
+    { id:'karplus', title:'Karplus–Strong (струна)', tag:'KS', desc:'noise-in-delay + averaging + damping',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.14},
         {k:'ksFreq', name:'Freq (Hz)', min:40, max:880, step:1, value:110},
         {k:'ksDamp', name:'Damping', min:0.90, max:0.9999, step:0.0001, value:0.985},
         {k:'ksBright', name:'Brightness', min:0, max:1, step:0.001, value:0.5},
-      ]
-    },
-    {
-      id:'bitcrush', title:'Bitcrusher / Downsample', tag:'lo-fi цифровая грязь',
-      desc:'Квантизация по битам + удержание сэмпла N раз → “8-bit / gameboy”.',
+      ]},
+    { id:'bitcrush', title:'Bitcrusher / Downsample', tag:'LoFi', desc:'bit depth + sample hold',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
         {k:'bcFreq', name:'Input f (Hz)', min:20, max:2000, step:1, value:220},
         {k:'bcBits', name:'Bits', min:1, max:16, step:1, value:6},
         {k:'bcDown', name:'Downsample', min:1, max:64, step:1, value:8},
-      ]
-    },
-    {
-      id:'noiselp', title:'Noise → Low-pass', tag:'шум/ветер/океан',
-      desc:'Белый шум через 1-pole LPF: y += a(x−y), a=1−e^{−2πfc/sr}.',
+      ]},
+    { id:'noiselp', title:'Noise → Low-pass', tag:'Noise', desc:'white noise → 1-pole LP',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'nCut', name:'Cutoff (Hz)', min:20, max:18000, step:1, value:800},
-      ]
-    },
+      ]},
   ];
 
   // ---------- DOM helpers ----------
   const $ = (s) => document.querySelector(s);
   const formulasRoot = $('#formulas');
+  const PRESET_KEY = 'formula_audio_lab_preset_v2';
 
   function fmt(v){
+    v = Number(v);
     if (Math.abs(v) >= 100) return String(Math.round(v));
     if (Math.abs(v) >= 10) return v.toFixed(2);
     return v.toFixed(3);
   }
 
+  // base64url helpers (UTF-8 safe)
+  function b64urlEncode(str){
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    for (const b of bytes) bin += String.fromCharCode(b);
+    return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function b64urlDecode(b64u){
+    const b64 = b64u.replace(/-/g,'+').replace(/_/g,'/');
+    const pad = b64.length % 4 ? '='.repeat(4 - (b64.length % 4)) : '';
+    const bin = atob(b64 + pad);
+    const bytes = new Uint8Array(bin.length);
+    for (let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  // ---------- UI build ----------
   function makeFormulaUI(f){
     const wrap = document.createElement('div');
     wrap.className = 'formula';
@@ -697,7 +675,7 @@
             <input type="checkbox" id="en_${f.id}">
             ${f.title}
           </h3>
-          <div class="muted">${f.desc}</div>
+          <div class="small">${f.desc}</div>
         </div>
         <div class="factions">
           <span class="tag">${f.tag}</span>
@@ -710,7 +688,6 @@
         <div class="sep"></div>
         <div class="row">
           <button id="reset_${f.id}" disabled>Reset state</button>
-          <span class="small">Reset полезен для gliss / Lorenz / логистики / Karplus.</span>
         </div>
       </div>
     `;
@@ -727,17 +704,134 @@
       `;
       slidersHost.appendChild(line);
     }
-    return wrap;
+  }
+  for (const f of FORMULAS) makeFormulaUI(f);
+
+  // ---------- State serialization ----------
+  function readStateFromUI(){
+    const formulas = {};
+    for (const f of FORMULAS){
+      const enabled = !!$(`#en_${f.id}`).checked;
+      const collapsed = $(`#body_${f.id}`).classList.contains('collapsed');
+      const params = {};
+      for (const s of f.sliders) params[s.k] = Number($(`#${f.id}_${s.k}`).value);
+      formulas[f.id] = { enabled, collapsed, params };
+    }
+    const fx = {
+      panelOpen: $('#effectsPanel').classList.contains('open'),
+      filterOn: $('#fxFilterOn').checked,
+      filterType: $('#fxFilterType').value,
+      filterFreq: Number($('#fxFilterFreq').value),
+      filterQ: Number($('#fxFilterQ').value),
+      chorusOn: $('#fxChorusOn').checked,
+      chorusMode: $('#fxChorusMode').value,
+      chorusRate: Number($('#fxChorusRate').value),
+      chorusDepth: Number($('#fxChorusDepth').value),
+      chorusMix: Number($('#fxChorusMix').value),
+      chorusFb: Number($('#fxChorusFb').value),
+      reverbOn: $('#fxReverbOn').checked,
+      reverbDecay: Number($('#fxReverbDecay').value),
+      reverbMix: Number($('#fxReverbMix').value),
+      limiterOn: $('#fxLimiterOn').checked,
+      limiterThr: Number($('#fxLimiterThr').value),
+      limiterRel: Number($('#fxLimiterRel').value),
+    };
+    const scopeCollapsed = $('#scopeWrap').classList.contains('scopeCollapsed');
+    return { v: 2, masterGain: Number($('#masterGain').value), fx, formulas, scopeCollapsed };
+  }
+
+  function applyStateToUI(state){
+    if (!state || typeof state !== 'object') return;
+
+    if (typeof state.masterGain === 'number'){
+      $('#masterGain').value = String(state.masterGain);
+      $('#masterGainVal').textContent = state.masterGain.toFixed(3);
+    }
+
+    if (state.scopeCollapsed !== undefined){
+      setScopeCollapsed(!!state.scopeCollapsed);
+    }
+
+    const fx = state.fx || {};
+    const setVal = (id, val) => { if (val !== undefined) $(id).value = String(val); };
+    const setChk = (id, val) => { if (val !== undefined) $(id).checked = !!val; };
+
+    setChk('#fxFilterOn', fx.filterOn); setVal('#fxFilterType', fx.filterType);
+    setVal('#fxFilterFreq', fx.filterFreq); setVal('#fxFilterQ', fx.filterQ);
+
+    setChk('#fxChorusOn', fx.chorusOn); setVal('#fxChorusMode', fx.chorusMode);
+    setVal('#fxChorusRate', fx.chorusRate); setVal('#fxChorusDepth', fx.chorusDepth);
+    setVal('#fxChorusMix', fx.chorusMix); setVal('#fxChorusFb', fx.chorusFb);
+
+    setChk('#fxReverbOn', fx.reverbOn); setVal('#fxReverbDecay', fx.reverbDecay);
+    setVal('#fxReverbMix', fx.reverbMix);
+
+    setChk('#fxLimiterOn', fx.limiterOn); setVal('#fxLimiterThr', fx.limiterThr);
+    setVal('#fxLimiterRel', fx.limiterRel);
+
+    const open = !!fx.panelOpen;
+    $('#effectsPanel').classList.toggle('open', open);
+    $('#effectsBtn').textContent = open ? 'Effects ▴' : 'Effects ▾';
+
+    $('#fxFilterFreqVal').textContent = $('#fxFilterFreq').value;
+    $('#fxFilterQVal').textContent = Number($('#fxFilterQ').value).toFixed(1);
+    $('#fxChorusRateVal').textContent = Number($('#fxChorusRate').value).toFixed(2);
+    $('#fxChorusDepthVal').textContent = Number($('#fxChorusDepth').value).toFixed(1);
+    $('#fxChorusMixVal').textContent = Number($('#fxChorusMix').value).toFixed(2);
+    $('#fxChorusFbVal').textContent = Number($('#fxChorusFb').value).toFixed(2);
+    $('#fxReverbDecayVal').textContent = Number($('#fxReverbDecay').value).toFixed(1);
+    $('#fxReverbMixVal').textContent = Number($('#fxReverbMix').value).toFixed(2);
+    $('#fxLimiterThrVal').textContent = Number($('#fxLimiterThr').value).toFixed(1);
+    $('#fxLimiterRelVal').textContent = Number($('#fxLimiterRel').value).toFixed(2);
+
+    const formulas = state.formulas || {};
+    for (const f of FORMULAS){
+      const st = formulas[f.id];
+      if (!st) continue;
+
+      $(`#en_${f.id}`).checked = !!st.enabled;
+
+      const body = $(`#body_${f.id}`);
+      const colBtn = $(`#col_${f.id}`);
+      const collapsed = !!st.collapsed;
+      body.classList.toggle('collapsed', collapsed);
+      colBtn.textContent = collapsed ? 'Развернуть' : 'Свернуть';
+
+      const params = st.params || {};
+      for (const s of f.sliders){
+        if (params[s.k] === undefined) continue;
+        const el = $(`#${f.id}_${s.k}`);
+        el.value = String(params[s.k]);
+        $(`#${f.id}_${s.k}_v`).textContent = fmt(params[s.k]);
+      }
+    }
+  }
+
+  function loadStateFromURL(){
+    const m = location.hash.match(/#s=([A-Za-z0-9\-_]+)/);
+    if (!m) return null;
+    try {
+      const json = b64urlDecode(m[1]);
+      return JSON.parse(json);
+    } catch {
+      return null;
+    }
+  }
+  function writeStateToURL(state){
+    const json = JSON.stringify(state);
+    const token = b64urlEncode(json);
+    history.replaceState(null, '', `#s=${token}`);
+    return location.href;
   }
 
   // ---------- Audio graph ----------
   let ctx = null;
   let analyser = null;
 
-  let mixBus = null;        // sum of formulas
-  let masterGain = null;    // master volume
+  let mixBus = null;
+  let masterGain = null;
 
-  // FX nodes
+  // FX
   let fxInput = null;
   let filterNode = null;
 
@@ -754,7 +848,13 @@
 
   let limiter = null;
 
+  // Recorder
+  let recorderTap = null;
+  let isRecording = false;
+  let recChunks = [];        // Array<Float32Array>
+  let recSampleRate = 44100; // will set from ctx
   let scopeRAF = null;
+
   const nodes = new Map(); // id -> {aw, g, params}
 
   function buildWorkletURL(){
@@ -785,87 +885,64 @@
     const reverbOn = $('#fxReverbOn').checked;
     const limiterOn = $('#fxLimiterOn').checked;
 
-    // We rebuild routing cheaply by disconnecting and reconnecting a known chain.
-    // Base: fxInput -> ... -> masterGain -> analyser -> destination
+    // disconnect known nodes
     fxInput.disconnect();
     filterNode.disconnect();
+
     chorusDry.disconnect(); chorusWet.disconnect();
     chorusDelay.disconnect(); chorusFb.disconnect();
+
     reverbDry.disconnect(); reverbWet.disconnect(); reverbConv.disconnect();
+
     limiter.disconnect();
     masterGain.disconnect();
+    recorderTap.disconnect();
     analyser.disconnect();
 
-    // Always end with analyser->destination
+    // end
     analyser.connect(ctx.destination);
 
     let node = fxInput;
 
-    // Filter
-    if (filterOn) {
-      node.connect(filterNode);
-      node = filterNode;
-    }
+    if (filterOn) { node.connect(filterNode); node = filterNode; }
 
-    // Chorus/Flanger (parallel dry/wet with feedback)
     if (chorusOn) {
       node.connect(chorusDry);
       node.connect(chorusDelay);
 
-      // feedback loop: delay -> fbGain -> delay
       chorusDelay.connect(chorusFb);
       chorusFb.connect(chorusDelay);
 
-      // wet path
       chorusDelay.connect(chorusWet);
 
-      // sum: dry+wet into "chorusSum" (we'll use masterGain as sum input by connecting both into it later)
-      // Route: dry/wet -> (reverb stage input) or to next
-      // We'll create a temporary gain as sum point:
       const chorusSum = ctx.createGain();
-      chorusSum.gain.value = 1;
       chorusDry.connect(chorusSum);
       chorusWet.connect(chorusSum);
       node = chorusSum;
-
-      // store so we can GC later (simple: keep reference on node)
-      node.__tmpChorusSum = chorusSum;
-    } else {
-      // ensure no stray connections
-      // (already disconnected above)
     }
 
-    // Reverb (parallel dry/wet)
     if (reverbOn) {
       node.connect(reverbDry);
       node.connect(reverbConv);
-
       reverbConv.connect(reverbWet);
 
       const revSum = ctx.createGain();
-      revSum.gain.value = 1;
-
       reverbDry.connect(revSum);
       reverbWet.connect(revSum);
-
       node = revSum;
-      node.__tmpRevSum = revSum;
     }
 
-    // Limiter
-    if (limiterOn) {
-      node.connect(limiter);
-      node = limiter;
-    }
+    if (limiterOn) { node.connect(limiter); node = limiter; }
 
-    // Master
+    // master -> recorder tap -> analyser -> destination
     node.connect(masterGain);
-    masterGain.connect(analyser);
+    masterGain.connect(recorderTap);
+    recorderTap.connect(analyser);
   }
 
   function updateFXParams(){
     if (!ctx) return;
-    // Filter params
+
     filterNode.type = $('#fxFilterType').value;
     const ff = Number($('#fxFilterFreq').value);
     const fq = Number($('#fxFilterQ').value);
@@ -874,26 +951,18 @@
     $('#fxFilterFreqVal').textContent = String(ff);
     $('#fxFilterQVal').textContent = fq.toFixed(1);
 
-    // Chorus/flanger params
     const mode = $('#fxChorusMode').value;
     const rate = Number($('#fxChorusRate').value);
     const depthMs = Number($('#fxChorusDepth').value);
     const mix = Number($('#fxChorusMix').value);
     const fb = Number($('#fxChorusFb').value);
 
-    // Base delay differs by mode:
-    const baseMs = (mode === 'flanger') ? 2.0 : 12.0; // chorus feels wider with larger base
+    const baseMs = (mode === 'flanger') ? 2.0 : 12.0;
     chorusDelay.delayTime.setValueAtTime(baseMs / 1000, ctx.currentTime);
-
-    // LFO depth in seconds
     chorusLFO.frequency.setValueAtTime(rate, ctx.currentTime);
     chorusLFOGain.gain.setValueAtTime(depthMs / 1000, ctx.currentTime);
-
-    // Dry/wet
     chorusDry.gain.setValueAtTime(1 - mix, ctx.currentTime);
     chorusWet.gain.setValueAtTime(mix, ctx.currentTime);
-
-    // Feedback
     chorusFb.gain.setValueAtTime(fb, ctx.currentTime);
 
     $('#fxChorusRateVal').textContent = rate.toFixed(2);
@@ -901,21 +970,16 @@
     $('#fxChorusMixVal').textContent = mix.toFixed(2);
     $('#fxChorusFbVal').textContent = fb.toFixed(2);
 
-    // Reverb
     const decay = Number($('#fxReverbDecay').value);
     const rMix = Number($('#fxReverbMix').value);
     $('#fxReverbDecayVal').textContent = decay.toFixed(1);
-    $('#fxReverbMixVal').textContent = rMix.toFixed(2);
-
+    $('#fxReverbMixVal').textContent = prove2(rMix);
     reverbDry.gain.setValueAtTime(1 - rMix, ctx.currentTime);
     reverbWet.gain.setValueAtTime(rMix, ctx.currentTime);
 
-    // Regenerate impulse (cheap enough for this UI)
-    // Use length proportional to decay but clamp
     const seconds = Math.min(6.0, Math.max(0.3, decay * 1.4));
     reverbConv.buffer = makeImpulseResponse(ctx, seconds, decay);
 
-    // Limiter
     const thr = Number($('#fxLimiterThr').value);
     const rel = Number($('#fxLimiterRel').value);
     $('#fxLimiterThrVal').textContent = thr.toFixed(1);
@@ -926,63 +990,67 @@
     limiter.attack.setValueAtTime(0.003, ctx.currentTime);
     limiter.release.setValueAtTime(rel, ctx.currentTime);
     limiter.knee.setValueAtTime(0, ctx.currentTime);
+
+    function prove2(x){ return Number(x).toFixed(2); }
   }
 
   async function startAudio(){
     if (ctx) return;
 
     ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+    recSampleRate = ctx.sampleRate;
+
     const url = buildWorkletURL();
     await ctx.audioWorklet.addModule(url);
 
     analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
 
-    // Mix bus for formulas
     mixBus = ctx.createGain();
     mixBus.gain.value = 1;
-
-    // FX input is mixBus
     fxInput = mixBus;
 
-    // Create FX nodes (always exist; routing toggles connect/disconnect)
     filterNode = ctx.createBiquadFilter();
-    filterNode.type = 'lowpass';
 
-    // Chorus/flanger building blocks
     chorusDelay = ctx.createDelay(0.2);
     chorusDry = ctx.createGain();
     chorusWet = ctx.createGain();
     chorusFb = ctx.createGain();
-    chorusFb.gain.value = 0;
 
-    // LFO -> delayTime
     chorusLFO = ctx.createOscillator();
     chorusLFOGain = ctx.createGain();
     chorusLFO.connect(chorusLFOGain);
     chorusLFOGain.connect(chorusDelay.delayTime);
     chorusLFO.start();
 
-    // Reverb
     reverbConv = ctx.createConvolver();
     reverbDry = ctx.createGain();
     reverbWet = ctx.createGain();
 
-    // Limiter
     limiter = ctx.createDynamicsCompressor();
 
-    // Master gain -> analyser -> destination
     masterGain = ctx.createGain();
     masterGain.gain.value = Number($('#masterGain').value);
 
-    // Connect default chain once (based on UI toggles)
+    recorderTap = new AudioWorkletNode(ctx, 'recorder-tap', {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      outputChannelCount: [1],
+    });
+
+    recorderTap.port.onmessage = (e) => {
+      if (!isRecording) return;
+      const chunk = e.data;
+      if (chunk && chunk.length) recChunks.push(chunk);
+    };
+
     setFXEnabled();
     updateFXParams();
 
-    // Create generator nodes
+    // Create generators
     for (const f of FORMULAS){
       const initParams = {};
-      for (const s of f.sliders) initParams[s.k] = Number(s.value);
+      for (const s of f.sliders) initParams[s.k] = Number($(`#${f.id}_${s.k}`).value);
 
       const aw = new AudioWorkletNode(ctx, 'formula-generator', {
         numberOfInputs: 0,
@@ -993,22 +1061,36 @@
 
       const g = ctx.createGain();
       g.gain.value = 0;
-
       aw.connect(g);
       g.connect(mixBus);
 
       nodes.set(f.id, { aw, g, params: initParams });
     }
 
+    // Apply enabled states
+    for (const f of FORMULAS){
+      const on = $(`#en_${f.id}`).checked;
+      const st = nodes.get(f.id);
+      const now = ctx.currentTime;
+      const gain = Number($(`#${f.id}_gain`).value);
+      st.params.gain = gain;
+      st.g.gain.setTargetAtTime(on ? gain : 0, now, 0.02);
+      $(`#reset_${f.id}`).disabled = !on;
+    }
+
     $('#status').textContent = 'Status: running';
     $('#stopBtn').disabled = false;
     $('#startBtn').disabled = true;
+    $('#recBtn').disabled = false;
 
-    startScope();
+    startScopeAndMeter();
   }
 
   function stopAudio(){
     if (!ctx) return;
+
+    // stop recording if active
+    if (isRecording) toggleRecording();
 
     cancelAnimationFrame(scopeRAF);
     scopeRAF = null;
@@ -1022,17 +1104,23 @@
       ctx = null;
       nodes.clear();
       analyser = null;
+
       $('#status').textContent = 'Status: stopped';
       $('#stopBtn').disabled = true;
       $('#startBtn').disabled = false;
-      $('#scopeInfo').textContent = 'Scope: auto';
+      $('#recBtn').disabled = true;
+      $('#recBtn').textContent = 'Record WAV';
+
+      $('#rmsVal').textContent = '—';
+      $('#clipLamp').classList.remove('on');
     }, 80);
   }
 
-  // ---------- Oscilloscope (auto Y scale) ----------
+  // ---------- Scope + meter (no “Scope:” pill) ----------
   const canvas = $('#scope');
   const c2d = canvas.getContext('2d');
   let scopeAutoGain = 1.0;
+  let clipUntil = 0;
 
   function resizeCanvas(){
     const dpr = window.devicePixelRatio || 1;
@@ -1042,7 +1130,7 @@
   }
   window.addEventListener('resize', resizeCanvas);
 
-  function startScope(){
+  function startScopeAndMeter(){
     resizeCanvas();
     const buf = new Uint8Array(analyser.fftSize);
 
@@ -1053,21 +1141,29 @@
       analyser.getByteTimeDomainData(buf);
 
       let peak = 1e-4;
+      let sumSq = 0;
+
       for (let i=0;i<buf.length;i++){
         const v = (buf[i] - 128) / 128;
         const a = Math.abs(v);
         if (a > peak) peak = a;
+        sumSq += v*v;
       }
 
+      const rms = Math.sqrt(sumSq / buf.length);
+      const rmsDb = 20 * Math.log10(Math.max(1e-9, rms));
+      $('#rmsVal').textContent = `${rmsDb.toFixed(1)} dBFS`;
+
+      const nowMs = performance.now();
+      if (peak >= 0.98) clipUntil = nowMs + 300;
+      $('#clipLamp').classList.toggle('on', nowMs < clipUntil);
+
+      // auto Y scale
       let target = 0.85 / peak;
       target = Math.max(0.25, Math.min(12.0, target));
       scopeAutoGain += (target - scopeAutoGain) * 0.08;
 
-      $('#scopeInfo').textContent = `Scope: auto ×${scopeAutoGain.toFixed(2)} (peak ${peak.toFixed(3)})`;
-
       const w = canvas.width, h = canvas.height;
-      c2d.clearRect(0,0,w,h);
-
       c2d.fillStyle = '#060a0f';
       c2d.fillRect(0,0,w,h);
 
@@ -1104,9 +1200,114 @@
     draw();
   }
 
-  // ---------- Top-level UI wiring ----------
+  // ---------- WAV encoding ----------
+  function encodeWavMono(chunks, sampleRate){
+    // concat
+    let total = 0;
+    for (const c of chunks) total += c.length;
+    const pcm16 = new Int16Array(total);
+
+    let off = 0;
+    for (const c of chunks){
+      for (let i=0;i<c.length;i++){
+        let x = c[i];
+        // clamp
+        if (x > 1) x = 1;
+        else if (x < -1) x = -1;
+        pcm16[off++] = (x < 0) ? (x * 0x8000) : (x * 0x7FFF);
+      }
+    }
+
+    const bytesPerSample = 2;
+    const blockAlign = bytesPerSample * 1;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = pcm16.byteLength;
+
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    function writeStr(p, s){
+      for (let i=0;i<s.length;i++) view.setUint8(p+i, s.charCodeAt(i));
+    }
+
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeStr(8, 'WAVE');
+
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);              // PCM chunk size
+    view.setUint16(20, 1, true);               // PCM
+    view.setUint16(22, 1, true);               // mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);              // bits
+
+    writeStr(36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    // PCM data
+    new Uint8Array(buffer, 44).set(new Uint8Array(pcm16.buffer));
+
+    return new Blob([buffer], {type: 'audio/wav'});
+  }
+
+  function downloadBlob(blob, filename){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  function toggleRecording(){
+    if (!ctx || !recorderTap) return;
+
+    if (!isRecording){
+      recChunks = [];
+      isRecording = true;
+      recorderTap.port.postMessage({type:'arm'});
+      $('#recBtn').textContent = 'Stop Rec';
+      $('#status').textContent = 'Status: recording…';
+    } else {
+      isRecording = false;
+      recorderTap.port.postMessage({type:'disarm'});
+      $('#recBtn').textContent = 'Record WAV';
+      $('#status').textContent = 'Status: running';
+
+      const wav = encodeWavMono(recChunks, recSampleRate);
+      const ts = new Date();
+      const name = `formula-audio-${ts.toISOString().replace(/[:.]/g,'-')}.wav`;
+      downloadBlob(wav, name);
+    }
+  }
+
+  // ---------- Scope collapse ----------
+  const scopeWrap = $('#scopeWrap');
+  const scopeToggleBtn = $('#scopeToggleBtn');
+
+  function setScopeCollapsed(collapsed){
+    scopeWrap.classList.toggle('scopeCollapsed', collapsed);
+    scopeToggleBtn.textContent = collapsed ? 'Scope ▸' : 'Scope ▾';
+    // if we collapsed, canvas can be 0 height; on expand, resize so waveform renders crisply
+    if (!collapsed) setTimeout(resizeCanvas, 0);
+  }
+
+  // Default: collapsed on narrow screens
+  const defaultCollapse = window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
+  setScopeCollapsed(defaultCollapse);
+
+  scopeToggleBtn.addEventListener('click', () => {
+    setScopeCollapsed(!scopeWrap.classList.contains('scopeCollapsed'));
+  });
+
+  // ---------- Buttons ----------
   $('#startBtn').addEventListener('click', startAudio);
   $('#stopBtn').addEventListener('click', stopAudio);
+  $('#recBtn').addEventListener('click', toggleRecording);
 
   $('#masterGain').addEventListener('input', (e)=>{
     const v = Number(e.target.value);
@@ -1120,11 +1321,10 @@
     const open = !effectsPanel.classList.contains('open');
     effectsPanel.classList.toggle('open', open);
     $('#effectsBtn').textContent = open ? 'Effects ▴' : 'Effects ▾';
-    // resize scope after layout change
     resizeCanvas();
   });
 
-  // FX controls: any change updates routing/params
+  // FX controls
   const fxRoutingInputs = ['fxFilterOn','fxChorusOn','fxReverbOn','fxLimiterOn'];
   for (const id of fxRoutingInputs){
     $('#'+id).addEventListener('change', () => {
@@ -1146,10 +1346,88 @@
     });
   }
 
-  // ---------- Build formula UIs ----------
-  for (const f of FORMULAS){
-    makeFormulaUI(f);
+  // ---------- Presets + Share ----------
+  $('#savePresetBtn').addEventListener('click', () => {
+    const state = readStateFromUI();
+    localStorage.setItem(PRESET_KEY, JSON.stringify(state));
+    $('#status').textContent = 'Status: preset saved';
+  });
 
+  $('#loadPresetBtn').addEventListener('click', () => {
+    const raw = localStorage.getItem(PRESET_KEY);
+    if (!raw) { $('#status').textContent = 'Status: no preset'; return; }
+    try {
+      const state = JSON.parse(raw);
+      applyStateToUI(state);
+      if (ctx) applyUIToAudioLive();
+      $('#status').textContent = 'Status: preset loaded';
+    } catch {
+      $('#status').textContent = 'Status: preset parse error';
+    }
+  });
+
+  $('#shareBtn').addEventListener('click', async () => {
+    const state = readStateFromUI();
+    const url = writeStateToURL(state);
+    try {
+      await navigator.clipboard.writeText(url);
+      $('#status').textContent = 'Status: share link copied';
+    } catch {
+      $('#status').textContent = 'Status: share link in URL';
+    }
+  });
+
+  function writeStateToURL(state){
+    const json = JSON.stringify(state);
+    const token = b64urlEncode(json);
+    const newHash = `#s=${token}`;
+    history.replaceState(null, '', newHash);
+    return location.href;
+  }
+
+  function loadStateFromURL(){
+    const m = location.hash.match(/#s=([A-Za-z0-9\-_]+)/);
+    if (!m) return null;
+    try {
+      const json = b64urlDecode(m[1]);
+      return JSON.parse(json);
+    } catch {
+      return null;
+    }
+  }
+
+  // Apply URL state on load
+  const urlState = loadStateFromURL();
+  if (urlState) applyStateToUI(urlState);
+
+  // ---------- Live apply after preset/url changes ----------
+  function applyUIToAudioLive(){
+    if (masterGain) masterGain.gain.value = Number($('#masterGain').value);
+
+    setFXEnabled();
+    updateFXParams();
+
+    for (const f of FORMULAS){
+      const st = nodes.get(f.id);
+      if (!st) continue;
+
+      const enabled = $(`#en_${f.id}`).checked;
+      const now = ctx.currentTime;
+
+      for (const s of f.sliders){
+        const v = Number($(`#${f.id}_${s.k}`).value);
+        st.params[s.k] = v;
+        st.aw.port.postMessage({type:'set', params: {[s.k]: v}});
+      }
+
+      const gain = Number($(`#${f.id}_gain`).value);
+      st.g.gain.setTargetAtTime(enabled ? gain : 0, now, 0.02);
+      $(`#reset_${f.id}`).disabled = !enabled;
+    }
+  }
+
+  // ---------- Formula control wiring ----------
+  for (const f of FORMULAS){
     const en = document.getElementById(`en_${f.id}`);
     const resetBtn = document.getElementById(`reset_${f.id}`);
     const body = document.getElementById(`body_${f.id}`);
@@ -1164,19 +1442,18 @@
     en.addEventListener('change', () => {
       if (!ctx) { en.checked = false; return; }
       const st = nodes.get(f.id);
+      if (!st) return;
+
       const on = en.checked;
-
       const now = ctx.currentTime;
-      st.g.gain.cancelScheduledValues(now);
-      st.g.gain.setTargetAtTime(on ? (st.params.gain ?? 0.15) : 0, now, 0.02);
-
+      const gain = Number(document.getElementById(`${f.id}_gain`).value);
+      st.g.gain.setTargetAtTime(on ? gain : 0, now, 0.02);
       resetBtn.disabled = !on;
     });
 
     resetBtn.addEventListener('click', () => {
       if (!ctx) return;
-      const st = nodes.get(f.id);
-      st.aw.port.postMessage({type:'reset'});
+      nodes.get(f.id)?.aw.port.postMessage({type:'reset'});
     });
 
     for (const s of f.sliders){
@@ -1189,22 +1466,20 @@
 
         if (!ctx) return;
         const st = nodes.get(f.id);
-        st.params[s.k] = v;
+        if (!st) return;
 
-        // Gain slider also controls the mix gain node
+        st.params[s.k] = v;
+        st.aw.port.postMessage({type:'set', params: {[s.k]: v}});
+
         if (s.k === 'gain'){
           const now = ctx.currentTime;
-          if (document.getElementById(`en_${f.id}`).checked){
-            st.g.gain.cancelScheduledValues(now);
-            st.g.gain.setTargetAtTime(v, now, 0.02);
-          }
+          if (en.checked) st.g.gain.setTargetAtTime(v, now, 0.02);
         }
-        st.aw.port.postMessage({type:'set', params: {[s.k]: v}});
       });
     }
   }
 
-  // Initialize FX labels even before audio starts
+  // Initialize FX labels
   $('#fxFilterFreqVal').textContent = $('#fxFilterFreq').value;
   $('#fxFilterQVal').textContent = Number($('#fxFilterQ').value).toFixed(1);
   $('#fxChorusRateVal').textContent = Number($('#fxChorusRate').value).toFixed(2);
@@ -1218,5 +1493,6 @@
 
 })();
 </script>
+
 </body>
 </html>
