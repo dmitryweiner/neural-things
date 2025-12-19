@@ -289,6 +289,65 @@
         </div>
       </div>
 
+      <div class="fxCard">
+        <h2>
+          <span>Delay / Echo</span>
+          <label class="small"><input id="fxDelayOn" type="checkbox"> ON</label>
+        </h2>
+        <div class="ctrl">
+          <label>Time (s)</label>
+          <input id="fxDelayTime" type="range" min="0.05" max="2.0" step="0.01" value="0.35">
+          <div class="small" id="fxDelayTimeVal">0.35</div>
+        </div>
+        <div class="ctrl">
+          <label>Feedback</label>
+          <input id="fxDelayFb" type="range" min="0" max="0.9" step="0.01" value="0.4">
+          <div class="small" id="fxDelayFbVal">0.40</div>
+        </div>
+        <div class="ctrl">
+          <label>Mix (dry↔wet)</label>
+          <input id="fxDelayMix" type="range" min="0" max="1" step="0.01" value="0.3">
+          <div class="small" id="fxDelayMixVal">0.30</div>
+        </div>
+      </div>
+
+      <div class="fxCard">
+        <h2>
+          <span>Phaser</span>
+          <label class="small"><input id="fxPhaserOn" type="checkbox"> ON</label>
+        </h2>
+        <div class="ctrl">
+          <label>Rate (Hz)</label>
+          <input id="fxPhaserRate" type="range" min="0.1" max="10" step="0.01" value="0.5">
+          <div class="small" id="fxPhaserRateVal">0.50</div>
+        </div>
+        <div class="ctrl">
+          <label>Depth</label>
+          <input id="fxPhaserDepth" type="range" min="0" max="1" step="0.01" value="0.7">
+          <div class="small" id="fxPhaserDepthVal">0.70</div>
+        </div>
+        <div class="ctrl">
+          <label>Stages</label>
+          <select id="fxPhaserStages">
+            <option value="2">2</option>
+            <option value="4" selected>4</option>
+            <option value="6">6</option>
+            <option value="8">8</option>
+          </select>
+          <div></div>
+        </div>
+        <div class="ctrl">
+          <label>Feedback</label>
+          <input id="fxPhaserFb" type="range" min="0" max="0.9" step="0.01" value="0.3">
+          <div class="small" id="fxPhaserFbVal">0.30</div>
+        </div>
+        <div class="ctrl">
+          <label>Mix (dry↔wet)</label>
+          <input id="fxPhaserMix" type="range" min="0" max="1" step="0.01" value="0.5">
+          <div class="small" id="fxPhaserMixVal">0.50</div>
+        </div>
+      </div>
+
     </div>
   </div>
 </section>
@@ -324,6 +383,23 @@
 
       this.bcHold = 0; this.bcCount = 0;
 
+      // Pink noise state (Paul Kellet's approximation)
+      this.pinkB0 = 0; this.pinkB1 = 0; this.pinkB2 = 0;
+      this.pinkB3 = 0; this.pinkB4 = 0; this.pinkB5 = 0; this.pinkB6 = 0;
+
+      // Brown noise state
+      this.brownVal = 0;
+
+      // Velvet noise state
+      this.velvetCounter = 0; this.velvetNext = 0;
+
+      // Rossler attractor state
+      this.rx = 0.1; this.ry = 0.0; this.rz = 0.0;
+
+      // Shepard tone phase accumulators (up to 10 octaves)
+      this.shepardPhases = new Float32Array(10);
+      this.shepardT = 0;
+
       this.p = Object.assign({
         gain: 0.2,
         fc: 220, fm: 2, I: 2,
@@ -339,7 +415,18 @@
         lBase: 120, lFreqScale: 40, lAmp: 0.25,
         ksFreq: 110, ksDamp: 0.985, ksBright: 0.5,
         bcFreq: 220, bcBits: 6, bcDown: 8,
-        nCut: 800
+        nCut: 800,
+        // Pink noise params
+        pinkBright: 0.5,
+        // Brown noise params
+        brownStep: 0.02,
+        // Velvet noise params
+        velvetDensity: 2000,
+        // Rossler attractor params
+        rossA: 0.2, rossB: 0.2, rossC: 5.7,
+        rossBase: 120, rossFreqScale: 30, rossAmp: 0.25,
+        // Shepard tone params
+        shepBase: 55, shepSpeed: 0.1, shepOctaves: 6
       }, o.params || {});
 
       this.port.onmessage = (e) => {
@@ -352,6 +439,18 @@
           this.lx = 0.1; this.ly = 0.0; this.lz = 0.0;
           this.nlp = 0; this.bcHold = 0; this.bcCount = 0;
           this._initKS(true);
+          // Reset pink noise
+          this.pinkB0 = 0; this.pinkB1 = 0; this.pinkB2 = 0;
+          this.pinkB3 = 0; this.pinkB4 = 0; this.pinkB5 = 0; this.pinkB6 = 0;
+          // Reset brown noise
+          this.brownVal = 0;
+          // Reset velvet noise
+          this.velvetCounter = 0; this.velvetNext = 0;
+          // Reset Rossler
+          this.rx = 0.1; this.ry = 0.0; this.rz = 0.0;
+          // Reset Shepard
+          for (let i = 0; i < this.shepardPhases.length; i++) this.shepardPhases[i] = 0;
+          this.shepardT = 0;
         }
       };
 
@@ -475,6 +574,92 @@
             const a = 1 - Math.exp(-2*Math.PI*cut/sr);
             nlp = nlp + a * (white - nlp);
             x = nlp;
+            break;
+          }
+          case 'pinknoise': {
+            // Paul Kellet's economy pink noise approximation
+            const white = Math.random() * 2 - 1;
+            this.pinkB0 = 0.99886 * this.pinkB0 + white * 0.0555179;
+            this.pinkB1 = 0.99332 * this.pinkB1 + white * 0.0750759;
+            this.pinkB2 = 0.96900 * this.pinkB2 + white * 0.1538520;
+            this.pinkB3 = 0.86650 * this.pinkB3 + white * 0.3104856;
+            this.pinkB4 = 0.55000 * this.pinkB4 + white * 0.5329522;
+            this.pinkB5 = -0.7616 * this.pinkB5 - white * 0.0168980;
+            const pink = this.pinkB0 + this.pinkB1 + this.pinkB2 + this.pinkB3 + this.pinkB4 + this.pinkB5 + this.pinkB6 + white * 0.5362;
+            this.pinkB6 = white * 0.115926;
+            // Brightness control (mix with white)
+            const bright = this.clamp(p.pinkBright, 0, 1);
+            x = (pink * 0.11) * (1 - bright) + white * bright * 0.5;
+            break;
+          }
+          case 'brownnoise': {
+            // Brownian noise (random walk)
+            const white = Math.random() * 2 - 1;
+            const step = this.clamp(p.brownStep, 0.001, 0.1);
+            this.brownVal = this.clamp(this.brownVal + white * step, -1, 1);
+            x = this.brownVal;
+            break;
+          }
+          case 'velvetnoise': {
+            // Velvet noise: sparse impulses
+            const density = Math.max(100, p.velvetDensity);
+            const avgSamples = sr / density;
+            if (this.velvetCounter >= this.velvetNext) {
+              x = Math.random() > 0.5 ? 1 : -1;
+              this.velvetNext = this.velvetCounter + avgSamples * (0.5 + Math.random());
+            } else {
+              x = 0;
+            }
+            this.velvetCounter++;
+            break;
+          }
+          case 'rossler': {
+            // Rossler attractor
+            const dt = 1 / sr;
+            const a = p.rossA, b = p.rossB, c = p.rossC;
+            const dx = -this.ry - this.rz;
+            const dy = this.rx + a * this.ry;
+            const dz = b + this.rz * (this.rx - c);
+            this.rx += dx * dt * 100;
+            this.ry += dy * dt * 100;
+            this.rz += dz * dt * 100;
+            // Clamp to prevent explosion
+            this.rx = this.clamp(this.rx, -50, 50);
+            this.ry = this.clamp(this.ry, -50, 50);
+            this.rz = this.clamp(this.rz, -50, 50);
+
+            const freq = Math.max(0, p.rossBase + p.rossFreqScale * this.rx);
+            const amp = this.clamp(p.rossAmp * (0.3 + 0.7 * (0.5 + 0.02 * this.ry)), 0, 1);
+            phase += twoPi * (freq / sr);
+            x = amp * Math.sin(phase);
+            break;
+          }
+          case 'shepard': {
+            // Shepard tone: auditory illusion of endless rising
+            const baseF = Math.max(20, p.shepBase);
+            const speed = p.shepSpeed;
+            const octaves = Math.max(1, Math.min(10, Math.floor(p.shepOctaves)));
+            const centerLog = Math.log2(440); // Center frequency for Gaussian
+            const sigma = 1.5; // Width of Gaussian envelope
+
+            this.shepardT += speed / sr;
+            if (this.shepardT > 1) this.shepardT -= 1;
+
+            let sum = 0;
+            for (let k = 0; k < octaves; k++) {
+              const freqMult = Math.pow(2, k + this.shepardT);
+              const freq = baseF * freqMult;
+              if (freq > 18000) continue;
+
+              // Gaussian amplitude envelope based on log frequency
+              const logF = Math.log2(freq);
+              const envelope = Math.exp(-0.5 * Math.pow((logF - centerLog) / sigma, 2));
+
+              this.shepardPhases[k] += twoPi * (freq / sr);
+              if (this.shepardPhases[k] > twoPi) this.shepardPhases[k] -= twoPi;
+              sum += envelope * Math.sin(this.shepardPhases[k]);
+            }
+            x = sum / Math.sqrt(octaves);
             break;
           }
           default: x = 0;
@@ -631,6 +816,38 @@
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'nCut', name:'Cutoff (Hz)', min:20, max:18000, step:1, value:800},
       ]},
+    { id:'pinknoise', title:'Pink Noise (1/f)', tag:'Noise', desc:'Естественный шум 1/f спектра',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
+        {k:'pinkBright', name:'Brightness', min:0, max:1, step:0.01, value:0.3},
+      ]},
+    { id:'brownnoise', title:'Brown Noise (Brownian)', tag:'Noise', desc:'Случайное блуждание — глубокий гул',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.15},
+        {k:'brownStep', name:'Step size', min:0.001, max:0.1, step:0.001, value:0.02},
+      ]},
+    { id:'velvetnoise', title:'Velvet Noise', tag:'Noise', desc:'Редкие случайные импульсы',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
+        {k:'velvetDensity', name:'Density (imp/s)', min:100, max:10000, step:10, value:2000},
+      ]},
+    { id:'rossler', title:'Аттрактор Рёсслера', tag:'Chaos', desc:'dx=-y-z, dy=x+ay, dz=b+z(x-c)', hasReset:true,
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
+        {k:'rossA', name:'a', min:0.01, max:0.5, step:0.001, value:0.2},
+        {k:'rossB', name:'b', min:0.01, max:0.5, step:0.001, value:0.2},
+        {k:'rossC', name:'c', min:2, max:12, step:0.01, value:5.7},
+        {k:'rossBase', name:'Base f (Hz)', min:20, max:400, step:1, value:120},
+        {k:'rossFreqScale', name:'Freq scale', min:0, max:100, step:0.1, value:30},
+        {k:'rossAmp', name:'Amp scale', min:0, max:1, step:0.001, value:0.25},
+      ]},
+    { id:'shepard', title:'Тон Шепарда', tag:'Illusion', desc:'Иллюзия бесконечного подъёма', hasReset:true,
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
+        {k:'shepBase', name:'Base f (Hz)', min:20, max:200, step:1, value:55},
+        {k:'shepSpeed', name:'Speed', min:-0.5, max:0.5, step:0.001, value:0.1},
+        {k:'shepOctaves', name:'Octaves', min:3, max:10, step:1, value:6},
+      ]},
   ];
 
   // ---------- DOM helpers ----------
@@ -735,6 +952,16 @@
       limiterOn: $('#fxLimiterOn').checked,
       limiterThr: Number($('#fxLimiterThr').value),
       limiterRel: Number($('#fxLimiterRel').value),
+      delayOn: $('#fxDelayOn').checked,
+      delayTime: Number($('#fxDelayTime').value),
+      delayFb: Number($('#fxDelayFb').value),
+      delayMix: Number($('#fxDelayMix').value),
+      phaserOn: $('#fxPhaserOn').checked,
+      phaserRate: Number($('#fxPhaserRate').value),
+      phaserDepth: Number($('#fxPhaserDepth').value),
+      phaserStages: Number($('#fxPhaserStages').value),
+      phaserFb: Number($('#fxPhaserFb').value),
+      phaserMix: Number($('#fxPhaserMix').value),
     };
     const scopeCollapsed = $('#scopeWrap').classList.contains('scopeCollapsed');
     return { v: 2, masterGain: Number($('#masterGain').value), fx, formulas, scopeCollapsed };
@@ -769,6 +996,13 @@
     setChk('#fxLimiterOn', fx.limiterOn); setVal('#fxLimiterThr', fx.limiterThr);
     setVal('#fxLimiterRel', fx.limiterRel);
 
+    setChk('#fxDelayOn', fx.delayOn); setVal('#fxDelayTime', fx.delayTime);
+    setVal('#fxDelayFb', fx.delayFb); setVal('#fxDelayMix', fx.delayMix);
+
+    setChk('#fxPhaserOn', fx.phaserOn); setVal('#fxPhaserRate', fx.phaserRate);
+    setVal('#fxPhaserDepth', fx.phaserDepth); setVal('#fxPhaserStages', fx.phaserStages);
+    setVal('#fxPhaserFb', fx.phaserFb); setVal('#fxPhaserMix', fx.phaserMix);
+
     const open = !!fx.panelOpen;
     $('#effectsPanel').classList.toggle('open', open);
     $('#effectsBtn').textContent = open ? 'Effects ▴' : 'Effects ▾';
@@ -784,6 +1018,13 @@
     $('#fxReverbMixVal').textContent = Number($('#fxReverbMix').value).toFixed(2);
     $('#fxLimiterThrVal').textContent = Number($('#fxLimiterThr').value).toFixed(1);
     $('#fxLimiterRelVal').textContent = Number($('#fxLimiterRel').value).toFixed(2);
+    $('#fxDelayTimeVal').textContent = Number($('#fxDelayTime').value).toFixed(2);
+    $('#fxDelayFbVal').textContent = Number($('#fxDelayFb').value).toFixed(2);
+    $('#fxDelayMixVal').textContent = Number($('#fxDelayMix').value).toFixed(2);
+    $('#fxPhaserRateVal').textContent = Number($('#fxPhaserRate').value).toFixed(2);
+    $('#fxPhaserDepthVal').textContent = Number($('#fxPhaserDepth').value).toFixed(2);
+    $('#fxPhaserFbVal').textContent = Number($('#fxPhaserFb').value).toFixed(2);
+    $('#fxPhaserMixVal').textContent = Number($('#fxPhaserMix').value).toFixed(2);
 
     const formulas = state.formulas || {};
     for (const f of FORMULAS){
@@ -848,6 +1089,22 @@
   let reverbWet = null;
 
   let limiter = null;
+
+  // Delay effect nodes
+  let delayNode = null;
+  let delayDry = null;
+  let delayWet = null;
+  let delayFb = null;
+
+  // Phaser effect nodes
+  let phaserFilters = [];
+  let phaserLFO = null;
+  let phaserLFOGains = [];
+  let phaserDry = null;
+  let phaserWet = null;
+  let phaserFb = null;
+  let phaserInput = null;
+  let phaserOutput = null;
 
   // WAV Recording
   let recorderNode = null;
@@ -932,6 +1189,8 @@
     const chorusOn = $('#fxChorusOn').checked;
     const reverbOn = $('#fxReverbOn').checked;
     const limiterOn = $('#fxLimiterOn').checked;
+    const delayOn = $('#fxDelayOn').checked;
+    const phaserOn = $('#fxPhaserOn').checked;
 
     // disconnect known nodes
     fxInput.disconnect();
@@ -943,6 +1202,17 @@
     reverbDry.disconnect(); reverbWet.disconnect(); reverbConv.disconnect();
 
     limiter.disconnect();
+
+    // Disconnect delay nodes
+    delayNode.disconnect(); delayDry.disconnect();
+    delayWet.disconnect(); delayFb.disconnect();
+
+    // Disconnect phaser nodes
+    phaserDry.disconnect(); phaserWet.disconnect();
+    phaserInput.disconnect(); phaserOutput.disconnect();
+    phaserFb.disconnect();
+    for (const f of phaserFilters) f.disconnect();
+
     masterGain.disconnect();
     analyser.disconnect();
 
@@ -966,6 +1236,40 @@
       chorusDry.connect(chorusSum);
       chorusWet.connect(chorusSum);
       node = chorusSum;
+    }
+
+    if (phaserOn) {
+      node.connect(phaserDry);
+      node.connect(phaserInput);
+
+      // Connect phaser filter chain
+      let pNode = phaserInput;
+      for (const f of phaserFilters) {
+        pNode.connect(f);
+        pNode = f;
+      }
+      pNode.connect(phaserOutput);
+      phaserOutput.connect(phaserFb);
+      phaserFb.connect(phaserInput);
+      phaserOutput.connect(phaserWet);
+
+      const phaserSum = ctx.createGain();
+      phaserDry.connect(phaserSum);
+      phaserWet.connect(phaserSum);
+      node = phaserSum;
+    }
+
+    if (delayOn) {
+      node.connect(delayDry);
+      node.connect(delayNode);
+      delayNode.connect(delayFb);
+      delayFb.connect(delayNode);
+      delayNode.connect(delayWet);
+
+      const delaySum = ctx.createGain();
+      delayDry.connect(delaySum);
+      delayWet.connect(delaySum);
+      node = delaySum;
     }
 
     if (reverbOn) {
@@ -1048,6 +1352,44 @@
     limiter.release.setValueAtTime(rel, ctx.currentTime);
     limiter.knee.setValueAtTime(0, ctx.currentTime);
 
+    // Delay parameters
+    const delayTime = Number($('#fxDelayTime').value);
+    const delayFbVal = Number($('#fxDelayFb').value);
+    const delayMixVal = Number($('#fxDelayMix').value);
+    $('#fxDelayTimeVal').textContent = delayTime.toFixed(2);
+    $('#fxDelayFbVal').textContent = delayFbVal.toFixed(2);
+    $('#fxDelayMixVal').textContent = delayMixVal.toFixed(2);
+
+    delayNode.delayTime.setValueAtTime(delayTime, ctx.currentTime);
+    delayFb.gain.setValueAtTime(delayFbVal, ctx.currentTime);
+    delayDry.gain.setValueAtTime(1 - delayMixVal, ctx.currentTime);
+    delayWet.gain.setValueAtTime(delayMixVal, ctx.currentTime);
+
+    // Phaser parameters
+    const phaserRate = Number($('#fxPhaserRate').value);
+    const phaserDepthVal = Number($('#fxPhaserDepth').value);
+    const phaserStages = Number($('#fxPhaserStages').value);
+    const phaserFbVal = Number($('#fxPhaserFb').value);
+    const phaserMixVal = Number($('#fxPhaserMix').value);
+    $('#fxPhaserRateVal').textContent = phaserRate.toFixed(2);
+    $('#fxPhaserDepthVal').textContent = phaserDepthVal.toFixed(2);
+    $('#fxPhaserFbVal').textContent = phaserFbVal.toFixed(2);
+    $('#fxPhaserMixVal').textContent = phaserMixVal.toFixed(2);
+
+    phaserLFO.frequency.setValueAtTime(phaserRate, ctx.currentTime);
+    phaserFb.gain.setValueAtTime(phaserFbVal, ctx.currentTime);
+    phaserDry.gain.setValueAtTime(1 - phaserMixVal, ctx.currentTime);
+    phaserWet.gain.setValueAtTime(phaserMixVal, ctx.currentTime);
+
+    // Update phaser filter frequencies with LFO depth
+    const baseFreq = 1000;
+    const freqRange = 3000 * phaserDepthVal;
+    for (let i = 0; i < phaserFilters.length; i++) {
+      const offset = (i / phaserFilters.length) * Math.PI * 2;
+      phaserFilters[i].frequency.setValueAtTime(baseFreq, ctx.currentTime);
+      phaserLFOGains[i].gain.setValueAtTime(freqRange, ctx.currentTime);
+    }
+
     function prove2(x){ return Number(x).toFixed(2); }
   }
 
@@ -1084,6 +1426,40 @@
     reverbWet = ctx.createGain();
 
     limiter = ctx.createDynamicsCompressor();
+
+    // Create delay nodes
+    delayNode = ctx.createDelay(3.0);
+    delayDry = ctx.createGain();
+    delayWet = ctx.createGain();
+    delayFb = ctx.createGain();
+
+    // Create phaser nodes
+    const numPhaserStages = 8; // Max stages, we'll use subset based on setting
+    phaserFilters = [];
+    phaserLFOGains = [];
+    phaserLFO = ctx.createOscillator();
+    phaserLFO.type = 'sine';
+    phaserLFO.start();
+
+    for (let i = 0; i < numPhaserStages; i++) {
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'allpass';
+      filter.frequency.value = 1000;
+      filter.Q.value = 0.5;
+      phaserFilters.push(filter);
+
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = 1500;
+      phaserLFO.connect(lfoGain);
+      lfoGain.connect(filter.frequency);
+      phaserLFOGains.push(lfoGain);
+    }
+
+    phaserDry = ctx.createGain();
+    phaserWet = ctx.createGain();
+    phaserFb = ctx.createGain();
+    phaserInput = ctx.createGain();
+    phaserOutput = ctx.createGain();
 
     masterGain = ctx.createGain();
     masterGain.gain.value = Number($('#masterGain').value);
@@ -1391,7 +1767,7 @@
   });
 
   // FX controls
-  const fxRoutingInputs = ['fxFilterOn','fxChorusOn','fxReverbOn','fxLimiterOn'];
+  const fxRoutingInputs = ['fxFilterOn','fxChorusOn','fxReverbOn','fxLimiterOn','fxDelayOn','fxPhaserOn'];
   for (const id of fxRoutingInputs){
     $('#'+id).addEventListener('change', () => {
       if (!ctx) return;
@@ -1403,7 +1779,9 @@
     'fxFilterType','fxFilterFreq','fxFilterQ',
     'fxChorusMode','fxChorusRate','fxChorusDepth','fxChorusMix','fxChorusFb',
     'fxReverbDecay','fxReverbMix',
-    'fxLimiterThr','fxLimiterRel'
+    'fxLimiterThr','fxLimiterRel',
+    'fxDelayTime','fxDelayFb','fxDelayMix',
+    'fxPhaserRate','fxPhaserDepth','fxPhaserStages','fxPhaserFb','fxPhaserMix'
   ];
   for (const id of fxParamInputs){
     $('#'+id).addEventListener('input', () => {
@@ -1559,6 +1937,13 @@
   $('#fxReverbMixVal').textContent = Number($('#fxReverbMix').value).toFixed(2);
   $('#fxLimiterThrVal').textContent = Number($('#fxLimiterThr').value).toFixed(1);
   $('#fxLimiterRelVal').textContent = Number($('#fxLimiterRel').value).toFixed(2);
+  $('#fxDelayTimeVal').textContent = Number($('#fxDelayTime').value).toFixed(2);
+  $('#fxDelayFbVal').textContent = Number($('#fxDelayFb').value).toFixed(2);
+  $('#fxDelayMixVal').textContent = Number($('#fxDelayMix').value).toFixed(2);
+  $('#fxPhaserRateVal').textContent = Number($('#fxPhaserRate').value).toFixed(2);
+  $('#fxPhaserDepthVal').textContent = Number($('#fxPhaserDepth').value).toFixed(2);
+  $('#fxPhaserFbVal').textContent = Number($('#fxPhaserFb').value).toFixed(2);
+  $('#fxPhaserMixVal').textContent = Number($('#fxPhaserMix').value).toFixed(2);
 
 })();
 </script>
