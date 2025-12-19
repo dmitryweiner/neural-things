@@ -388,8 +388,6 @@
       this.ksBuf = null; this.ksIdx = 0; this.ksN = 0;
       this.nlp = 0;
 
-      this.bcHold = 0; this.bcCount = 0;
-
       // Pink noise state (Paul Kellet's approximation)
       this.pinkB0 = 0; this.pinkB1 = 0; this.pinkB2 = 0;
       this.pinkB3 = 0; this.pinkB4 = 0; this.pinkB5 = 0; this.pinkB6 = 0;
@@ -444,7 +442,7 @@
           this.t = 0; this.phase = 0;
           this.logi = 0.33;
           this.lx = 0.1; this.ly = 0.0; this.lz = 0.0;
-          this.nlp = 0; this.bcHold = 0; this.bcCount = 0;
+          this.nlp = 0;
           this._initKS(true);
           // Reset pink noise
           this.pinkB0 = 0; this.pinkB1 = 0; this.pinkB2 = 0;
@@ -485,13 +483,11 @@
       let logi = this.logi;
       let lx = this.lx, ly = this.ly, lz = this.lz;
       let nlp = this.nlp;
-      let bcHold = this.bcHold, bcCount = this.bcCount;
 
       for (let i=0;i<n;i++){
         let x = 0;
         switch(this.formula){
           case 'fm': x = Math.sin(twoPi*p.fc*t + (p.I)*Math.sin(twoPi*p.fm*t)); break;
-          case 'am': x = Math.sin(twoPi*p.f1*t) * Math.sin(twoPi*p.f2*t); break;
           case 'logistic': {
             const step = Math.max(1, Math.floor(sr / Math.max(1e-3, p.lfoHz)));
             if ((i % step) === 0){ logi = (p.r) * logi * (1 - logi); logi = this.clamp(logi,0,1); }
@@ -558,21 +554,6 @@
             buf[idx] = next;
             this.ksIdx = (idx + 1) % N;
             x = y0;
-            break;
-          }
-          case 'bitcrush': {
-            const f = Math.max(0, p.bcFreq);
-            phase += twoPi * (f / sr);
-            const raw = Math.sin(phase);
-            const down = Math.max(1, Math.floor(p.bcDown));
-            if (bcCount <= 0) {
-              bcCount = down;
-              const bits = this.clamp(Math.floor(p.bcBits), 1, 16);
-              const levels = Math.pow(2, bits - 1);
-              bcHold = Math.round(raw * levels) / levels;
-            }
-            bcCount--;
-            x = bcHold;
             break;
           }
           case 'noiselp': {
@@ -679,7 +660,7 @@
 
       this.phase = phase; this.t = t; this.logi = logi;
       this.lx = lx; this.ly = ly; this.lz = lz;
-      this.nlp = nlp; this.bcHold = bcHold; this.bcCount = bcCount;
+      this.nlp = nlp;
       return true;
     }
   }
@@ -735,64 +716,12 @@
 
   // ---------- UI schema ----------
   const FORMULAS = [
-    { id:'fm', title:'FM-синус', tag:'FM', desc:'sin(2π f_c t + I sin(2π f_m t))',
-      sliders:[
-        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.15},
-        {k:'fc', name:'f_c (Hz)', min:20, max:2000, step:1, value:220},
-        {k:'fm', name:'f_m (Hz)', min:0.1, max:60, step:0.1, value:2.0},
-        {k:'I', name:'Index I', min:0, max:20, step:0.01, value:3.0},
-      ]},
-    { id:'am', title:'AM / биения', tag:'AM', desc:'sin(2π f1 t)·sin(2π f2 t)',
-      sliders:[
-        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.15},
-        {k:'f1', name:'f1 (Hz)', min:20, max:2000, step:1, value:220},
-        {k:'f2', name:'f2 (Hz)', min:20, max:2000, step:1, value:221},
-      ]},
-    { id:'logistic', title:'Логистическое отображение', tag:'Chaos', desc:'xₙ₊₁ = r xₙ(1−xₙ)',
-      sliders:[
-        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
-        {k:'base', name:'Base f (Hz)', min:20, max:800, step:1, value:110},
-        {k:'depth', name:'Depth (Hz)', min:0, max:1200, step:1, value:330},
-        {k:'r', name:'r', min:2.8, max:4.0, step:0.0001, value:3.86},
-        {k:'lfoHz', name:'Update rate (Hz)', min:1, max:400, step:1, value:40},
-      ]},
-    { id:'gliss', title:'Экспоненциальный глиссандо', tag:'Gliss', desc:'f(t)=f0·e^{k t}', hasReset:true,
-      sliders:[
-        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
-        {k:'f0', name:'f0 (Hz)', min:10, max:400, step:1, value:55},
-        {k:'k', name:'k', min:-2.0, max:2.0, step:0.001, value:0.15},
-      ]},
     { id:'additive', title:'Сумма гармоник', tag:'Additive', desc:'Σ aₙ(t) sin(2π n f t)',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
         {k:'fund', name:'Fund (Hz)', min:20, max:500, step:1, value:110},
         {k:'N', name:'Harmonics N', min:1, max:40, step:1, value:12},
         {k:'move', name:'Move (Hz)', min:0.01, max:5, step:0.01, value:0.35},
-      ]},
-    { id:'pm', title:'Фазовая модуляция', tag:'PM', desc:'sin(2π f t + 5·sin(sin(2π f2 t)))', hasReset:true,
-      sliders:[
-        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
-        {k:'f', name:'f (Hz)', min:20, max:2000, step:1, value:220},
-        {k:'f2pm', name:'f2 (Hz)', min:0.1, max:40, step:0.1, value:3},
-      ]},
-    { id:'beats', title:'Два синуса (биения)', tag:'Beats', desc:'sin(2π f t)+sin(2π(f+Δf)t)',
-      sliders:[
-        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
-        {k:'fbeat', name:'f (Hz)', min:20, max:2000, step:1, value:220},
-        {k:'df', name:'Δf (Hz)', min:0, max:20, step:0.01, value:0.8},
-      ]},
-    { id:'dist', title:'Нелинейная сатурация', tag:'tanh', desc:'tanh(α·sin(2π f t))',
-      sliders:[
-        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
-        {k:'fd', name:'f (Hz)', min:20, max:2000, step:1, value:110},
-        {k:'alpha', name:'α', min:0, max:10, step:0.01, value:3.0},
-      ]},
-    { id:'quasi', title:'Квазислучайный LFO', tag:'Quasi', desc:'f(t)=fq + Aq·sin(sin(sin(w·t)))', hasReset:true,
-      sliders:[
-        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
-        {k:'fq', name:'Base f (Hz)', min:20, max:500, step:1, value:120},
-        {k:'Aq', name:'Depth (Hz)', min:0, max:1200, step:1, value:220},
-        {k:'wq', name:'w', min:0.05, max:6, step:0.01, value:0.8},
       ]},
     { id:'lorenz', title:'Аттрактор Лоренца', tag:'Lorenz', desc:'Lorenz ODE mapped to freq/amp', hasReset:true,
       sliders:[
@@ -804,19 +733,75 @@
         {k:'lFreqScale', name:'Freq scale', min:0, max:200, step:0.1, value:40},
         {k:'lAmp', name:'Amp scale', min:0, max:1, step:0.001, value:0.25},
       ]},
+    { id:'rossler', title:'Аттрактор Рёсслера', tag:'Chaos', desc:'dx=-y-z, dy=x+ay, dz=b+z(x-c)', hasReset:true,
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
+        {k:'rossA', name:'a', min:0.01, max:0.5, step:0.001, value:0.2},
+        {k:'rossB', name:'b', min:0.01, max:0.5, step:0.001, value:0.2},
+        {k:'rossC', name:'c', min:2, max:12, step:0.01, value:5.7},
+        {k:'rossBase', name:'Base f (Hz)', min:20, max:400, step:1, value:120},
+        {k:'rossFreqScale', name:'Freq scale', min:0, max:100, step:0.1, value:30},
+        {k:'rossAmp', name:'Amp scale', min:0, max:1, step:0.001, value:0.25},
+      ]},
+    { id:'gliss', title:'Экспоненциальный глиссандо', tag:'Gliss', desc:'f(t)=f0·e^{k t}', hasReset:true,
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
+        {k:'f0', name:'f0 (Hz)', min:10, max:400, step:1, value:55},
+        {k:'k', name:'k', min:-2.0, max:2.0, step:0.001, value:0.15},
+      ]},
+    { id:'shepard', title:'Тон Шепарда', tag:'Illusion', desc:'Иллюзия бесконечного подъёма', hasReset:true,
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
+        {k:'shepBase', name:'Base f (Hz)', min:20, max:200, step:1, value:55},
+        {k:'shepSpeed', name:'Speed', min:-0.5, max:0.5, step:0.001, value:0.1},
+        {k:'shepOctaves', name:'Octaves', min:3, max:10, step:1, value:6},
+      ]},
+    { id:'fm', title:'FM-синус', tag:'FM', desc:'sin(2π f_c t + I sin(2π f_m t))',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.15},
+        {k:'fc', name:'f_c (Hz)', min:20, max:2000, step:1, value:220},
+        {k:'fm', name:'f_m (Hz)', min:0.1, max:60, step:0.1, value:2.0},
+        {k:'I', name:'Index I', min:0, max:20, step:0.01, value:3.0},
+      ]},
+    { id:'beats', title:'Два синуса (биения)', tag:'Beats', desc:'sin(2π f t)+sin(2π(f+Δf)t)',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
+        {k:'fbeat', name:'f (Hz)', min:20, max:2000, step:1, value:220},
+        {k:'df', name:'Δf (Hz)', min:0, max:20, step:0.01, value:0.8},
+      ]},
+    { id:'pm', title:'Фазовая модуляция', tag:'PM', desc:'sin(2π f t + 5·sin(sin(2π f2 t)))', hasReset:true,
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
+        {k:'f', name:'f (Hz)', min:20, max:2000, step:1, value:220},
+        {k:'f2pm', name:'f2 (Hz)', min:0.1, max:40, step:0.1, value:3},
+      ]},
+    { id:'quasi', title:'Квазислучайный LFO', tag:'Quasi', desc:'f(t)=fq + Aq·sin(sin(sin(w·t)))', hasReset:true,
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
+        {k:'fq', name:'Base f (Hz)', min:20, max:500, step:1, value:120},
+        {k:'Aq', name:'Depth (Hz)', min:0, max:1200, step:1, value:220},
+        {k:'wq', name:'w', min:0.05, max:6, step:0.01, value:0.8},
+      ]},
+    { id:'logistic', title:'Логистическое отображение', tag:'Chaos', desc:'xₙ₊₁ = r xₙ(1−xₙ)',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
+        {k:'base', name:'Base f (Hz)', min:20, max:800, step:1, value:110},
+        {k:'depth', name:'Depth (Hz)', min:0, max:1200, step:1, value:330},
+        {k:'r', name:'r', min:2.8, max:4.0, step:0.0001, value:3.86},
+        {k:'lfoHz', name:'Update rate (Hz)', min:1, max:400, step:1, value:40},
+      ]},
+    { id:'dist', title:'Нелинейная сатурация', tag:'tanh', desc:'tanh(α·sin(2π f t))',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
+        {k:'fd', name:'f (Hz)', min:20, max:2000, step:1, value:110},
+        {k:'alpha', name:'α', min:0, max:10, step:0.01, value:3.0},
+      ]},
     { id:'karplus', title:'Karplus–Strong (струна)', tag:'KS', desc:'noise-in-delay + averaging + damping', hasReset:true,
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.14},
         {k:'ksFreq', name:'Freq (Hz)', min:40, max:880, step:1, value:110},
         {k:'ksDamp', name:'Damping', min:0.90, max:0.9999, step:0.0001, value:0.985},
         {k:'ksBright', name:'Brightness', min:0, max:1, step:0.001, value:0.5},
-      ]},
-    { id:'bitcrush', title:'Bitcrusher / Downsample', tag:'LoFi', desc:'bit depth + sample hold',
-      sliders:[
-        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
-        {k:'bcFreq', name:'Input f (Hz)', min:20, max:2000, step:1, value:220},
-        {k:'bcBits', name:'Bits', min:1, max:16, step:1, value:6},
-        {k:'bcDown', name:'Downsample', min:1, max:64, step:1, value:8},
       ]},
     { id:'noiselp', title:'Noise → Low-pass', tag:'Noise', desc:'white noise → 1-pole LP',
       sliders:[
@@ -837,23 +822,6 @@
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'velvetDensity', name:'Density (imp/s)', min:100, max:10000, step:10, value:2000},
-      ]},
-    { id:'rossler', title:'Аттрактор Рёсслера', tag:'Chaos', desc:'dx=-y-z, dy=x+ay, dz=b+z(x-c)', hasReset:true,
-      sliders:[
-        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
-        {k:'rossA', name:'a', min:0.01, max:0.5, step:0.001, value:0.2},
-        {k:'rossB', name:'b', min:0.01, max:0.5, step:0.001, value:0.2},
-        {k:'rossC', name:'c', min:2, max:12, step:0.01, value:5.7},
-        {k:'rossBase', name:'Base f (Hz)', min:20, max:400, step:1, value:120},
-        {k:'rossFreqScale', name:'Freq scale', min:0, max:100, step:0.1, value:30},
-        {k:'rossAmp', name:'Amp scale', min:0, max:1, step:0.001, value:0.25},
-      ]},
-    { id:'shepard', title:'Тон Шепарда', tag:'Illusion', desc:'Иллюзия бесконечного подъёма', hasReset:true,
-      sliders:[
-        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
-        {k:'shepBase', name:'Base f (Hz)', min:20, max:200, step:1, value:55},
-        {k:'shepSpeed', name:'Speed', min:-0.5, max:0.5, step:0.001, value:0.1},
-        {k:'shepOctaves', name:'Octaves', min:3, max:10, step:1, value:6},
       ]},
   ];
 
