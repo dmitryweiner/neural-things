@@ -35,6 +35,10 @@
       font-weight:650;
       cursor:pointer;
     }
+    .collapseBtn.active{
+      background:#1d3557;
+      border-color:#3d5a80;
+    }
 
     .pill {
       padding:6px 10px;
@@ -46,34 +50,8 @@
       white-space: nowrap;
     }
 
-    .meter {
-      display:flex; align-items:center; gap:10px;
-      padding:6px 10px; border-radius:999px;
-      background:#0f1b29; border:1px solid #1d2a3a;
-      font-size:12px; color:#bcd0e6;
-    }
-    .lamp{
-      width:10px; height:10px; border-radius:50%;
-      border:1px solid #1d2a3a;
-      background:#1a2330;
-      box-shadow: inset 0 0 0 2px rgba(0,0,0,.35);
-    }
-    .lamp.on{
-      background:#ff3b30;
-      box-shadow: 0 0 10px rgba(255,59,48,.65);
-      border-color: rgba(255,59,48,.65);
-    }
-    .meter b{ color:#e8eef6; font-weight: 700; }
-
     .topgrid{
-      display:grid;
-      grid-template-columns: 1fr 340px;
-      gap: 12px;
-      align-items: start;
       margin-top: 10px;
-    }
-    @media (max-width: 980px){
-      .topgrid{ grid-template-columns: 1fr; }
     }
 
     .scopeWrap{
@@ -113,7 +91,11 @@
       background:#0b1119;
       display:none;
     }
-    .effectsPanel.open{ display:block; }
+    .effectsPanel.open{
+      display:block;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
     .effectsGrid{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -177,13 +159,6 @@
 
     <span class="pill" id="status">Status: not started</span>
 
-    <span class="meter">
-      <span class="lamp" id="clipLamp" title="CLIP"></span>
-      <b>CLIP</b>
-      <span>RMS:</span>
-      <span id="rmsVal">—</span>
-    </span>
-
     <button id="effectsBtn" class="collapseBtn" type="button">Effects ▾</button>
   </div>
 
@@ -204,10 +179,6 @@
           <div class="small" id="masterGainVal">0.25</div>
         </div>
       </div>
-    </div>
-
-    <div>
-      <!-- специально пусто/минимально, чтобы на мобиле не “съедать” экран -->
     </div>
   </div>
 
@@ -316,6 +287,9 @@
 <main>
   <section class="card">
     <h2>Формулы (можно включать одновременно)</h2>
+    <div class="row" style="margin-bottom:10px;">
+      <button id="disableAllBtn" class="collapseBtn" type="button">Выключить все</button>
+    </div>
     <div id="formulas"></div>
   </section>
 </main>
@@ -535,7 +509,7 @@
         {k:'r', name:'r', min:2.8, max:4.0, step:0.0001, value:3.86},
         {k:'lfoHz', name:'Update rate (Hz)', min:1, max:400, step:1, value:40},
       ]},
-    { id:'gliss', title:'Экспоненциальный глиссандо', tag:'Gliss', desc:'f(t)=f0·e^{k t}',
+    { id:'gliss', title:'Экспоненциальный глиссандо', tag:'Gliss', desc:'f(t)=f0·e^{k t}', hasReset:true,
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'f0', name:'f0 (Hz)', min:10, max:400, step:1, value:55},
@@ -548,7 +522,7 @@
         {k:'N', name:'Harmonics N', min:1, max:40, step:1, value:12},
         {k:'move', name:'Move (Hz)', min:0.01, max:5, step:0.01, value:0.35},
       ]},
-    { id:'pm', title:'Фазовая модуляция', tag:'PM', desc:'sin(2π f t + 5·sin(sin(2π f2 t)))',
+    { id:'pm', title:'Фазовая модуляция', tag:'PM', desc:'sin(2π f t + 5·sin(sin(2π f2 t)))', hasReset:true,
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
         {k:'f', name:'f (Hz)', min:20, max:2000, step:1, value:220},
@@ -566,14 +540,14 @@
         {k:'fd', name:'f (Hz)', min:20, max:2000, step:1, value:110},
         {k:'alpha', name:'α', min:0, max:10, step:0.01, value:3.0},
       ]},
-    { id:'quasi', title:'Квазислучайный LFO', tag:'Quasi', desc:'f(t)=fq + Aq·sin(sin(sin(w·t)))',
+    { id:'quasi', title:'Квазислучайный LFO', tag:'Quasi', desc:'f(t)=fq + Aq·sin(sin(sin(w·t)))', hasReset:true,
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'fq', name:'Base f (Hz)', min:20, max:500, step:1, value:120},
         {k:'Aq', name:'Depth (Hz)', min:0, max:1200, step:1, value:220},
         {k:'wq', name:'w', min:0.05, max:6, step:0.01, value:0.8},
       ]},
-    { id:'lorenz', title:'Аттрактор Лоренца', tag:'Lorenz', desc:'Lorenz ODE mapped to freq/amp',
+    { id:'lorenz', title:'Аттрактор Лоренца', tag:'Lorenz', desc:'Lorenz ODE mapped to freq/amp', hasReset:true,
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'sigma', name:'σ', min:0, max:30, step:0.01, value:10},
@@ -583,7 +557,7 @@
         {k:'lFreqScale', name:'Freq scale', min:0, max:200, step:0.1, value:40},
         {k:'lAmp', name:'Amp scale', min:0, max:1, step:0.001, value:0.25},
       ]},
-    { id:'karplus', title:'Karplus–Strong (струна)', tag:'KS', desc:'noise-in-delay + averaging + damping',
+    { id:'karplus', title:'Karplus–Strong (струна)', tag:'KS', desc:'noise-in-delay + averaging + damping', hasReset:true,
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.14},
         {k:'ksFreq', name:'Freq (Hz)', min:40, max:880, step:1, value:110},
@@ -637,6 +611,12 @@
     const wrap = document.createElement('div');
     wrap.className = 'formula';
 
+    const resetHtml = f.hasReset ? `
+        <div class="sep"></div>
+        <div class="row">
+          <button id="reset_${f.id}" disabled>Reset state</button>
+        </div>` : '';
+
     wrap.innerHTML = `
       <div class="fhead">
         <div>
@@ -653,11 +633,7 @@
       </div>
 
       <div class="fbody" id="body_${f.id}">
-        <div id="sl_${f.id}"></div>
-        <div class="sep"></div>
-        <div class="row">
-          <button id="reset_${f.id}" disabled>Reset state</button>
-        </div>
+        <div id="sl_${f.id}"></div>${resetHtml}
       </div>
     `;
     formulasRoot.appendChild(wrap);
@@ -741,6 +717,7 @@
     const open = !!fx.panelOpen;
     $('#effectsPanel').classList.toggle('open', open);
     $('#effectsBtn').textContent = open ? 'Effects ▴' : 'Effects ▾';
+    $('#effectsBtn').classList.toggle('active', open);
 
     $('#fxFilterFreqVal').textContent = $('#fxFilterFreq').value;
     $('#fxFilterQVal').textContent = Number($('#fxFilterQ').value).toFixed(1);
@@ -1033,7 +1010,8 @@
       const gain = Number($(`#${f.id}_gain`).value);
       st.params.gain = gain;
       st.g.gain.setTargetAtTime(on ? gain : 0, now, 0.02);
-      $(`#reset_${f.id}`).disabled = !on;
+      const resetBtn = $(`#reset_${f.id}`);
+      if (resetBtn) resetBtn.disabled = !on;
     }
 
     $('#status').textContent = 'Status: running';
@@ -1073,17 +1051,13 @@
       $('#startBtn').disabled = false;
       $('#recBtn').disabled = true;
       $('#recBtn').textContent = 'Record WAV';
-
-      $('#rmsVal').textContent = '—';
-      $('#clipLamp').classList.remove('on');
     }, 80);
   }
 
-  // ---------- Scope + meter (no “Scope:” pill) ----------
+  // ---------- Scope ----------
   const canvas = $('#scope');
   const c2d = canvas.getContext('2d');
   let scopeAutoGain = 1.0;
-  let clipUntil = 0;
 
   function resizeCanvas(){
     const dpr = window.devicePixelRatio || 1;
@@ -1104,22 +1078,12 @@
       analyser.getByteTimeDomainData(buf);
 
       let peak = 1e-4;
-      let sumSq = 0;
 
       for (let i=0;i<buf.length;i++){
         const v = (buf[i] - 128) / 128;
         const a = Math.abs(v);
         if (a > peak) peak = a;
-        sumSq += v*v;
       }
-
-      const rms = Math.sqrt(sumSq / buf.length);
-      const rmsDb = 20 * Math.log10(Math.max(1e-9, rms));
-      $('#rmsVal').textContent = `${rmsDb.toFixed(1)} dBFS`;
-
-      const nowMs = performance.now();
-      if (peak >= 0.98) clipUntil = nowMs + 300;
-      $('#clipLamp').classList.toggle('on', nowMs < clipUntil);
 
       // auto Y scale
       let target = 0.85 / peak;
@@ -1283,6 +1247,22 @@
   $('#stopBtn').addEventListener('click', stopAudio);
   $('#recBtn').addEventListener('click', toggleRecording);
 
+  // Disable all formulas
+  $('#disableAllBtn').addEventListener('click', () => {
+    for (const f of FORMULAS) {
+      const en = $(`#en_${f.id}`);
+      en.checked = false;
+      if (ctx) {
+        const st = nodes.get(f.id);
+        if (st) {
+          st.g.gain.setTargetAtTime(0, ctx.currentTime, 0.02);
+        }
+        const resetBtn = $(`#reset_${f.id}`);
+        if (resetBtn) resetBtn.disabled = true;
+      }
+    }
+  });
+
   $('#masterGain').addEventListener('input', (e)=>{
     const v = Number(e.target.value);
     $('#masterGainVal').textContent = v.toFixed(3);
@@ -1295,7 +1275,10 @@
     const open = !effectsPanel.classList.contains('open');
     effectsPanel.classList.toggle('open', open);
     $('#effectsBtn').textContent = open ? 'Effects ▴' : 'Effects ▾';
-    resizeCanvas();
+    $('#effectsBtn').classList.toggle('active', open);
+    // Hide scope when effects are open, show when closed
+    setScopeCollapsed(open);
+    if (!open) resizeCanvas();
   });
 
   // FX controls
@@ -1396,7 +1379,8 @@
 
       const gain = Number($(`#${f.id}_gain`).value);
       st.g.gain.setTargetAtTime(enabled ? gain : 0, now, 0.02);
-      $(`#reset_${f.id}`).disabled = !enabled;
+      const resetBtn = $(`#reset_${f.id}`);
+      if (resetBtn) resetBtn.disabled = !enabled;
     }
   }
 
@@ -1422,13 +1406,15 @@
       const now = ctx.currentTime;
       const gain = Number(document.getElementById(`${f.id}_gain`).value);
       st.g.gain.setTargetAtTime(on ? gain : 0, now, 0.02);
-      resetBtn.disabled = !on;
+      if (resetBtn) resetBtn.disabled = !on;
     });
 
-    resetBtn.addEventListener('click', () => {
-      if (!ctx) return;
-      nodes.get(f.id)?.aw.port.postMessage({type:'reset'});
-    });
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        if (!ctx) return;
+        nodes.get(f.id)?.aw.port.postMessage({type:'reset'});
+      });
+    }
 
     for (const s of f.sliders){
       const slider = document.getElementById(`${f.id}_${s.k}`);
