@@ -493,6 +493,44 @@
   }
 
   registerProcessor('formula-generator', FormulaGeneratorProcessor);
+
+  // ---- Recorder Processor: captures raw PCM samples ----
+  class RecorderProcessor extends AudioWorkletProcessor {
+    constructor() {
+      super();
+      this.recording = false;
+      this.chunks = [];
+      
+      this.port.onmessage = (e) => {
+        if (e.data.type === 'start') {
+          this.recording = true;
+          this.chunks = [];
+        } else if (e.data.type === 'stop') {
+          this.recording = false;
+          // Send all collected samples back
+          const totalLength = this.chunks.reduce((acc, c) => acc + c.length, 0);
+          const result = new Float32Array(totalLength);
+          let offset = 0;
+          for (const chunk of this.chunks) {
+            result.set(chunk, offset);
+            offset += chunk.length;
+          }
+          this.port.postMessage({ type: 'data', samples: result });
+          this.chunks = [];
+        }
+      };
+    }
+    
+    process(inputs) {
+      if (this.recording && inputs[0] && inputs[0][0]) {
+        // Copy the input samples
+        this.chunks.push(new Float32Array(inputs[0][0]));
+      }
+      return true;
+    }
+  }
+  
+  registerProcessor('recorder-processor', RecorderProcessor);
   `;
 
   // ---------- UI schema ----------
@@ -803,12 +841,59 @@
 
   let limiter = null;
 
-  // MediaRecorder (mobile-friendly)
-  let mediaDest = null;
-  let mediaRecorder = null;
-  let mediaChunks = [];
+  // WAV Recording
+  let recorderNode = null;
+  let isRecording = false;
   let downloadUrl = null;
   let scopeRAF = null;
+
+  // Encode Float32Array to WAV Blob
+  function encodeWAV(samples, sampleRate) {
+    const numChannels = 1;
+    const bitsPerSample = 16;
+    const bytesPerSample = bitsPerSample / 8;
+    const blockAlign = numChannels * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = samples.length * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    // RIFF header
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(view, 8, 'WAVE');
+
+    // fmt chunk
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true); // chunk size
+    view.setUint16(20, 1, true);  // PCM format
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitsPerSample, true);
+
+    // data chunk
+    writeString(view, 36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    // Convert float samples to 16-bit PCM
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++) {
+      let s = Math.max(-1, Math.min(1, samples[i]));
+      s = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      view.setInt16(offset, s, true);
+      offset += 2;
+    }
+
+    return new Blob([buffer], { type: 'audio/wav' });
+
+    function writeString(view, offset, str) {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+      }
+    }
+  }
 
   const nodes = new Map(); // id -> {aw, g, params}
 
@@ -984,9 +1069,9 @@
     masterGain = ctx.createGain();
     masterGain.gain.value = Number($('#masterGain').value);
 
-    // destination for MediaRecorder (mobile-friendly)
-    mediaDest = ctx.createMediaStreamDestination();
-    masterGain.connect(mediaDest);
+    // Create recorder node for WAV recording
+    recorderNode = new AudioWorkletNode(ctx, 'recorder-processor');
+    masterGain.connect(recorderNode);
 
     setFXEnabled();
     updateFXParams();
@@ -1038,9 +1123,10 @@
     cleanupDownloadUrl();
 
     // stop recording if active
-    try {
-      if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
-    } catch {}
+    if (isRecording && recorderNode) {
+      recorderNode.port.postMessage({ type: 'stop' });
+      isRecording = false;
+    }
 
     cancelAnimationFrame(scopeRAF);
     scopeRAF = null;
@@ -1054,6 +1140,7 @@
       ctx = null;
       nodes.clear();
       analyser = null;
+      recorderNode = null;
 
       $('#status').textContent = 'Status: stopped';
       $('#stopBtn').disabled = true;
@@ -1137,20 +1224,7 @@
     draw();
   }
 
-  // ---------- MediaRecorder helpers ----------
-  function pickRecorderMimeType(){
-    const candidates = [
-      'audio/webm;codecs=opus',
-      'audio/webm',
-      'audio/ogg;codecs=opus',
-      'audio/ogg',
-    ];
-    for (const t of candidates){
-      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) return t;
-    }
-    return ''; // let browser choose
-  }
-
+  // ---------- WAV Recording ----------
   function cleanupDownloadUrl(){
     if (downloadUrl){
       URL.revokeObjectURL(downloadUrl);
@@ -1159,101 +1233,81 @@
   }
 
   async function toggleRecording(){
-    if (!ctx || !mediaDest){
+    if (!ctx || !recorderNode){
       $('#status').textContent = 'Status: start audio first';
       return;
     }
 
-    // START
-    if (!mediaRecorder || mediaRecorder.state === 'inactive'){
+    const recBtn = $('#recBtn');
+
+    // START recording
+    if (!isRecording){
       cleanupDownloadUrl();
-      mediaChunks = [];
+      isRecording = true;
 
-      const mimeType = pickRecorderMimeType();
-      try {
-        mediaRecorder = mimeType
-          ? new MediaRecorder(mediaDest.stream, { mimeType })
-          : new MediaRecorder(mediaDest.stream);
+      recBtn.textContent = '● REC';
+      recBtn.classList.add('recording');
+      $('#status').textContent = 'Status: recording…';
 
-        mediaRecorder.ondataavailable = (e) => {
-          if (e.data && e.data.size > 0) mediaChunks.push(e.data);
-        };
-
-        // Set recording state immediately (don't wait for onstart which can be delayed on mobile)
-        const recBtn = $('#recBtn');
-        recBtn.textContent = '● REC';
-        recBtn.classList.add('recording');
-        $('#status').textContent = 'Status: recording…';
-
-        // Don't use timeslice - it creates fragmented WebM that some players can't read
-        // Collect all data in one chunk for a valid container
-        mediaRecorder.start();
-      } catch (err){
-        console.error(err);
-        $('#status').textContent = 'Status: recorder init failed';
-      }
+      recorderNode.port.postMessage({ type: 'start' });
       return;
     }
 
-    // STOP
-    if (mediaRecorder.state === 'recording'){
-      const btn = $('#recBtn');
-      btn.disabled = true;
-      btn.classList.remove('recording');
-      $('#status').textContent = 'Status: finalizing…';
+    // STOP recording
+    recBtn.disabled = true;
+    recBtn.classList.remove('recording');
+    $('#status').textContent = 'Status: finalizing…';
 
-      const stopped = new Promise((resolve) => {
-        mediaRecorder.onstop = resolve;
-      });
-
-      mediaRecorder.stop();
-      await stopped;
-
-      btn.disabled = false;
-      btn.textContent = 'Record';
-
-      // Determine the actual MIME type and extension
-      const actualMime = mediaRecorder.mimeType || 'audio/webm';
-      const ext = actualMime.includes('ogg') ? 'ogg' : 'webm';
-      
-      const blob = new Blob(mediaChunks, { type: actualMime });
-      downloadUrl = URL.createObjectURL(blob);
-
-      const name = `formula-audio-${new Date().toISOString().replace(/[:.]/g,'-')}.${ext}`;
-
-      // Try navigator.share() on mobile (works better than auto-download)
-      const canShare = navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], name, { type: actualMime })] });
-      
-      if (canShare) {
-        try {
-          const file = new File([blob], name, { type: actualMime });
-          await navigator.share({
-            files: [file],
-            title: 'Formula Audio Recording'
-          });
-          $('#status').innerHTML = `Status: shared — <a href="${downloadUrl}" download="${name}" style="color:#8ab4ff;">Download</a>`;
-          return;
-        } catch (shareErr) {
-          // User cancelled or share failed, fall through to download
-          if (shareErr.name !== 'AbortError') console.warn('Share failed:', shareErr);
+    // Request samples from recorder
+    const samplesPromise = new Promise((resolve) => {
+      recorderNode.port.onmessage = (e) => {
+        if (e.data.type === 'data') {
+          resolve(e.data.samples);
         }
+      };
+    });
+
+    recorderNode.port.postMessage({ type: 'stop' });
+    const samples = await samplesPromise;
+    isRecording = false;
+
+    recBtn.disabled = false;
+    recBtn.textContent = 'Record';
+
+    // Encode to WAV
+    const blob = encodeWAV(samples, ctx.sampleRate);
+    downloadUrl = URL.createObjectURL(blob);
+
+    const name = `formula-audio-${new Date().toISOString().replace(/[:.]/g,'-')}.wav`;
+
+    // Try navigator.share() on mobile
+    const canShare = navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], name, { type: 'audio/wav' })] });
+    
+    if (canShare) {
+      try {
+        const file = new File([blob], name, { type: 'audio/wav' });
+        await navigator.share({
+          files: [file],
+          title: 'Formula Audio Recording'
+        });
+        $('#status').innerHTML = `Status: shared — <a href="${downloadUrl}" download="${name}" style="color:#8ab4ff;">Download</a>`;
+        return;
+      } catch (shareErr) {
+        if (shareErr.name !== 'AbortError') console.warn('Share failed:', shareErr);
       }
-
-      // Fallback: try auto-download
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = name;
-      a.rel = 'noopener';
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-
-      // Show explicit link in status (important for mobile where auto-download often fails)
-      $('#status').innerHTML = `Status: ready — <a href="${downloadUrl}" download="${name}" style="color:#8ab4ff;">Download</a>`;
-
-      return;
     }
+
+    // Fallback: auto-download
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = name;
+    a.rel = 'noopener';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    $('#status').innerHTML = `Status: ready — <a href="${downloadUrl}" download="${name}" style="color:#8ab4ff;">Download</a>`;
   }
 
   // ---------- Scope collapse ----------
