@@ -1725,6 +1725,7 @@
   function setScopeCollapsed(collapsed){
     scopeWrap.classList.toggle('scopeCollapsed', collapsed);
     scopeToggleBtn.textContent = collapsed ? 'Scope ▸' : 'Scope ▾';
+    scopeToggleBtn.classList.toggle('active', !collapsed);
     // if we collapsed, canvas can be 0 height; on expand, resize so waveform renders crisply
     if (!collapsed) setTimeout(resizeCanvas, 0);
   }
@@ -1926,6 +1927,17 @@
       // Highlight active formula
       const formulaWrap = en.closest('.formula');
       if (formulaWrap) formulaWrap.classList.toggle('active', on);
+      
+      // Auto-expand if enabled and collapsed
+      if (on && body.classList.contains('collapsed')) {
+        body.classList.remove('collapsed');
+        col.textContent = 'Свернуть';
+      }
+      // Auto-collapse if disabled and expanded
+      if (!on && !body.classList.contains('collapsed')) {
+        body.classList.add('collapsed');
+        col.textContent = 'Развернуть';
+      }
     });
 
     if (resetBtn) {
