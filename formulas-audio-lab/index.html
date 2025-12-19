@@ -16,15 +16,40 @@
       border-bottom: 1px solid #1d2a3a;
       padding: 12px 14px;
     }
-    .topbar h1 { margin: 0 0 10px; font-size: 16px; font-weight: 750; }
+    .topbar h1 { margin: 0 0 10px; font-size: 16px; font-weight: 750; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .status-text { font-size: 12px; font-weight: 400; color: #7a8fa6; }
 
     .row { display:flex; gap:10px; flex-wrap: wrap; align-items:center; }
+    .btn-group { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .btn-row { gap: 16px; }
+    @media (max-width: 600px){
+      .btn-row { gap: 10px; }
+      .btn-group { 
+        gap: 6px;
+        padding: 6px 0;
+        border-bottom: 1px solid #1d2a3a;
+        width: 100%;
+      }
+      .btn-group:last-child { border-bottom: none; padding-bottom: 0; }
+    }
 
     button {
       background:#1d3557; color:#fff; border:0; padding:9px 11px;
       border-radius:10px; cursor:pointer; font-weight:650;
     }
     button:disabled { opacity:.5; cursor:not-allowed; }
+
+    #startBtn {
+      background: #27ae60;
+      box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+    }
+    #startBtn:hover:not(:disabled) {
+      background: #2ecc71;
+    }
+    #startBtn:disabled {
+      background: #1d3557;
+      box-shadow: none;
+    }
 
     #recBtn.recording {
       background: #c0392b;
@@ -49,16 +74,6 @@
       border-color:#3d5a80;
     }
 
-    .pill {
-      padding:6px 10px;
-      border-radius:999px;
-      background:#0f1b29;
-      border:1px solid #1d2a3a;
-      font-size:12px;
-      color:#bcd0e6;
-      white-space: nowrap;
-    }
-
     .topgrid{
       margin-top: 10px;
     }
@@ -70,15 +85,6 @@
       padding: 8px;
     }
 
-    .scopeHeader{
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 8px;
-    }
-    .scopeHeader .left { display:flex; align-items:center; gap:10px; }
-    .scopeTitle { font-size: 12px; color:#bcd0e6; }
     canvas { width:100%; height: 120px; display:block; border-radius: 10px; }
 
     .ctrl { display:grid; grid-template-columns: 130px 1fr 70px; gap: 10px; align-items: center; margin-top: 8px;}
@@ -131,23 +137,27 @@
     }
     .card h2 { margin:0 0 10px; font-size:14px; color:#d9e7ff;}
 
-    .formula { border-top:1px solid #1d2a3a; padding-top: 12px; margin-top: 12px; }
+    .formula { border-top:1px solid #1d2a3a; padding-top: 12px; margin-top: 12px; transition: border-color 0.2s, background 0.2s; }
     .formula:first-child { border-top:0; padding-top:0; margin-top:0; }
+    .formula.active { 
+      border-left: 3px solid #27ae60; 
+      padding-left: 12px; 
+      margin-left: -12px;
+      background: rgba(39, 174, 96, 0.05);
+    }
+    .formula:first-child.active { margin-left: -12px; }
     .fhead { display:flex; justify-content: space-between; gap: 10px; align-items: baseline; }
     .fhead h3 { margin:0; font-size: 13px; display:flex; align-items:center; gap:10px; }
-    .tag { font-size: 11px; color:#bcd0e6; background:#0f1b29; border:1px solid #1d2a3a; padding:3px 8px; border-radius: 999px; }
     .factions{ display:flex; gap: 8px; align-items:center; flex-wrap:wrap; }
     .fbody{ margin-top: 10px; }
     .fbody.collapsed{ display:none; }
 
-    /* Scope collapsing */
-    .scopeArea{ display:block; }
-    .scopeWrap.scopeCollapsed .scopeArea{ display:none; }
+    /* Scope collapsing - hide entire wrapper when collapsed */
+    .scopeWrap.scopeCollapsed { display: none; }
 
     /* Mobile: start with collapsed scope to save height */
     @media (max-width: 600px){
       .scopeWrap{ padding: 8px; }
-      .scopeWrap.scopeCollapsed .scopeArea{ display:none; }
     }
   </style>
 </head>
@@ -155,39 +165,35 @@
 <body>
 
 <section class="topbar">
-  <h1>Formula Audio Lab — формулы как звук</h1>
+  <h1>Formula Audio Lab — формулы как звук <span class="status-text" id="status">not started</span></h1>
 
-  <div class="row">
-    <button id="startBtn">Start Audio</button>
-    <button id="stopBtn" disabled>Stop</button>
-    <button id="recBtn" disabled>Record</button>
+  <div class="row btn-row">
+    <div class="btn-group">
+      <button id="startBtn">Start Audio</button>
+      <button id="stopBtn" disabled>Stop</button>
+      <button id="recBtn" disabled>Record</button>
+    </div>
 
-    <button id="savePresetBtn" class="collapseBtn" type="button">Сохранить пресет</button>
-    <button id="loadPresetBtn" class="collapseBtn" type="button">Загрузить пресет</button>
-    <button id="shareBtn" class="collapseBtn" type="button">Поделиться</button>
+    <div class="btn-group">
+      <button id="savePresetBtn" class="collapseBtn" type="button">Сохранить пресет</button>
+      <button id="loadPresetBtn" class="collapseBtn" type="button">Загрузить пресет</button>
+      <button id="shareBtn" class="collapseBtn" type="button">Поделиться</button>
+    </div>
 
-    <span class="pill" id="status">Status: not started</span>
-
-    <button id="effectsBtn" class="collapseBtn" type="button">Effects ▾</button>
+    <div class="btn-group">
+      <button id="scopeToggleBtn" class="collapseBtn" type="button">Scope ▾</button>
+      <button id="effectsBtn" class="collapseBtn" type="button">Effects ▾</button>
+    </div>
   </div>
 
   <div class="topgrid">
     <div class="scopeWrap" id="scopeWrap">
-      <div class="scopeHeader">
-        <div class="left">
-          <span class="scopeTitle">Oscilloscope</span>
-          <button id="scopeToggleBtn" class="collapseBtn" type="button">Scope ▾</button>
-        </div>
-      </div>
-
-      <div class="scopeArea" id="scopeArea">
-        <canvas id="scope"></canvas>
-        <div class="ctrl">
-          <label>Master volume</label>
-          <input id="masterGain" type="range" min="0" max="1" step="0.001" value="0.25">
-          <div class="small" id="masterGainVal">0.25</div>
-        </div>
-      </div>
+      <canvas id="scope"></canvas>
+    </div>
+    <div class="ctrl" style="margin-top: 10px;">
+      <label>Master volume</label>
+      <input id="masterGain" type="range" min="0" max="1" step="0.001" value="0.25">
+      <div class="small" id="masterGainVal">0.25</div>
     </div>
   </div>
 
@@ -355,8 +361,9 @@
 <main>
   <section class="card">
     <h2>Формулы (можно включать одновременно)</h2>
-    <div class="row" style="margin-bottom:10px;">
+    <div class="row" style="margin-bottom:10px; justify-content: space-between;">
       <button id="disableAllBtn" class="collapseBtn" type="button">Выключить все</button>
+      <button id="collapseAllBtn" class="collapseBtn" type="button">Свернуть все</button>
     </div>
     <div id="formulas"></div>
   </section>
@@ -899,7 +906,6 @@
           <div class="small">${f.desc}</div>
         </div>
         <div class="factions">
-          <span class="tag">${f.tag}</span>
           <button class="collapseBtn" id="col_${f.id}" type="button">Свернуть</button>
         </div>
       </div>
@@ -1031,7 +1037,11 @@
       const st = formulas[f.id];
       if (!st) continue;
 
-      $(`#en_${f.id}`).checked = !!st.enabled;
+      const enEl = $(`#en_${f.id}`);
+      enEl.checked = !!st.enabled;
+      // Update active highlight
+      const formulaWrap = enEl.closest('.formula');
+      if (formulaWrap) formulaWrap.classList.toggle('active', !!st.enabled);
 
       const body = $(`#body_${f.id}`);
       const colBtn = $(`#col_${f.id}`);
@@ -1506,7 +1516,7 @@
       if (resetBtn) resetBtn.disabled = !on;
     }
 
-    $('#status').textContent = 'Status: running';
+    $('#status').textContent = 'running';
     $('#stopBtn').disabled = false;
     $('#startBtn').disabled = true;
     $('#recBtn').disabled = false;
@@ -1540,7 +1550,7 @@
       analyser = null;
       recorderNode = null;
 
-      $('#status').textContent = 'Status: stopped';
+      $('#status').textContent = 'stopped';
       $('#stopBtn').disabled = true;
       $('#startBtn').disabled = false;
       $('#recBtn').disabled = true;
@@ -1632,7 +1642,7 @@
 
   async function toggleRecording(){
     if (!ctx || !recorderNode){
-      $('#status').textContent = 'Status: start audio first';
+      $('#status').textContent = 'start audio first';
       return;
     }
 
@@ -1645,7 +1655,7 @@
 
       recBtn.textContent = '● REC';
       recBtn.classList.add('recording');
-      $('#status').textContent = 'Status: recording…';
+      $('#status').textContent = 'recording…';
 
       recorderNode.port.postMessage({ type: 'start' });
       return;
@@ -1654,7 +1664,7 @@
     // STOP recording
     recBtn.disabled = true;
     recBtn.classList.remove('recording');
-    $('#status').textContent = 'Status: finalizing…';
+    $('#status').textContent = 'finalizing…';
 
     // Request samples from recorder
     const samplesPromise = new Promise((resolve) => {
@@ -1688,7 +1698,7 @@
           files: [file],
           title: 'Formula Audio Recording'
         });
-        $('#status').innerHTML = `Status: shared — <a href="${downloadUrl}" download="${name}" style="color:#8ab4ff;">Download</a>`;
+        $('#status').innerHTML = `shared — <a href="${downloadUrl}" download="${name}" style="color:#8ab4ff;">download</a>`;
         return;
       } catch (shareErr) {
         if (shareErr.name !== 'AbortError') console.warn('Share failed:', shareErr);
@@ -1705,7 +1715,7 @@
     a.click();
     a.remove();
 
-    $('#status').innerHTML = `Status: ready — <a href="${downloadUrl}" download="${name}" style="color:#8ab4ff;">Download</a>`;
+    $('#status').innerHTML = `ready — <a href="${downloadUrl}" download="${name}" style="color:#8ab4ff;">download</a>`;
   }
 
   // ---------- Scope collapse ----------
@@ -1737,6 +1747,9 @@
     for (const f of FORMULAS) {
       const en = $(`#en_${f.id}`);
       en.checked = false;
+      // Remove active highlight
+      const formulaWrap = en.closest('.formula');
+      if (formulaWrap) formulaWrap.classList.remove('active');
       if (ctx) {
         const st = nodes.get(f.id);
         if (st) {
@@ -1746,6 +1759,21 @@
         if (resetBtn) resetBtn.disabled = true;
       }
     }
+  });
+
+  // Collapse/Expand all formulas (toggle)
+  const collapseAllBtn = $('#collapseAllBtn');
+  let allCollapsed = false;
+  
+  collapseAllBtn.addEventListener('click', () => {
+    allCollapsed = !allCollapsed;
+    for (const f of FORMULAS) {
+      const body = $(`#body_${f.id}`);
+      const colBtn = $(`#col_${f.id}`);
+      body.classList.toggle('collapsed', allCollapsed);
+      colBtn.textContent = allCollapsed ? 'Развернуть' : 'Свернуть';
+    }
+    collapseAllBtn.textContent = allCollapsed ? 'Развернуть все' : 'Свернуть все';
   });
 
   $('#masterGain').addEventListener('input', (e)=>{
@@ -1794,19 +1822,19 @@
   $('#savePresetBtn').addEventListener('click', () => {
     const state = readStateFromUI();
     localStorage.setItem(PRESET_KEY, JSON.stringify(state));
-    $('#status').textContent = 'Status: preset saved';
+    $('#status').textContent = 'preset saved';
   });
 
   $('#loadPresetBtn').addEventListener('click', () => {
     const raw = localStorage.getItem(PRESET_KEY);
-    if (!raw) { $('#status').textContent = 'Status: no preset'; return; }
+    if (!raw) { $('#status').textContent = 'no preset'; return; }
     try {
       const state = JSON.parse(raw);
       applyStateToUI(state);
       if (ctx) applyUIToAudioLive();
-      $('#status').textContent = 'Status: preset loaded';
+      $('#status').textContent = 'preset loaded';
     } catch {
-      $('#status').textContent = 'Status: preset parse error';
+      $('#status').textContent = 'preset parse error';
     }
   });
 
@@ -1815,9 +1843,9 @@
     const url = writeStateToURL(state);
     try {
       await navigator.clipboard.writeText(url);
-      $('#status').textContent = 'Status: share link copied';
+      $('#status').textContent = 'link copied';
     } catch {
-      $('#status').textContent = 'Status: share link in URL';
+      $('#status').textContent = 'link in URL';
     }
   });
 
@@ -1894,6 +1922,10 @@
       const gain = Number(document.getElementById(`${f.id}_gain`).value);
       st.g.gain.setTargetAtTime(on ? gain : 0, now, 0.02);
       if (resetBtn) resetBtn.disabled = !on;
+      
+      // Highlight active formula
+      const formulaWrap = en.closest('.formula');
+      if (formulaWrap) formulaWrap.classList.toggle('active', on);
     });
 
     if (resetBtn) {
