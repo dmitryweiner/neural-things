@@ -26,6 +26,15 @@
     }
     button:disabled { opacity:.5; cursor:not-allowed; }
 
+    #recBtn.recording {
+      background: #c0392b;
+      animation: pulse-rec 1s infinite;
+    }
+    @keyframes pulse-rec {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
     .collapseBtn{
       background:#0f1b29;
       border:1px solid #1d2a3a;
@@ -151,7 +160,7 @@
   <div class="row">
     <button id="startBtn">Start Audio</button>
     <button id="stopBtn" disabled>Stop</button>
-    <button id="recBtn" disabled>Record WAV</button>
+    <button id="recBtn" disabled>Record</button>
 
     <button id="savePresetBtn" class="collapseBtn" type="button">Сохранить пресет</button>
     <button id="loadPresetBtn" class="collapseBtn" type="button">Загрузить пресет</button>
@@ -1050,7 +1059,8 @@
       $('#stopBtn').disabled = true;
       $('#startBtn').disabled = false;
       $('#recBtn').disabled = true;
-      $('#recBtn').textContent = 'Record WAV';
+      $('#recBtn').textContent = 'Record';
+      $('#recBtn').classList.remove('recording');
     }, 80);
   }
 
@@ -1169,12 +1179,15 @@
           if (e.data && e.data.size > 0) mediaChunks.push(e.data);
         };
 
-        mediaRecorder.onstart = () => {
-          $('#recBtn').textContent = 'Stop Rec';
-          $('#status').textContent = 'Status: recording…';
-        };
+        // Set recording state immediately (don't wait for onstart which can be delayed on mobile)
+        const recBtn = $('#recBtn');
+        recBtn.textContent = '● REC';
+        recBtn.classList.add('recording');
+        $('#status').textContent = 'Status: recording…';
 
-        mediaRecorder.start(250); // timeslice to avoid huge memory spikes on mobile
+        // Don't use timeslice - it creates fragmented WebM that some players can't read
+        // Collect all data in one chunk for a valid container
+        mediaRecorder.start();
       } catch (err){
         console.error(err);
         $('#status').textContent = 'Status: recorder init failed';
@@ -1186,6 +1199,7 @@
     if (mediaRecorder.state === 'recording'){
       const btn = $('#recBtn');
       btn.disabled = true;
+      btn.classList.remove('recording');
       $('#status').textContent = 'Status: finalizing…';
 
       const stopped = new Promise((resolve) => {
@@ -1196,17 +1210,36 @@
       await stopped;
 
       btn.disabled = false;
-      btn.textContent = 'Record WAV';
+      btn.textContent = 'Record';
 
-      const blob = new Blob(mediaChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      // Determine the actual MIME type and extension
+      const actualMime = mediaRecorder.mimeType || 'audio/webm';
+      const ext = actualMime.includes('ogg') ? 'ogg' : 'webm';
+      
+      const blob = new Blob(mediaChunks, { type: actualMime });
       downloadUrl = URL.createObjectURL(blob);
 
-      // extension based on mimeType
-      const ext = (mediaRecorder.mimeType || '').includes('ogg') ? 'ogg' : 'webm';
       const name = `formula-audio-${new Date().toISOString().replace(/[:.]/g,'-')}.${ext}`;
 
-      // Android Chrome sometimes blocks auto-download after async stop.
-      // So: try auto-click + show explicit "Download" link in status.
+      // Try navigator.share() on mobile (works better than auto-download)
+      const canShare = navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], name, { type: actualMime })] });
+      
+      if (canShare) {
+        try {
+          const file = new File([blob], name, { type: actualMime });
+          await navigator.share({
+            files: [file],
+            title: 'Formula Audio Recording'
+          });
+          $('#status').innerHTML = `Status: shared — <a href="${downloadUrl}" download="${name}" style="color:#8ab4ff;">Download</a>`;
+          return;
+        } catch (shareErr) {
+          // User cancelled or share failed, fall through to download
+          if (shareErr.name !== 'AbortError') console.warn('Share failed:', shareErr);
+        }
+      }
+
+      // Fallback: try auto-download
       const a = document.createElement('a');
       a.href = downloadUrl;
       a.download = name;
@@ -1216,7 +1249,7 @@
       a.click();
       a.remove();
 
-      // Explicit link in status in case auto-download didn't work
+      // Show explicit link in status (important for mobile where auto-download often fails)
       $('#status').innerHTML = `Status: ready — <a href="${downloadUrl}" download="${name}" style="color:#8ab4ff;">Download</a>`;
 
       return;
