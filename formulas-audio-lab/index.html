@@ -507,7 +507,6 @@
           this.chunks = [];
         } else if (e.data.type === 'stop') {
           this.recording = false;
-          // Send all collected samples back
           const totalLength = this.chunks.reduce((acc, c) => acc + c.length, 0);
           const result = new Float32Array(totalLength);
           let offset = 0;
@@ -521,11 +520,20 @@
       };
     }
     
-    process(inputs) {
-      if (this.recording && inputs[0] && inputs[0][0]) {
-        // Copy the input samples
-        this.chunks.push(new Float32Array(inputs[0][0]));
+    process(inputs, outputs) {
+      const input = inputs[0];
+      const output = outputs[0];
+      
+      // Pass through audio (keeps node active in audio graph)
+      if (input && input[0] && output && output[0]) {
+        output[0].set(input[0]);
+        
+        // Record if active
+        if (this.recording) {
+          this.chunks.push(new Float32Array(input[0]));
+        }
       }
+      
       return true;
     }
   }
@@ -976,6 +984,17 @@
     // master -> analyser -> speakers
     node.connect(masterGain);
     masterGain.connect(analyser);
+    
+    // Connect recorder node to masterGain for WAV recording
+    if (recorderNode) {
+      masterGain.connect(recorderNode);
+      // Keep recorder processing with silent output (prevents double audio)
+      try { recorderNode.disconnect(); } catch {}
+      const silentGain = ctx.createGain();
+      silentGain.gain.value = 0;
+      recorderNode.connect(silentGain);
+      silentGain.connect(ctx.destination);
+    }
   }
 
   function updateFXParams(){
@@ -1069,9 +1088,12 @@
     masterGain = ctx.createGain();
     masterGain.gain.value = Number($('#masterGain').value);
 
-    // Create recorder node for WAV recording
-    recorderNode = new AudioWorkletNode(ctx, 'recorder-processor');
-    masterGain.connect(recorderNode);
+    // Create recorder node for WAV recording (connection is done in setFXEnabled)
+    recorderNode = new AudioWorkletNode(ctx, 'recorder-processor', {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      outputChannelCount: [1]
+    });
 
     setFXEnabled();
     updateFXParams();
