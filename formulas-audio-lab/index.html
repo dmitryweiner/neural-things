@@ -322,7 +322,7 @@
 
 <script>
 (async function(){
-  // ---------- AudioWorklet code (generator + recorder tap) ----------
+  // ---------- AudioWorklet code (generator only) ----------
   const workletCode = `
   class FormulaGeneratorProcessor extends AudioWorkletProcessor {
     constructor(options){
@@ -509,38 +509,7 @@
     }
   }
 
-  // Pass-through recorder tap: outputs audio unchanged + streams chunks to main thread when armed
-  class RecorderTapProcessor extends AudioWorkletProcessor {
-    constructor(){
-      super();
-      this.armed = false;
-      this.port.onmessage = (e) => {
-        const msg = e.data || {};
-        if (msg.type === 'arm') this.armed = true;
-        if (msg.type === 'disarm') this.armed = false;
-      };
-    }
-    process(inputs, outputs){
-      const input = inputs[0];
-      const output = outputs[0];
-      if (!input || input.length === 0) return true;
-
-      const in0 = input[0];
-      const out0 = output[0];
-
-      // Copy audio
-      out0.set(in0);
-
-      if (this.armed) {
-        // Send a copy to main thread
-        this.port.postMessage(in0.slice(0));
-      }
-      return true;
-    }
-  }
-
   registerProcessor('formula-generator', FormulaGeneratorProcessor);
-  registerProcessor('recorder-tap', RecorderTapProcessor);
   `;
 
   // ---------- UI schema ----------
@@ -848,11 +817,11 @@
 
   let limiter = null;
 
-  // Recorder
-  let recorderTap = null;
-  let isRecording = false;
-  let recChunks = [];        // Array<Float32Array>
-  let recSampleRate = 44100; // will set from ctx
+  // MediaRecorder (mobile-friendly)
+  let mediaDest = null;
+  let mediaRecorder = null;
+  let mediaChunks = [];
+  let downloadUrl = null;
   let scopeRAF = null;
 
   const nodes = new Map(); // id -> {aw, g, params}
@@ -896,7 +865,6 @@
 
     limiter.disconnect();
     masterGain.disconnect();
-    recorderTap.disconnect();
     analyser.disconnect();
 
     // end
@@ -934,10 +902,9 @@
 
     if (limiterOn) { node.connect(limiter); node = limiter; }
 
-    // master -> recorder tap -> analyser -> destination
+    // master -> analyser -> speakers
     node.connect(masterGain);
-    masterGain.connect(recorderTap);
-    recorderTap.connect(analyser);
+    masterGain.connect(analyser);
   }
 
   function updateFXParams(){
@@ -998,7 +965,6 @@
     if (ctx) return;
 
     ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
-    recSampleRate = ctx.sampleRate;
 
     const url = buildWorkletURL();
     await ctx.audioWorklet.addModule(url);
@@ -1032,17 +998,9 @@
     masterGain = ctx.createGain();
     masterGain.gain.value = Number($('#masterGain').value);
 
-    recorderTap = new AudioWorkletNode(ctx, 'recorder-tap', {
-      numberOfInputs: 1,
-      numberOfOutputs: 1,
-      outputChannelCount: [1],
-    });
-
-    recorderTap.port.onmessage = (e) => {
-      if (!isRecording) return;
-      const chunk = e.data;
-      if (chunk && chunk.length) recChunks.push(chunk);
-    };
+    // destination for MediaRecorder (mobile-friendly)
+    mediaDest = ctx.createMediaStreamDestination();
+    masterGain.connect(mediaDest);
 
     setFXEnabled();
     updateFXParams();
@@ -1089,8 +1047,13 @@
   function stopAudio(){
     if (!ctx) return;
 
+    // cleanup download URL
+    cleanupDownloadUrl();
+
     // stop recording if active
-    if (isRecording) toggleRecording();
+    try {
+      if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+    } catch {}
 
     cancelAnimationFrame(scopeRAF);
     scopeRAF = null;
@@ -1200,88 +1163,99 @@
     draw();
   }
 
-  // ---------- WAV encoding ----------
-  function encodeWavMono(chunks, sampleRate){
-    // concat
-    let total = 0;
-    for (const c of chunks) total += c.length;
-    const pcm16 = new Int16Array(total);
+  // ---------- MediaRecorder helpers ----------
+  function pickRecorderMimeType(){
+    const candidates = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/ogg',
+    ];
+    for (const t of candidates){
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) return t;
+    }
+    return ''; // let browser choose
+  }
 
-    let off = 0;
-    for (const c of chunks){
-      for (let i=0;i<c.length;i++){
-        let x = c[i];
-        // clamp
-        if (x > 1) x = 1;
-        else if (x < -1) x = -1;
-        pcm16[off++] = (x < 0) ? (x * 0x8000) : (x * 0x7FFF);
+  function cleanupDownloadUrl(){
+    if (downloadUrl){
+      URL.revokeObjectURL(downloadUrl);
+      downloadUrl = null;
+    }
+  }
+
+  async function toggleRecording(){
+    if (!ctx || !mediaDest){
+      $('#status').textContent = 'Status: start audio first';
+      return;
+    }
+
+    // START
+    if (!mediaRecorder || mediaRecorder.state === 'inactive'){
+      cleanupDownloadUrl();
+      mediaChunks = [];
+
+      const mimeType = pickRecorderMimeType();
+      try {
+        mediaRecorder = mimeType
+          ? new MediaRecorder(mediaDest.stream, { mimeType })
+          : new MediaRecorder(mediaDest.stream);
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) mediaChunks.push(e.data);
+        };
+
+        mediaRecorder.onstart = () => {
+          $('#recBtn').textContent = 'Stop Rec';
+          $('#status').textContent = 'Status: recording…';
+        };
+
+        mediaRecorder.start(250); // timeslice to avoid huge memory spikes on mobile
+      } catch (err){
+        console.error(err);
+        $('#status').textContent = 'Status: recorder init failed';
       }
+      return;
     }
 
-    const bytesPerSample = 2;
-    const blockAlign = bytesPerSample * 1;
-    const byteRate = sampleRate * blockAlign;
-    const dataSize = pcm16.byteLength;
+    // STOP
+    if (mediaRecorder.state === 'recording'){
+      const btn = $('#recBtn');
+      btn.disabled = true;
+      $('#status').textContent = 'Status: finalizing…';
 
-    const buffer = new ArrayBuffer(44 + dataSize);
-    const view = new DataView(buffer);
+      const stopped = new Promise((resolve) => {
+        mediaRecorder.onstop = resolve;
+      });
 
-    function writeStr(p, s){
-      for (let i=0;i<s.length;i++) view.setUint8(p+i, s.charCodeAt(i));
-    }
+      mediaRecorder.stop();
+      await stopped;
 
-    writeStr(0, 'RIFF');
-    view.setUint32(4, 36 + dataSize, true);
-    writeStr(8, 'WAVE');
+      btn.disabled = false;
+      btn.textContent = 'Record WAV';
 
-    writeStr(12, 'fmt ');
-    view.setUint32(16, 16, true);              // PCM chunk size
-    view.setUint16(20, 1, true);               // PCM
-    view.setUint16(22, 1, true);               // mono
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, byteRate, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, 16, true);              // bits
+      const blob = new Blob(mediaChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      downloadUrl = URL.createObjectURL(blob);
 
-    writeStr(36, 'data');
-    view.setUint32(40, dataSize, true);
+      // extension based on mimeType
+      const ext = (mediaRecorder.mimeType || '').includes('ogg') ? 'ogg' : 'webm';
+      const name = `formula-audio-${new Date().toISOString().replace(/[:.]/g,'-')}.${ext}`;
 
-    // PCM data
-    new Uint8Array(buffer, 44).set(new Uint8Array(pcm16.buffer));
+      // Android Chrome sometimes blocks auto-download after async stop.
+      // So: try auto-click + show explicit "Download" link in status.
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = name;
+      a.rel = 'noopener';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
 
-    return new Blob([buffer], {type: 'audio/wav'});
-  }
+      // Explicit link in status in case auto-download didn't work
+      $('#status').innerHTML = `Status: ready — <a href="${downloadUrl}" download="${name}" style="color:#8ab4ff;">Download</a>`;
 
-  function downloadBlob(blob, filename){
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-  }
-
-  function toggleRecording(){
-    if (!ctx || !recorderTap) return;
-
-    if (!isRecording){
-      recChunks = [];
-      isRecording = true;
-      recorderTap.port.postMessage({type:'arm'});
-      $('#recBtn').textContent = 'Stop Rec';
-      $('#status').textContent = 'Status: recording…';
-    } else {
-      isRecording = false;
-      recorderTap.port.postMessage({type:'disarm'});
-      $('#recBtn').textContent = 'Record WAV';
-      $('#status').textContent = 'Status: running';
-
-      const wav = encodeWavMono(recChunks, recSampleRate);
-      const ts = new Date();
-      const name = `formula-audio-${ts.toISOString().replace(/[:.]/g,'-')}.wav`;
-      downloadBlob(wav, name);
+      return;
     }
   }
 
