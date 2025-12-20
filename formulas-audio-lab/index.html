@@ -1376,6 +1376,11 @@
 
     ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
 
+    // iOS Safari: AudioContext может стартовать в suspended состоянии
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
+
     const url = buildWorkletURL();
     await ctx.audioWorklet.addModule(url);
 
