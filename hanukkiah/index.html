@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hanukkiah.exe</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/98.css/dist/98.css">
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: teal;
+    }
+
+    .window {
+      width: 540px;
+    }
+
+    .window-body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+    }
+
+    /* Hanukkiah container */
+    .hanukkiah {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 8px;
+      padding: 20px 10px 10px 10px;
+      background: linear-gradient(to bottom, #c0c0c0 0%, #808080 100%);
+      border: 2px outset #dfdfdf;
+      margin-bottom: 16px;
+    }
+
+    /* Individual candle holder */
+    .candle-holder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    /* The candle itself */
+    .candle {
+      width: 16px;
+      height: 60px;
+      background: linear-gradient(to right, #e8e8ff 0%, #ffffff 50%, #e8e8ff 100%);
+      border: 1px solid #808080;
+      border-radius: 2px 2px 0 0;
+      position: relative;
+    }
+
+    /* Shamash is taller and elevated */
+    .candle-holder.shamash {
+      margin: 0 12px;
+    }
+
+    .candle-holder.shamash .candle {
+      height: 80px;
+      background: linear-gradient(to right, #fff8dc 0%, #fffacd 50%, #fff8dc 100%);
+      border-color: #b8860b;
+    }
+
+    .candle-holder.shamash .candle-base {
+      height: 20px;
+      background: linear-gradient(to right, #ffd700 0%, #ffec8b 50%, #ffd700 100%);
+    }
+
+    /* Candle base/cup */
+    .candle-base {
+      width: 22px;
+      height: 12px;
+      background: linear-gradient(to right, #c0c0c0 0%, #e0e0e0 50%, #c0c0c0 100%);
+      border: 1px solid #808080;
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+    }
+
+    /* Flame container */
+    .flame-container {
+      position: absolute;
+      top: -30px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 20px;
+      height: 30px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .flame-container.lit {
+      opacity: 1;
+    }
+
+    /* The flame */
+    .flame {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 12px;
+      height: 24px;
+      background: linear-gradient(to top, #ff4500 0%, #ff8c00 30%, #ffd700 70%, #ffffe0 100%);
+      border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+      animation: flicker 0.5s ease-in-out infinite alternate, sway 1s ease-in-out infinite;
+      box-shadow: 
+        0 0 10px #ff8c00,
+        0 0 20px #ff4500,
+        0 0 30px #ff6600;
+    }
+
+    /* Inner flame (blue core) */
+    .flame::before {
+      content: '';
+      position: absolute;
+      bottom: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 8px;
+      background: linear-gradient(to top, #4169e1, #87ceeb);
+      border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    }
+
+    /* Wick */
+    .wick {
+      position: absolute;
+      bottom: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 6px;
+      background: #333;
+      border-radius: 1px;
+    }
+
+    @keyframes flicker {
+      0% {
+        height: 24px;
+        opacity: 1;
+      }
+      25% {
+        height: 22px;
+        opacity: 0.9;
+      }
+      50% {
+        height: 26px;
+        opacity: 1;
+      }
+      75% {
+        height: 23px;
+        opacity: 0.95;
+      }
+      100% {
+        height: 25px;
+        opacity: 1;
+      }
+    }
+
+    @keyframes sway {
+      0% {
+        transform: translateX(-50%) rotate(-2deg);
+      }
+      50% {
+        transform: translateX(-50%) rotate(2deg);
+      }
+      100% {
+        transform: translateX(-50%) rotate(-2deg);
+      }
+    }
+
+    /* Shamash flame is bigger */
+    .candle-holder.shamash .flame {
+      width: 14px;
+      height: 28px;
+      box-shadow: 
+        0 0 15px #ff8c00,
+        0 0 25px #ff4500,
+        0 0 40px #ff6600;
+    }
+
+    /* Controls panel */
+    .controls {
+      width: 100%;
+    }
+
+    .controls fieldset {
+      margin-bottom: 12px;
+    }
+
+    .shamash-control {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 8px;
+    }
+
+    .shamash-control .field-row {
+      display: flex;
+      align-items: center;
+    }
+
+    .shamash-control label {
+      font-weight: bold;
+      color: #000080;
+    }
+
+    /* All 8 checkboxes in one row */
+    .candles-grid {
+      display: flex;
+      flex-wrap: nowrap;
+      justify-content: center;
+      gap: 2px;
+    }
+
+    .candles-grid .field-row {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+
+    .candles-grid label {
+      font-size: 11px;
+    }
+
+    /* Disabled state visual feedback */
+    .candles-grid input:disabled + label {
+      color: #808080;
+    }
+
+    /* Status bar */
+    .status-message {
+      flex-grow: 1;
+    }
+
+    /* Today's Hanukkah info box */
+    .today-info {
+      width: 100%;
+      margin-bottom: 12px;
+    }
+
+    .today-info .info-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px;
+      font-weight: bold;
+    }
+
+    .today-info .day-number {
+      font-size: 24px;
+      color: #000080;
+    }
+
+    .today-info .not-hanukkah {
+      color: #808080;
+      font-weight: normal;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="window">
+    <div class="title-bar">
+      <div class="title-bar-text">Hanukkiah.exe - חנוכיה</div>
+      <div class="title-bar-controls">
+        <button aria-label="Minimize"></button>
+        <button aria-label="Maximize"></button>
+        <button aria-label="Close"></button>
+      </div>
+    </div>
+    <div class="window-body">
+      <!-- Today's Hanukkah Day -->
+      <div class="today-info">
+        <fieldset>
+          <legend>📅 Today</legend>
+          <div class="info-content" id="today-info-content">
+            Loading...
+          </div>
+        </fieldset>
+      </div>
+
+      <!-- Visual Hanukkiah -->
+      <div class="hanukkiah">
+        <!-- Candles 1-4 (left side) -->
+        <div class="candle-holder" data-candle="1">
+          <div class="flame-container">
+            <div class="flame"></div>
+            <div class="wick"></div>
+          </div>
+          <div class="candle"></div>
+          <div class="candle-base"></div>
+        </div>
+        <div class="candle-holder" data-candle="2">
+          <div class="flame-container">
+            <div class="flame"></div>
+            <div class="wick"></div>
+          </div>
+          <div class="candle"></div>
+          <div class="candle-base"></div>
+        </div>
+        <div class="candle-holder" data-candle="3">
+          <div class="flame-container">
+            <div class="flame"></div>
+            <div class="wick"></div>
+          </div>
+          <div class="candle"></div>
+          <div class="candle-base"></div>
+        </div>
+        <div class="candle-holder" data-candle="4">
+          <div class="flame-container">
+            <div class="flame"></div>
+            <div class="wick"></div>
+          </div>
+          <div class="candle"></div>
+          <div class="candle-base"></div>
+        </div>
+
+        <!-- Shamash (center, elevated) -->
+        <div class="candle-holder shamash" data-candle="shamash">
+          <div class="flame-container">
+            <div class="flame"></div>
+            <div class="wick"></div>
+          </div>
+          <div class="candle"></div>
+          <div class="candle-base"></div>
+        </div>
+
+        <!-- Candles 5-8 (right side) -->
+        <div class="candle-holder" data-candle="5">
+          <div class="flame-container">
+            <div class="flame"></div>
+            <div class="wick"></div>
+          </div>
+          <div class="candle"></div>
+          <div class="candle-base"></div>
+        </div>
+        <div class="candle-holder" data-candle="6">
+          <div class="flame-container">
+            <div class="flame"></div>
+            <div class="wick"></div>
+          </div>
+          <div class="candle"></div>
+          <div class="candle-base"></div>
+        </div>
+        <div class="candle-holder" data-candle="7">
+          <div class="flame-container">
+            <div class="flame"></div>
+            <div class="wick"></div>
+          </div>
+          <div class="candle"></div>
+          <div class="candle-base"></div>
+        </div>
+        <div class="candle-holder" data-candle="8">
+          <div class="flame-container">
+            <div class="flame"></div>
+            <div class="wick"></div>
+          </div>
+          <div class="candle"></div>
+          <div class="candle-base"></div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls">
+        <fieldset>
+          <legend>שמש (Shamash)</legend>
+          <div class="shamash-control">
+            <div class="field-row">
+              <input type="checkbox" id="shamash">
+              <label for="shamash">☀️ Light the Shamash first!</label>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>נרות (Candles 1-8)</legend>
+          <div class="candles-grid">
+            <div class="field-row">
+              <input type="checkbox" id="candle1" disabled>
+              <label for="candle1">1</label>
+            </div>
+            <div class="field-row">
+              <input type="checkbox" id="candle2" disabled>
+              <label for="candle2">2</label>
+            </div>
+            <div class="field-row">
+              <input type="checkbox" id="candle3" disabled>
+              <label for="candle3">3</label>
+            </div>
+            <div class="field-row">
+              <input type="checkbox" id="candle4" disabled>
+              <label for="candle4">4</label>
+            </div>
+            <div class="field-row">
+              <input type="checkbox" id="candle5" disabled>
+              <label for="candle5">5</label>
+            </div>
+            <div class="field-row">
+              <input type="checkbox" id="candle6" disabled>
+              <label for="candle6">6</label>
+            </div>
+            <div class="field-row">
+              <input type="checkbox" id="candle7" disabled>
+              <label for="candle7">7</label>
+            </div>
+            <div class="field-row">
+              <input type="checkbox" id="candle8" disabled>
+              <label for="candle8">8</label>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+    </div>
+    <div class="status-bar">
+      <p class="status-bar-field status-message">Light the Shamash to begin! 🕎</p>
+      <p class="status-bar-field">Candles: <span id="candle-count">0</span>/8</p>
+    </div>
+  </div>
+
+  <script>
+    // Hanukkah start dates (first candle evening) for years 2024-2030
+    // Candles are lit at sunset, so the "day" starts the evening before
+    const hanukkahDates = {
+      2024: new Date(2024, 11, 25), // Dec 25, 2024 (evening of Dec 24)
+      2025: new Date(2025, 11, 14), // Dec 14, 2025 (evening of Dec 13)
+      2026: new Date(2026, 11, 5),  // Dec 5, 2026
+      2027: new Date(2027, 11, 25), // Dec 25, 2027
+      2028: new Date(2028, 11, 12), // Dec 12, 2028
+      2029: new Date(2029, 11, 1),  // Dec 1, 2029
+      2030: new Date(2030, 11, 20), // Dec 20, 2030
+    };
+
+    // Get current Hanukkah day (1-8) or 0 if not Hanukkah
+    function getHanukkahDay() {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const year = today.getFullYear();
+      
+      // Check current year and previous year (for Hanukkah spanning year boundary)
+      for (const checkYear of [year, year - 1]) {
+        const startDate = hanukkahDates[checkYear];
+        if (!startDate) continue;
+        
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        
+        const diffTime = today - start;
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        // Hanukkah is 8 nights, but day 8 continues until sunset of the next calendar day
+        // So we include diffDays 0-8 (9 calendar days) but cap at day 8
+        if (diffDays >= 0 && diffDays <= 8) {
+          return Math.min(8, diffDays + 1); // Day 1-8
+        }
+      }
+      
+      return 0; // Not Hanukkah
+    }
+
+    // Get next Hanukkah date
+    function getNextHanukkah() {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      for (const [year, date] of Object.entries(hanukkahDates).sort((a, b) => a[0] - b[0])) {
+        if (date > today) {
+          return { year: parseInt(year), date };
+        }
+      }
+      return null;
+    }
+
+    // Update today's info display
+    function updateTodayInfo() {
+      const container = document.getElementById('today-info-content');
+      const day = getHanukkahDay();
+      
+      if (day > 0) {
+        const ordinal = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'][day - 1];
+        container.innerHTML = `
+          <span>🕎 Today is the</span>
+          <span class="day-number">${ordinal}</span>
+          <span>night of Hanukkah! Light ${day} candle${day > 1 ? 's' : ''}.</span>
+        `;
+      } else {
+        const next = getNextHanukkah();
+        if (next) {
+          const options = { month: 'long', day: 'numeric', year: 'numeric' };
+          const dateStr = next.date.toLocaleDateString('en-US', options);
+          container.innerHTML = `<span class="not-hanukkah">Hanukkah ${next.year} begins ${dateStr}</span>`;
+        } else {
+          container.innerHTML = `<span class="not-hanukkah">Hanukkah dates not available</span>`;
+        }
+      }
+    }
+
+    const shamashCheckbox = document.getElementById('shamash');
+    const candleCheckboxes = [];
+    const statusMessage = document.querySelector('.status-message');
+    const candleCount = document.getElementById('candle-count');
+
+    // Collect all candle checkboxes
+    for (let i = 1; i <= 8; i++) {
+      candleCheckboxes.push(document.getElementById(`candle${i}`));
+    }
+
+    // Get flame container for a candle
+    function getFlameContainer(candleId) {
+      const holder = document.querySelector(`[data-candle="${candleId}"]`);
+      return holder ? holder.querySelector('.flame-container') : null;
+    }
+
+    // Update flame visibility
+    function updateFlame(candleId, isLit) {
+      const flameContainer = getFlameContainer(candleId);
+      if (flameContainer) {
+        if (isLit) {
+          flameContainer.classList.add('lit');
+        } else {
+          flameContainer.classList.remove('lit');
+        }
+      }
+    }
+
+    // Update candle count display
+    function updateCandleCount() {
+      const litCount = candleCheckboxes.filter(cb => cb.checked).length;
+      candleCount.textContent = litCount;
+
+      if (litCount === 8) {
+        statusMessage.textContent = 'חג חנוכה שמח! Happy Hanukkah! 🎉';
+      } else if (litCount > 0) {
+        statusMessage.textContent = `Night ${litCount} of Hanukkah 🕯️`;
+      } else if (shamashCheckbox.checked) {
+        statusMessage.textContent = 'Shamash is lit! Now light the candles.';
+      } else {
+        statusMessage.textContent = 'Light the Shamash to begin! 🕎';
+      }
+    }
+
+    // Shamash checkbox handler
+    shamashCheckbox.addEventListener('change', function() {
+      const isLit = this.checked;
+      
+      // Update shamash flame
+      updateFlame('shamash', isLit);
+
+      // Enable/disable other candles
+      candleCheckboxes.forEach((checkbox, index) => {
+        if (isLit) {
+          checkbox.disabled = false;
+        } else {
+          // Turn off and disable all candles when shamash is turned off
+          checkbox.checked = false;
+          checkbox.disabled = true;
+          updateFlame(index + 1, false);
+        }
+      });
+
+      updateCandleCount();
+    });
+
+    // Individual candle checkbox handlers
+    candleCheckboxes.forEach((checkbox, index) => {
+      checkbox.addEventListener('change', function() {
+        updateFlame(index + 1, this.checked);
+        updateCandleCount();
+      });
+    });
+
+    // Initialize
+    updateTodayInfo();
+    updateCandleCount();
+  </script>
+</body>
+</html>
