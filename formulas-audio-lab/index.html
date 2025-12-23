@@ -1090,6 +1090,34 @@
   let downloadUrl = null;
   let scopeRAF = null;
 
+  // Wake Lock (prevent sleep on mobile)
+  let wakeLock = null;
+
+  async function requestWakeLock() {
+    if ('wakeLock' in navigator) {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      } catch (err) {
+        console.log('Wake Lock error:', err.name, err.message);
+      }
+    }
+  }
+
+  async function releaseWakeLock() {
+    if (wakeLock) {
+      await wakeLock.release();
+      wakeLock = null;
+    }
+  }
+
+  // Re-request wake lock when returning to tab (browser releases it on visibility change)
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && ctx && ctx.state === 'running') {
+      await requestWakeLock();
+    }
+  });
+
   // Encode Float32Array to WAV Blob
   function encodeWAV(samples, sampleRate) {
     const numChannels = 1;
@@ -1494,11 +1522,17 @@
     $('#startBtn').disabled = true;
     $('#recBtn').disabled = false;
 
+    // Request wake lock to prevent sleep on mobile
+    requestWakeLock();
+
     startScopeAndMeter();
   }
 
   function stopAudio(){
     if (!ctx) return;
+
+    // Release wake lock
+    releaseWakeLock();
 
     // cleanup download URL
     cleanupDownloadUrl();
