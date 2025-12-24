@@ -1773,11 +1773,18 @@
         const shiftAmount = 2;
         spectroCtx.drawImage(spectroCanvas, -shiftAmount, 0);
         
-        // Draw new column on the right
+        // Draw new column on the right (logarithmic frequency scale)
         const bins = freqBuf.length;
+        const minFreq = 20;      // 20 Hz — lower bound of human hearing
+        const maxFreq = 10000;   // 10 kHz — upper display limit
+        const nyquist = ctx.sampleRate / 2;
+        
         for (let i = 0; i < h; i++) {
-          // Map y position to frequency bin (bottom = low freq, top = high freq)
-          const binIndex = Math.floor((1 - i / h) * bins * 0.5);  // Show lower half of spectrum
+          // Logarithmic mapping: Y position -> frequency
+          // y=0 (top) -> maxFreq, y=h (bottom) -> minFreq
+          const normalizedY = i / h;
+          const freq = maxFreq * Math.pow(minFreq / maxFreq, normalizedY);
+          const binIndex = Math.floor((freq / nyquist) * bins);
           const value = freqBuf[Math.min(binIndex, bins - 1)];
           spectroCtx.fillStyle = getSpectroColor(value);
           spectroCtx.fillRect(w - shiftAmount, i, shiftAmount, 1);

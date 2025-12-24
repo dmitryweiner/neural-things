@@ -382,8 +382,9 @@ When enabling any formula (clicking checkbox) audio automatically starts if not 
 
 ### Oscilloscope with Spectrogram
 - **Spectrogram (waterfall)** — background display of frequency spectrum, scrolling right
+  - **Logarithmic frequency scale** (20 Hz — 10 kHz) — matches human hearing perception
+  - Low frequencies at bottom (more space), high at top (compressed)
   - Palette from blue (quiet) to red (loud)
-  - Low frequencies at bottom, high at top
 - **Grid** — overlaid on spectrogram for easy orientation
 - **Waveform** — signal waveform drawn on top of everything
 - Auto-scaling on Y axis
@@ -531,5 +532,6 @@ No external dependencies. Pure HTML + CSS + JavaScript.
 
 ### 2025-12-24
 
+- **Improved:** Spectrogram now uses **logarithmic frequency scale** (20 Hz — 10 kHz) — low frequencies are more visible, display matches human hearing perception
 - **Fixed:** Spectrogram no longer resets when scrolling the formula list — spectrogram data is now preserved when canvas dimensions are unchanged and copied when resizing
 - **Added:** Copyright footer with link to source code on GitHub
