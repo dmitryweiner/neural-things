@@ -82,10 +82,19 @@
     }
 
     .scopeWrap{
+      position: relative;
       border:1px solid #1d2a3a;
       border-radius: 12px;
       background:#060a0f;
       padding: 8px;
+    }
+    .scopeModeBtn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      font-size: 11px;
+      padding: 4px 8px;
+      z-index: 5;
     }
 
     canvas { width:100%; height: 120px; display:block; border-radius: 10px; }
@@ -227,6 +236,7 @@
 
   <div class="topgrid">
     <div class="scopeWrap" id="scopeWrap">
+      <button id="scopeModeBtn" class="collapseBtn scopeModeBtn" type="button">Spectrum</button>
       <canvas id="scope"></canvas>
     </div>
     <div class="ctrl with-adj" style="margin-top: 10px;">
@@ -1004,13 +1014,11 @@
     const formulas = {};
     for (const f of FORMULAS){
       const enabled = !!$(`#en_${f.id}`).checked;
-      const collapsed = $(`#body_${f.id}`).classList.contains('collapsed');
       const params = {};
       for (const s of f.sliders) params[s.k] = Number($(`#${f.id}_${s.k}`).value);
-      formulas[f.id] = { enabled, collapsed, params };
+      formulas[f.id] = { enabled, params };
     }
     const fx = {
-      panelOpen: $('#effectsPanel').classList.contains('open'),
       filterOn: $('#fxFilterOn').checked,
       filterType: $('#fxFilterType').value,
       filterFreq: Number($('#fxFilterFreq').value),
@@ -1038,8 +1046,7 @@
       phaserFb: Number($('#fxPhaserFb').value),
       phaserMix: Number($('#fxPhaserMix').value),
     };
-    const scopeCollapsed = $('#scopeWrap').classList.contains('scopeCollapsed');
-    return { v: 2, masterGain: Number($('#masterGain').value), fx, formulas, scopeCollapsed };
+    return { v: 2, masterGain: Number($('#masterGain').value), fx, formulas };
   }
 
   function applyStateToUI(state){
@@ -1048,10 +1055,6 @@
     if (typeof state.masterGain === 'number'){
       $('#masterGain').value = String(state.masterGain);
       $('#masterGainVal').textContent = state.masterGain.toFixed(3);
-    }
-
-    if (state.scopeCollapsed !== undefined){
-      setScopeCollapsed(!!state.scopeCollapsed);
     }
 
     const fx = state.fx || {};
@@ -1077,11 +1080,6 @@
     setChk('#fxPhaserOn', fx.phaserOn); setVal('#fxPhaserRate', fx.phaserRate);
     setVal('#fxPhaserDepth', fx.phaserDepth); setVal('#fxPhaserStages', fx.phaserStages);
     setVal('#fxPhaserFb', fx.phaserFb); setVal('#fxPhaserMix', fx.phaserMix);
-
-    const open = !!fx.panelOpen;
-    $('#effectsPanel').classList.toggle('open', open);
-    $('#effectsBtn').textContent = '🎛';
-    $('#effectsBtn').classList.toggle('active', open);
 
     $('#fxFilterFreqVal').textContent = $('#fxFilterFreq').value;
     $('#fxFilterQVal').textContent = Number($('#fxFilterQ').value).toFixed(1);
@@ -1111,12 +1109,6 @@
       // Update active highlight
       const formulaWrap = enEl.closest('.formula');
       if (formulaWrap) formulaWrap.classList.toggle('active', !!st.enabled);
-
-      const body = $(`#body_${f.id}`);
-      const colBtn = $(`#col_${f.id}`);
-      const collapsed = !!st.collapsed;
-      body.classList.toggle('collapsed', collapsed);
-      colBtn.textContent = collapsed ? '▶' : '▼';
 
       const params = st.params || {};
       for (const s of f.sliders){
@@ -1767,66 +1759,76 @@
         initSpectro(w, h, analyser.frequencyBinCount);
       }
 
-      // Update spectrogram: shift left and add new column
-      if (spectroCtx) {
-        // Shift existing spectrogram to the left by 2 pixels
-        const shiftAmount = 2;
-        spectroCtx.drawImage(spectroCanvas, -shiftAmount, 0);
-        
-        // Draw new column on the right (logarithmic frequency scale)
-        const bins = freqBuf.length;
-        const minFreq = 20;      // 20 Hz — lower bound of human hearing
-        const maxFreq = 10000;   // 10 kHz — upper display limit
-        const nyquist = ctx.sampleRate / 2;
-        
-        for (let i = 0; i < h; i++) {
-          // Logarithmic mapping: Y position -> frequency
-          // y=0 (top) -> maxFreq, y=h (bottom) -> minFreq
-          const normalizedY = i / h;
-          const freq = maxFreq * Math.pow(minFreq / maxFreq, normalizedY);
-          const binIndex = Math.floor((freq / nyquist) * bins);
-          const value = freqBuf[Math.min(binIndex, bins - 1)];
-          spectroCtx.fillStyle = getSpectroColor(value);
-          spectroCtx.fillRect(w - shiftAmount, i, shiftAmount, 1);
+      // Mode: spectrum - draw spectrogram only
+      if (scopeMode === 'spectrum') {
+        // Update spectrogram: shift left and add new column
+        if (spectroCtx) {
+          // Shift existing spectrogram to the left by 2 pixels
+          const shiftAmount = 2;
+          spectroCtx.drawImage(spectroCanvas, -shiftAmount, 0);
+          
+          // Draw new column on the right (logarithmic frequency scale)
+          const bins = freqBuf.length;
+          const minFreq = 20;      // 20 Hz — lower bound of human hearing
+          const maxFreq = 10000;   // 10 kHz — upper display limit
+          const nyquist = ctx.sampleRate / 2;
+          
+          for (let i = 0; i < h; i++) {
+            // Logarithmic mapping: Y position -> frequency
+            // y=0 (top) -> maxFreq, y=h (bottom) -> minFreq
+            const normalizedY = i / h;
+            const freq = maxFreq * Math.pow(minFreq / maxFreq, normalizedY);
+            const binIndex = Math.floor((freq / nyquist) * bins);
+            const value = freqBuf[Math.min(binIndex, bins - 1)];
+            spectroCtx.fillStyle = getSpectroColor(value);
+            spectroCtx.fillRect(w - shiftAmount, i, shiftAmount, 1);
+          }
+        }
+
+        // Draw spectrogram
+        if (spectroCtx) {
+          c2d.drawImage(spectroCanvas, 0, 0);
+        } else {
+          c2d.fillStyle = '#060a0f';
+          c2d.fillRect(0,0,w,h);
         }
       }
 
-      // Draw spectrogram as background
-      if (spectroCtx) {
-        c2d.drawImage(spectroCanvas, 0, 0);
-      } else {
+      // Mode: wave - draw waveform only on dark background
+      if (scopeMode === 'wave') {
+        // Dark background
         c2d.fillStyle = '#060a0f';
         c2d.fillRect(0,0,w,h);
-      }
 
-      // grid (on top of spectrogram)
-      c2d.strokeStyle = 'rgba(18, 32, 51, 0.7)';
-      c2d.lineWidth = 1;
-      c2d.beginPath();
-      for (let i=1;i<10;i++){
-        const x = (w*i)/10;
-        c2d.moveTo(x,0); c2d.lineTo(x,h);
-      }
-      for (let i=1;i<5;i++){
-        const y = (h*i)/5;
-        c2d.moveTo(0,y); c2d.lineTo(w,y);
-      }
-      c2d.stroke();
+        // grid
+        c2d.strokeStyle = 'rgba(18, 32, 51, 0.7)';
+        c2d.lineWidth = 1;
+        c2d.beginPath();
+        for (let i=1;i<10;i++){
+          const x = (w*i)/10;
+          c2d.moveTo(x,0); c2d.lineTo(x,h);
+        }
+        for (let i=1;i<5;i++){
+          const y = (h*i)/5;
+          c2d.moveTo(0,y); c2d.lineTo(w,y);
+        }
+        c2d.stroke();
 
-      // waveform (on top of everything)
-      const mid = h/2;
-      c2d.strokeStyle = '#8ab4ff';
-      c2d.lineWidth = 2;
-      c2d.beginPath();
+        // waveform
+        const mid = h/2;
+        c2d.strokeStyle = '#8ab4ff';
+        c2d.lineWidth = 2;
+        c2d.beginPath();
 
-      const gain = scopeAutoGain;
-      for (let i=0;i<timeBuf.length;i++){
-        const v = (timeBuf[i] - 128) / 128;
-        const y = mid - v * (mid * 0.9) * gain;
-        const x = (w * i) / (timeBuf.length - 1);
-        if (i===0) c2d.moveTo(x,y); else c2d.lineTo(x,y);
+        const gain = scopeAutoGain;
+        for (let i=0;i<timeBuf.length;i++){
+          const v = (timeBuf[i] - 128) / 128;
+          const y = mid - v * (mid * 0.9) * gain;
+          const x = (w * i) / (timeBuf.length - 1);
+          if (i===0) c2d.moveTo(x,y); else c2d.lineTo(x,y);
+        }
+        c2d.stroke();
       }
-      c2d.stroke();
     };
 
     draw();
@@ -1921,6 +1923,8 @@
   // ---------- Scope collapse ----------
   const scopeWrap = $('#scopeWrap');
   const scopeToggleBtn = $('#scopeToggleBtn');
+  const scopeModeBtn = $('#scopeModeBtn');
+  let scopeMode = 'spectrum'; // 'wave' or 'spectrum'
 
   function setScopeCollapsed(collapsed){
     scopeWrap.classList.toggle('scopeCollapsed', collapsed);
@@ -1936,6 +1940,11 @@
 
   scopeToggleBtn.addEventListener('click', () => {
     setScopeCollapsed(!scopeWrap.classList.contains('scopeCollapsed'));
+  });
+
+  scopeModeBtn.addEventListener('click', () => {
+    scopeMode = scopeMode === 'wave' ? 'spectrum' : 'wave';
+    scopeModeBtn.textContent = scopeMode === 'wave' ? 'Wave' : 'Spectrum';
   });
 
   // ---------- Buttons ----------

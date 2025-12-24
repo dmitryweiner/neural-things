@@ -380,14 +380,18 @@ Buttons are divided into logical groups with visual separators:
 ### Auto-start Audio
 When enabling any formula (clicking checkbox) audio automatically starts if not already running. This eliminates the need to press Play first.
 
-### Oscilloscope with Spectrogram
-- **Spectrogram (waterfall)** — background display of frequency spectrum, scrolling right
+### Oscilloscope / Spectrogram
+- **Wave/Spectrum toggle** — button inside the scope container switches between two modes:
+  - **Wave** — classic oscilloscope (waveform on dark background with grid)
+  - **Spectrum** — spectrogram (waterfall display of frequency spectrum)
+- **Spectrogram mode:**
   - **Logarithmic frequency scale** (20 Hz — 10 kHz) — matches human hearing perception
   - Low frequencies at bottom (more space), high at top (compressed)
   - Palette from blue (quiet) to red (loud)
-- **Grid** — overlaid on spectrogram for easy orientation
-- **Waveform** — signal waveform drawn on top of everything
-- Auto-scaling on Y axis
+  - Scrolling waterfall display
+- **Wave mode:**
+  - Auto-scaling on Y axis
+  - Grid overlay for orientation
 - Spans full screen width
 - Collapses with 📊 button in top bar
 - When collapsed — panel is completely hidden (takes no space)
@@ -424,13 +428,13 @@ class FormulaGeneratorProcessor extends AudioWorkletProcessor {
 
 ### State
 
+Only functional state is saved to URL (enabled effects/formulas and their parameters). UI state (collapsed panels) is not persisted.
+
 ```javascript
 {
   v: 2,                    // format version
   masterGain: 0.25,
-  scopeCollapsed: false,
   fx: {
-    panelOpen: false,
     filterOn: false, filterType: 'lowpass', filterFreq: 12000, filterQ: 0.7,
     chorusOn: false, chorusMode: 'chorus', chorusRate: 0.35, ...
     reverbOn: false, reverbDecay: 2.8, reverbMix: 0.25,
@@ -439,7 +443,7 @@ class FormulaGeneratorProcessor extends AudioWorkletProcessor {
     phaserOn: false, phaserRate: 0.5, phaserDepth: 0.7, phaserStages: 4, ...
   },
   formulas: {
-    fm: { enabled: false, collapsed: false, params: { gain: 0.15, fc: 220, ... } },
+    fm: { enabled: false, params: { gain: 0.15, fc: 220, ... } },
     am: { ... },
     pinknoise: { ... },
     shepard: { ... },
@@ -532,6 +536,8 @@ No external dependencies. Pure HTML + CSS + JavaScript.
 
 ### 2025-12-24
 
+- **Added:** **Wave/Spectrum toggle** button inside the scope container — switch between oscilloscope (waveform) and spectrogram display modes
+- **Changed:** URL hash now only saves **functional state** (enabled effects/formulas and their parameters). UI state (collapsed panels, effects panel open/closed, scope collapsed) is no longer persisted — cleaner, shorter URLs
 - **Improved:** Spectrogram now uses **logarithmic frequency scale** (20 Hz — 10 kHz) — low frequencies are more visible, display matches human hearing perception
 - **Fixed:** Spectrogram no longer resets when scrolling the formula list — spectrogram data is now preserved when canvas dimensions are unchanged and copied when resizing
 - **Added:** Copyright footer with link to source code on GitHub
