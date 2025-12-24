@@ -523,3 +523,12 @@ No external dependencies. Pure HTML + CSS + JavaScript.
 - Web Share API for file sharing on mobile (optional)
 - Screen Wake Lock API for preventing sleep mode (optional)
 - Canvas 2D for oscilloscope
+
+---
+
+## Changelog
+
+### 2025-12-24
+
+- **Fixed:** Spectrogram no longer resets when scrolling the formula list — spectrogram data is now preserved when canvas dimensions are unchanged and copied when resizing
+- **Added:** Copyright footer with link to source code on GitHub
