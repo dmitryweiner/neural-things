@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -188,7 +188,7 @@
 <body>
 
 <section class="topbar">
-  <h1>Formula Audio Lab — формулы как звук <span class="status-text" id="status">not started</span></h1>
+  <h1>Formula Audio Lab<span class="status-text" id="status">not started</span></h1>
 
   <div class="row btn-row">
     <div class="btn-group">
@@ -197,9 +197,9 @@
     </div>
 
     <div class="btn-group">
-      <button id="savePresetBtn" class="collapseBtn" type="button">Сохранить пресет</button>
-      <button id="loadPresetBtn" class="collapseBtn" type="button">Загрузить пресет</button>
-      <button id="shareBtn" class="collapseBtn" type="button">Поделиться</button>
+      <button id="savePresetBtn" class="collapseBtn" type="button">Save preset</button>
+      <button id="loadPresetBtn" class="collapseBtn" type="button">Load preset</button>
+      <button id="shareBtn" class="collapseBtn" type="button">Share</button>
     </div>
 
     <div class="btn-group">
@@ -418,10 +418,10 @@
 
 <main>
   <section class="card">
-    <h2>Формулы (можно включать одновременно)</h2>
+    <h2>Formulas (can be enabled simultaneously)</h2>
     <div class="row" style="margin-bottom:10px; justify-content: space-between;">
-      <button id="disableAllBtn" class="collapseBtn" type="button">Выключить все</button>
-      <button id="collapseAllBtn" class="collapseBtn" type="button">▼ Свернуть все</button>
+      <button id="disableAllBtn" class="collapseBtn" type="button">Disable all</button>
+      <button id="collapseAllBtn" class="collapseBtn" type="button">▼ Collapse all</button>
     </div>
     <div id="formulas"></div>
   </section>
@@ -774,14 +774,14 @@
 
   // ---------- UI schema ----------
   const FORMULAS = [
-    { id:'additive', title:'Сумма гармоник', tag:'Additive', desc:'Σ aₙ(t) sin(2π n f t)',
+    { id:'additive', title:'Harmonic Sum', tag:'Additive', desc:'Σ aₙ(t) sin(2π n f t)',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
         {k:'fund', name:'Fund (Hz)', min:20, max:500, step:1, value:110},
         {k:'N', name:'Harmonics N', min:1, max:40, step:1, value:12},
         {k:'move', name:'Move (Hz)', min:0.01, max:5, step:0.01, value:0.35},
       ]},
-    { id:'lorenz', title:'Аттрактор Лоренца', tag:'Lorenz', desc:'Lorenz ODE mapped to freq/amp', hasReset:true,
+    { id:'lorenz', title:'Lorenz Attractor', tag:'Lorenz', desc:'Lorenz ODE mapped to freq/amp', hasReset:true,
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'sigma', name:'σ', min:0, max:30, step:0.01, value:10},
@@ -791,7 +791,7 @@
         {k:'lFreqScale', name:'Freq scale', min:0, max:200, step:0.1, value:40},
         {k:'lAmp', name:'Amp scale', min:0, max:1, step:0.001, value:0.25},
       ]},
-    { id:'rossler', title:'Аттрактор Рёсслера', tag:'Chaos', desc:'dx=-y-z, dy=x+ay, dz=b+z(x-c)', hasReset:true,
+    { id:'rossler', title:'Rossler Attractor', tag:'Chaos', desc:'dx=-y-z, dy=x+ay, dz=b+z(x-c)', hasReset:true,
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'rossA', name:'a', min:0.01, max:0.5, step:0.001, value:0.2},
@@ -801,46 +801,46 @@
         {k:'rossFreqScale', name:'Freq scale', min:0, max:100, step:0.1, value:30},
         {k:'rossAmp', name:'Amp scale', min:0, max:1, step:0.001, value:0.25},
       ]},
-    { id:'gliss', title:'Экспоненциальный глиссандо', tag:'Gliss', desc:'f(t)=f0·e^{k t}', hasReset:true,
+    { id:'gliss', title:'Exponential Glissando', tag:'Gliss', desc:'f(t)=f0·e^{k t}', hasReset:true,
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'f0', name:'f0 (Hz)', min:10, max:400, step:1, value:55},
         {k:'k', name:'k', min:-2.0, max:2.0, step:0.001, value:0.15},
       ]},
-    { id:'shepard', title:'Тон Шепарда', tag:'Illusion', desc:'Иллюзия бесконечного подъёма', hasReset:true,
+    { id:'shepard', title:'Shepard Tone', tag:'Illusion', desc:'Endless rising illusion', hasReset:true,
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
         {k:'shepBase', name:'Base f (Hz)', min:20, max:200, step:1, value:55},
         {k:'shepSpeed', name:'Speed', min:-0.5, max:0.5, step:0.001, value:0.1},
         {k:'shepOctaves', name:'Octaves', min:3, max:10, step:1, value:6},
       ]},
-    { id:'fm', title:'FM-синус', tag:'FM', desc:'sin(2π f_c t + I sin(2π f_m t))',
+    { id:'fm', title:'FM Sine', tag:'FM', desc:'sin(2π f_c t + I sin(2π f_m t))',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.15},
         {k:'fc', name:'f_c (Hz)', min:20, max:2000, step:1, value:220},
         {k:'fm', name:'f_m (Hz)', min:0.1, max:60, step:0.1, value:2.0},
         {k:'I', name:'Index I', min:0, max:20, step:0.01, value:3.0},
       ]},
-    { id:'beats', title:'Два синуса (биения)', tag:'Beats', desc:'sin(2π f t)+sin(2π(f+Δf)t)',
+    { id:'beats', title:'Two Sines (Beats)', tag:'Beats', desc:'sin(2π f t)+sin(2π(f+Δf)t)',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
         {k:'fbeat', name:'f (Hz)', min:20, max:2000, step:1, value:220},
         {k:'df', name:'Δf (Hz)', min:0, max:20, step:0.01, value:0.8},
       ]},
-    { id:'pm', title:'Фазовая модуляция', tag:'PM', desc:'sin(2π f t + 5·sin(sin(2π f2 t)))', hasReset:true,
+    { id:'pm', title:'Phase Modulation', tag:'PM', desc:'sin(2π f t + 5·sin(sin(2π f2 t)))', hasReset:true,
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
         {k:'f', name:'f (Hz)', min:20, max:2000, step:1, value:220},
         {k:'f2pm', name:'f2 (Hz)', min:0.1, max:40, step:0.1, value:3},
       ]},
-    { id:'quasi', title:'Квазислучайный LFO', tag:'Quasi', desc:'f(t)=fq + Aq·sin(sin(sin(w·t)))', hasReset:true,
+    { id:'quasi', title:'Quasi-random LFO', tag:'Quasi', desc:'f(t)=fq + Aq·sin(sin(sin(w·t)))', hasReset:true,
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'fq', name:'Base f (Hz)', min:20, max:500, step:1, value:120},
         {k:'Aq', name:'Depth (Hz)', min:0, max:1200, step:1, value:220},
         {k:'wq', name:'w', min:0.05, max:6, step:0.01, value:0.8},
       ]},
-    { id:'logistic', title:'Логистическое отображение', tag:'Chaos', desc:'xₙ₊₁ = r xₙ(1−xₙ)',
+    { id:'logistic', title:'Logistic Map', tag:'Chaos', desc:'xₙ₊₁ = r xₙ(1−xₙ)',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
         {k:'base', name:'Base f (Hz)', min:20, max:800, step:1, value:110},
@@ -848,13 +848,13 @@
         {k:'r', name:'r', min:2.8, max:4.0, step:0.0001, value:3.86},
         {k:'lfoHz', name:'Update rate (Hz)', min:1, max:400, step:1, value:40},
       ]},
-    { id:'dist', title:'Нелинейная сатурация', tag:'tanh', desc:'tanh(α·sin(2π f t))',
+    { id:'dist', title:'Nonlinear Saturation', tag:'tanh', desc:'tanh(α·sin(2π f t))',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'fd', name:'f (Hz)', min:20, max:2000, step:1, value:110},
         {k:'alpha', name:'α', min:0, max:10, step:0.01, value:3.0},
       ]},
-    { id:'karplus', title:'Karplus–Strong (струна)', tag:'KS', desc:'noise-in-delay + averaging + damping', hasReset:true,
+    { id:'karplus', title:'Karplus–Strong (String)', tag:'KS', desc:'noise-in-delay + averaging + damping', hasReset:true,
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.14},
         {k:'ksFreq', name:'Freq (Hz)', min:40, max:880, step:1, value:110},
@@ -866,17 +866,17 @@
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'nCut', name:'Cutoff (Hz)', min:20, max:18000, step:1, value:800},
       ]},
-    { id:'pinknoise', title:'Pink Noise (1/f)', tag:'Noise', desc:'Естественный шум 1/f спектра',
+    { id:'pinknoise', title:'Pink Noise (1/f)', tag:'Noise', desc:'Natural 1/f spectrum noise',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
         {k:'pinkBright', name:'Brightness', min:0, max:1, step:0.01, value:0.3},
       ]},
-    { id:'brownnoise', title:'Brown Noise (Brownian)', tag:'Noise', desc:'Случайное блуждание — глубокий гул',
+    { id:'brownnoise', title:'Brown Noise (Brownian)', tag:'Noise', desc:'Random walk — deep rumble',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.15},
         {k:'brownStep', name:'Step size', min:0.001, max:0.1, step:0.001, value:0.02},
       ]},
-    { id:'velvetnoise', title:'Velvet Noise', tag:'Noise', desc:'Редкие случайные импульсы',
+    { id:'velvetnoise', title:'Velvet Noise', tag:'Noise', desc:'Sparse random impulses',
       sliders:[
         {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
         {k:'velvetDensity', name:'Density (imp/s)', min:100, max:10000, step:10, value:2000},
@@ -1484,7 +1484,7 @@
 
     ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
 
-    // iOS Safari: AudioContext может стартовать в suspended состоянии
+    // iOS Safari: AudioContext may start in suspended state
     if (ctx.state === 'suspended') {
       await ctx.resume();
     }
@@ -1935,7 +1935,7 @@
       body.classList.toggle('collapsed', allCollapsed);
       colBtn.textContent = allCollapsed ? '▶' : '▼';
     }
-    collapseAllBtn.textContent = allCollapsed ? '▶ Развернуть все' : '▼ Свернуть все';
+    collapseAllBtn.textContent = allCollapsed ? '▶ Expand all' : '▼ Collapse all';
   });
 
   $('#masterGain').addEventListener('input', (e)=>{

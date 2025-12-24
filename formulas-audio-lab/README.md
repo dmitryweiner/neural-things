@@ -1,14 +1,14 @@
 # Formula Audio Lab
 
-**Веб-приложение для синтеза звука на основе математических формул.**
+**A web application for sound synthesis based on mathematical formulas.**
 
-Интерактивная аудио-лаборатория, где звук генерируется в реальном времени через AudioWorklet API. Каждый генератор — это математическая формула, превращённая в звуковую волну.
+An interactive audio laboratory where sound is generated in real-time via the AudioWorklet API. Each generator is a mathematical formula turned into a sound wave.
 
 ---
 
-## Архитектура
+## Architecture
 
-### Аудио-граф
+### Audio Graph
 
 ```text
 [Generators] → [MixBus] → [FX Input] → [Filter?] → [Chorus?] → [Reverb?] → [Limiter?] → [MasterGain] → [Analyser] → [Destination]
@@ -16,149 +16,149 @@
                                                                                       [MediaStreamDest] → Recording
 ```
 
-- **AudioWorklet** (`FormulaGeneratorProcessor`) — генерация семплов в отдельном аудио-потоке
-- **MixBus** — суммирование всех активных генераторов
-- **Effects** — опциональная цепочка эффектов (каждый можно вкл/выкл)
-- **Analyser** — данные для осциллоскопа
+- **AudioWorklet** (`FormulaGeneratorProcessor`) — sample generation in a separate audio thread
+- **MixBus** — summing all active generators
+- **Effects** — optional effects chain (each can be toggled on/off)
+- **Analyser** — data for the oscilloscope
 
-### Состояние UI
+### UI State
 
-Всё состояние сериализуется в JSON:
-- Сохранение в `localStorage` (кнопка "Сохранить пресет")
-- Кодирование в URL hash через base64url (кнопка "Поделиться")
-- Автозагрузка из URL при открытии страницы
-
----
-
-## Генераторы (Formulas)
-
-Каждый генератор можно включить независимо (checkbox), параметры регулируются слайдерами.
-
-### 1. FM-синус (`fm`)
-**Формула:** `sin(2π·fc·t + I·sin(2π·fm·t))`
-
-Частотная модуляция. Несущая частота `fc` модулируется синусоидой `fm` с индексом модуляции `I`.
-
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `fc` | Несущая частота (Hz) | 20–2000 |
-| `fm` | Частота модулятора (Hz) | 0.1–60 |
-| `I` | Индекс модуляции | 0–20 |
+All state is serialized to JSON:
+- Saving to `localStorage` (button "Save preset")
+- Encoding to URL hash via base64url (button "Share")
+- Auto-loading from URL when opening the page
 
 ---
 
-### 2. AM / биения (`am`)
-**Формула:** `sin(2π·f1·t) · sin(2π·f2·t)`
+## Generators (Formulas)
 
-Амплитудная модуляция / умножение двух синусоид.
+Each generator can be enabled independently (checkbox), parameters are adjusted with sliders.
 
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `f1` | Первая частота (Hz) | 20–2000 |
-| `f2` | Вторая частота (Hz) | 20–2000 |
+### 1. FM Sine (`fm`)
+**Formula:** `sin(2π·fc·t + I·sin(2π·fm·t))`
 
----
+Frequency modulation. Carrier frequency `fc` is modulated by a sinusoid `fm` with modulation index `I`.
 
-### 3. Логистическое отображение (`logistic`)
-**Формула:** `x_{n+1} = r·x_n·(1 - x_n)`
-
-Хаотическая система. Значение `x` управляет частотой синусоиды.
-
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `base` | Базовая частота (Hz) | 20–800 |
-| `depth` | Глубина модуляции (Hz) | 0–1200 |
-| `r` | Параметр хаоса | 2.8–4.0 |
-| `lfoHz` | Частота обновления x | 1–400 |
-
-**Примечание:** При `r < 3` — стабильно, при `r ≈ 3.57` — период-удвоение, при `r > 3.57` — хаос.
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `fc` | Carrier frequency (Hz) | 20–2000 |
+| `fm` | Modulator frequency (Hz) | 0.1–60 |
+| `I` | Modulation index | 0–20 |
 
 ---
 
-### 4. Экспоненциальный глиссандо (`gliss`)
-**Формула:** `f(t) = f0 · e^(k·t)`
+### 2. AM / Beats (`am`)
+**Formula:** `sin(2π·f1·t) · sin(2π·f2·t)`
 
-Частота экспоненциально растёт или падает со временем.
+Amplitude modulation / multiplication of two sinusoids.
 
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `f0` | Начальная частота (Hz) | 10–400 |
-| `k` | Скорость изменения | -2.0–2.0 |
-
-**Примечание:** Используй "Reset state" для перезапуска с начала.
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `f1` | First frequency (Hz) | 20–2000 |
+| `f2` | Second frequency (Hz) | 20–2000 |
 
 ---
 
-### 5. Сумма гармоник (`additive`)
-**Формула:** `Σ (1/k)·sin(move·t + k) · sin(2π·k·fund·t)`
+### 3. Logistic Map (`logistic`)
+**Formula:** `x_{n+1} = r·x_n·(1 - x_n)`
 
-Аддитивный синтез с движущимися амплитудами гармоник.
+A chaotic system. The value `x` controls the frequency of the sinusoid.
 
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `fund` | Фундаментальная частота (Hz) | 20–500 |
-| `N` | Количество гармоник | 1–40 |
-| `move` | Скорость движения амплитуд (Hz) | 0.01–5 |
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `base` | Base frequency (Hz) | 20–800 |
+| `depth` | Modulation depth (Hz) | 0–1200 |
+| `r` | Chaos parameter | 2.8–4.0 |
+| `lfoHz` | Update rate of x | 1–400 |
 
----
-
-### 6. Фазовая модуляция (`pm`)
-**Формула:** `sin(2π·f·t + 5·sin(sin(2π·f2·t)))`
-
-Фаза модулируется вложенными синусами.
-
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `f` | Несущая частота (Hz) | 20–2000 |
-| `f2pm` | Частота модулятора (Hz) | 0.1–40 |
-
-**Примечание:** Используй "Reset state" для сброса фазы.
+**Note:** At `r < 3` — stable, at `r ≈ 3.57` — period-doubling, at `r > 3.57` — chaos.
 
 ---
 
-### 7. Два синуса — биения (`beats`)
-**Формула:** `0.5·(sin(2π·f·t) + sin(2π·(f + Δf)·t))`
+### 4. Exponential Glissando (`gliss`)
+**Formula:** `f(t) = f0 · e^(k·t)`
 
-Классические биения — интерференция двух близких частот.
+Frequency exponentially rises or falls over time.
 
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `fbeat` | Базовая частота (Hz) | 20–2000 |
-| `df` | Разница частот Δf (Hz) | 0–20 |
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `f0` | Initial frequency (Hz) | 10–400 |
+| `k` | Rate of change | -2.0–2.0 |
 
-**Примечание:** Частота биений = `Δf` Гц.
-
----
-
-### 8. Нелинейная сатурация (`dist`)
-**Формула:** `tanh(α · sin(2π·f·t))`
-
-Мягкое ограничение через гиперболический тангенс — добавляет гармоники.
-
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `fd` | Частота (Hz) | 20–2000 |
-| `alpha` | Степень искажения | 0–10 |
+**Note:** Use "Reset state" to restart from the beginning.
 
 ---
 
-### 9. Квазислучайный LFO (`quasi`)
-**Формула:** `f(t) = fq + Aq · sin(sin(sin(w·t)))`
+### 5. Harmonic Sum (`additive`)
+**Formula:** `Σ (1/k)·sin(move·t + k) · sin(2π·k·fund·t)`
 
-Частота модулируется тройным вложением sin — даёт псевдослучайное поведение.
+Additive synthesis with moving harmonic amplitudes.
 
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `fq` | Базовая частота (Hz) | 20–500 |
-| `Aq` | Глубина (Hz) | 0–1200 |
-| `wq` | Скорость w | 0.05–6 |
-
-**Примечание:** Используй "Reset state" для сброса фазы.
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `fund` | Fundamental frequency (Hz) | 20–500 |
+| `N` | Number of harmonics | 1–40 |
+| `move` | Amplitude movement speed (Hz) | 0.01–5 |
 
 ---
 
-### 10. Аттрактор Лоренца (`lorenz`)
-**Формула:** Система ОДУ Лоренца → freq/amp
+### 6. Phase Modulation (`pm`)
+**Formula:** `sin(2π·f·t + 5·sin(sin(2π·f2·t)))`
+
+Phase is modulated by nested sines.
+
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `f` | Carrier frequency (Hz) | 20–2000 |
+| `f2pm` | Modulator frequency (Hz) | 0.1–40 |
+
+**Note:** Use "Reset state" to reset phase.
+
+---
+
+### 7. Two Sines — Beats (`beats`)
+**Formula:** `0.5·(sin(2π·f·t) + sin(2π·(f + Δf)·t))`
+
+Classic beats — interference of two close frequencies.
+
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `fbeat` | Base frequency (Hz) | 20–2000 |
+| `df` | Frequency difference Δf (Hz) | 0–20 |
+
+**Note:** Beat frequency = `Δf` Hz.
+
+---
+
+### 8. Nonlinear Saturation (`dist`)
+**Formula:** `tanh(α · sin(2π·f·t))`
+
+Soft clipping via hyperbolic tangent — adds harmonics.
+
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `fd` | Frequency (Hz) | 20–2000 |
+| `alpha` | Distortion amount | 0–10 |
+
+---
+
+### 9. Quasi-random LFO (`quasi`)
+**Formula:** `f(t) = fq + Aq · sin(sin(sin(w·t)))`
+
+Frequency is modulated by triple-nested sin — produces pseudo-random behavior.
+
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `fq` | Base frequency (Hz) | 20–500 |
+| `Aq` | Depth (Hz) | 0–1200 |
+| `wq` | Speed w | 0.05–6 |
+
+**Note:** Use "Reset state" to reset phase.
+
+---
+
+### 10. Lorenz Attractor (`lorenz`)
+**Formula:** Lorenz ODE system → freq/amp
 
 ```text
 dx/dt = σ(y - x)
@@ -166,97 +166,97 @@ dy/dt = x(ρ - z) - y
 dz/dt = xy - βz
 ```
 
-Координаты аттрактора мапятся на частоту и амплитуду.
+Attractor coordinates are mapped to frequency and amplitude.
 
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
+| Parameter | Description | Range |
+|-----------|-------------|-------|
 | `sigma` | σ | 0–30 |
 | `rho` | ρ | 0–60 |
 | `beta` | β | 0.1–10 |
-| `lBase` | Базовая частота (Hz) | 20–400 |
-| `lFreqScale` | Масштаб частоты | 0–200 |
-| `lAmp` | Масштаб амплитуды | 0–1 |
+| `lBase` | Base frequency (Hz) | 20–400 |
+| `lFreqScale` | Frequency scale | 0–200 |
+| `lAmp` | Amplitude scale | 0–1 |
 
-**Классические значения:** σ=10, ρ=28, β=8/3 ≈ 2.667
+**Classic values:** σ=10, ρ=28, β=8/3 ≈ 2.667
 
-**Примечание:** Используй "Reset state" для сброса состояния аттрактора.
+**Note:** Use "Reset state" to reset attractor state.
 
 ---
 
 ### 11. Karplus–Strong (`karplus`)
-**Формула:** `noise → delay line → averaging → feedback`
+**Formula:** `noise → delay line → averaging → feedback`
 
-Физическое моделирование струны.
+Physical modeling of a string.
 
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `ksFreq` | Частота ноты (Hz) | 40–880 |
-| `ksDamp` | Затухание | 0.90–0.9999 |
-| `ksBright` | Яркость (баланс фильтра) | 0–1 |
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `ksFreq` | Note frequency (Hz) | 40–880 |
+| `ksDamp` | Damping | 0.90–0.9999 |
+| `ksBright` | Brightness (filter balance) | 0–1 |
 
-**Примечание:** "Reset state" — щипок струны заново.
+**Note:** "Reset state" — pluck the string again.
 
 ---
 
 ### 12. Bitcrusher / Downsample (`bitcrush`)
-**Формула:** `quantize(sin(phase), bits) + sample_hold(down)`
+**Formula:** `quantize(sin(phase), bits) + sample_hold(down)`
 
-Lo-Fi эффект: уменьшение битности и частоты дискретизации.
+Lo-Fi effect: bit depth and sample rate reduction.
 
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `bcFreq` | Входная частота (Hz) | 20–2000 |
-| `bcBits` | Битность | 1–16 |
-| `bcDown` | Даунсемплинг (делитель) | 1–64 |
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `bcFreq` | Input frequency (Hz) | 20–2000 |
+| `bcBits` | Bit depth | 1–16 |
+| `bcDown` | Downsampling (divider) | 1–64 |
 
 ---
 
 ### 13. Noise → Low-pass (`noiselp`)
-**Формула:** `white_noise → 1-pole LP filter`
+**Formula:** `white_noise → 1-pole LP filter`
 
-Отфильтрованный белый шум.
+Filtered white noise.
 
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `nCut` | Частота среза (Hz) | 20–18000 |
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `nCut` | Cutoff frequency (Hz) | 20–18000 |
 
 ---
 
 ### 14. Pink Noise (`pinknoise`)
-**Формула:** Paul Kellet's 1/f approximation
+**Formula:** Paul Kellet's 1/f approximation
 
-Естественный шум с 1/f спектром — амплитуда обратно пропорциональна частоте. Часто используется для релаксации и тестирования акустики.
+Natural noise with 1/f spectrum — amplitude is inversely proportional to frequency. Often used for relaxation and acoustic testing.
 
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `pinkBright` | Яркость (подмес белого шума) | 0–1 |
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `pinkBright` | Brightness (white noise mix) | 0–1 |
 
 ---
 
 ### 15. Brown Noise (`brownnoise`)
-**Формула:** `x[n] = clamp(x[n-1] + noise * step, -1, 1)`
+**Formula:** `x[n] = clamp(x[n-1] + noise * step, -1, 1)`
 
-Броуновский (красный) шум — случайное блуждание. Глубокий низкочастотный гул, напоминающий рокот океана.
+Brownian (red) noise — random walk. Deep low-frequency rumble, reminiscent of ocean roar.
 
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `brownStep` | Размер шага блуждания | 0.001–0.1 |
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `brownStep` | Walk step size | 0.001–0.1 |
 
 ---
 
 ### 16. Velvet Noise (`velvetnoise`)
-**Формула:** sparse impulses (+1 или -1)
+**Formula:** sparse impulses (+1 or -1)
 
-Редкие случайные импульсы. Текстурный щёлкающий звук, используется для декорреляции и специальных эффектов.
+Sparse random impulses. Textured clicking sound, used for decorrelation and special effects.
 
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `velvetDensity` | Плотность импульсов (имп/с) | 100–10000 |
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `velvetDensity` | Impulse density (imp/s) | 100–10000 |
 
 ---
 
-### 17. Аттрактор Рёсслера (`rossler`)
-**Формула:** Система ОДУ Рёсслера
+### 17. Rossler Attractor (`rossler`)
+**Formula:** Rossler ODE system
 
 ```text
 dx/dt = -y - z
@@ -264,167 +264,167 @@ dy/dt = x + a·y
 dz/dt = b + z·(x - c)
 ```
 
-Хаотическая система, похожая на Лоренца, но с другим характером движения.
+A chaotic system, similar to Lorenz, but with different motion characteristics.
 
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `rossA` | Параметр a | 0.01–0.5 |
-| `rossB` | Параметр b | 0.01–0.5 |
-| `rossC` | Параметр c | 2–12 |
-| `rossBase` | Базовая частота (Hz) | 20–400 |
-| `rossFreqScale` | Масштаб частоты | 0–100 |
-| `rossAmp` | Масштаб амплитуды | 0–1 |
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `rossA` | Parameter a | 0.01–0.5 |
+| `rossB` | Parameter b | 0.01–0.5 |
+| `rossC` | Parameter c | 2–12 |
+| `rossBase` | Base frequency (Hz) | 20–400 |
+| `rossFreqScale` | Frequency scale | 0–100 |
+| `rossAmp` | Amplitude scale | 0–1 |
 
-**Классические значения:** a=0.2, b=0.2, c=5.7
+**Classic values:** a=0.2, b=0.2, c=5.7
 
-**Примечание:** Используй "Reset state" для сброса состояния аттрактора.
-
----
-
-### 18. Тон Шепарда (`shepard`)
-**Формула:** `Σ envelope(k) · sin(2π · f0 · 2^(k+t) · t)`
-
-Завораживающая слуховая иллюзия бесконечного подъёма (или спуска). Несколько октав синусоид с гауссовой огибающей по частоте.
-
-| Параметр | Описание | Диапазон |
-|----------|----------|----------|
-| `shepBase` | Базовая частота (Hz) | 20–200 |
-| `shepSpeed` | Скорость подъёма (отрицательная = спуск) | -0.5–0.5 |
-| `shepOctaves` | Количество октав | 3–10 |
-
-**Примечание:** Используй "Reset state" для перезапуска иллюзии.
+**Note:** Use "Reset state" to reset attractor state.
 
 ---
 
-## Эффекты
+### 18. Shepard Tone (`shepard`)
+**Formula:** `Σ envelope(k) · sin(2π · f0 · 2^(k+t) · t)`
 
-Панель "Effects" открывается кнопкой в верхней панели. Каждый эффект включается чекбоксом "ON".
+A mesmerizing auditory illusion of endless rising (or falling). Multiple octaves of sinusoids with a Gaussian envelope over frequency.
+
+| Parameter | Description | Range |
+|-----------|-------------|-------|
+| `shepBase` | Base frequency (Hz) | 20–200 |
+| `shepSpeed` | Rise speed (negative = descent) | -0.5–0.5 |
+| `shepOctaves` | Number of octaves | 3–10 |
+
+**Note:** Use "Reset state" to restart the illusion.
+
+---
+
+## Effects
+
+The "Effects" panel opens with a button in the top bar. Each effect is enabled with an "ON" checkbox.
 
 ### Filter (Biquad)
-Стандартный биквадратный фильтр Web Audio API.
+Standard Web Audio API biquad filter.
 
-| Параметр | Описание |
-|----------|----------|
+| Parameter | Description |
+|-----------|-------------|
 | Type | low-pass / high-pass / band-pass |
-| Cutoff | Частота среза (20–18000 Hz) |
-| Q | Добротность (0.1–30) |
+| Cutoff | Cutoff frequency (20–18000 Hz) |
+| Q | Quality factor (0.1–30) |
 
 ### Chorus / Flanger
-Модулированная задержка с обратной связью.
+Modulated delay with feedback.
 
-| Параметр | Описание |
-|----------|----------|
+| Parameter | Description |
+|-----------|-------------|
 | Mode | chorus (base 12ms) / flanger (base 2ms) |
-| Rate | Частота LFO (0.01–8 Hz) |
-| Depth | Глубина модуляции (0–20 ms) |
-| Mix | Баланс dry/wet (0–1) |
-| Feedback | Обратная связь (0–0.95) |
+| Rate | LFO frequency (0.01–8 Hz) |
+| Depth | Modulation depth (0–20 ms) |
+| Mix | Dry/wet balance (0–1) |
+| Feedback | Feedback amount (0–0.95) |
 
 ### Reverb (Convolver)
-Свёрточная реверберация с процедурным импульсом.
+Convolution reverb with procedural impulse response.
 
-| Параметр | Описание |
-|----------|----------|
-| Decay | Время затухания (0.1–8 s) |
-| Mix | Баланс dry/wet (0–1) |
+| Parameter | Description |
+|-----------|-------------|
+| Decay | Decay time (0.1–8 s) |
+| Mix | Dry/wet balance (0–1) |
 
 ### Limiter
-Динамический компрессор в режиме лимитера (ratio=20).
+Dynamic compressor in limiter mode (ratio=20).
 
-| Параметр | Описание |
-|----------|----------|
-| Threshold | Порог (dB) (-40–0) |
-| Release | Время восстановления (0.02–1 s) |
+| Parameter | Description |
+|-----------|-------------|
+| Threshold | Threshold (dB) (-40–0) |
+| Release | Release time (0.02–1 s) |
 
 ### Delay / Echo
-Классическая задержка с обратной связью для создания эха.
+Classic delay with feedback for creating echoes.
 
-| Параметр | Описание |
-|----------|----------|
-| Time | Время задержки (0.05–2.0 s) |
-| Feedback | Обратная связь (0–0.9) |
-| Mix | Баланс dry/wet (0–1) |
+| Parameter | Description |
+|-----------|-------------|
+| Time | Delay time (0.05–2.0 s) |
+| Feedback | Feedback amount (0–0.9) |
+| Mix | Dry/wet balance (0–1) |
 
 ### Phaser
-Фазовый эффект через цепочку all-pass фильтров с LFO модуляцией.
+Phase effect via chain of all-pass filters with LFO modulation.
 
-| Параметр | Описание |
-|----------|----------|
-| Rate | Частота LFO (0.1–10 Hz) |
-| Depth | Глубина модуляции (0–1) |
-| Stages | Количество фильтров (2, 4, 6, 8) |
-| Feedback | Обратная связь (0–0.9) |
-| Mix | Баланс dry/wet (0–1) |
-
----
-
-## UI элементы
-
-### Верхняя панель
-- **Статус** — отображается справа от заголовка серым текстом
-- **▶ Play / ⏹ Stop** — единая кнопка для запуска и остановки аудио (зелёная в режиме Play, красная в режиме Stop)
-- **Record** — запись звука в WAV формат (кнопка подсвечивается красным во время записи)
-- **Сохранить пресет** — в localStorage
-- **Загрузить пресет** — из localStorage
-- **Поделиться** — копирует URL с состоянием в буфер обмена
-- **📊** — показать/скрыть осциллоскоп (кнопка подсвечивается когда осциллоскоп виден)
-- **🎛** — открыть/закрыть панель эффектов (кнопка подсвечивается когда панель открыта)
-
-**Группировка кнопок на мобильных:**
-Кнопки разделены на логические группы с визуальными разделителями:
-1. Управление воспроизведением: Play/Stop, Record
-2. Работа с пресетами: Сохранить, Загрузить, Поделиться
-3. Панели: 📊 (Scope), 🎛 (Effects)
-
-### Автозапуск аудио
-При включении любой формулы (клик на чекбокс) аудио автоматически запускается, если ещё не было запущено. Это устраняет необходимость сначала нажимать Play.
-
-### Осциллоскоп со спектрограммой
-- **Спектрограмма (waterfall)** — фоновое отображение частотного спектра, сдвигающееся вправо
-  - Палитра от синего (тихо) к красному (громко)
-  - Низкие частоты внизу, высокие — вверху
-- **Сетка** — поверх спектрограммы для удобства ориентации
-- **Осциллограмма** — волновая форма сигнала, рисуется поверх всего
-- Автомасштабирование по Y
-- Занимает всю ширину экрана
-- Сворачивается кнопкой 📊 в верхней панели
-- Когда свёрнут — панель полностью скрыта (не занимает место)
-- При скрытии отрисовка прекращается для экономии процессора
-- Автоматически скрывается при открытии панели эффектов
-- На мобильных свёрнут по умолчанию
-
-### Панель эффектов
-- Открывается кнопкой 🎛
-- Имеет прокрутку при переполнении (max-height: 60vh)
-- При открытии автоматически скрывает осциллоскоп
-
-### Карточки формул
-- **Выключить все** — отключает все формулы одновременно
-- **▼ Свернуть все / ▶ Развернуть все** — сворачивает/разворачивает все формулы для компактного вида
-- Чекбокс — вкл/выкл генератор (автозапускает аудио при первом включении)
-- **Подсветка активных формул** — включённые генераторы выделены зелёной рамкой слева
-- **▼ / ▶** — свернуть/развернуть слайдеры формулы
-- **Кнопки +/−** — рядом с каждым слайдером для точной настройки на один шаг
-- "Reset state" — сброс внутреннего состояния (только для: Gliss, PM, Quasi, Lorenz, Karplus-Strong)
+| Parameter | Description |
+|-----------|-------------|
+| Rate | LFO frequency (0.1–10 Hz) |
+| Depth | Modulation depth (0–1) |
+| Stages | Number of filters (2, 4, 6, 8) |
+| Feedback | Feedback amount (0–0.9) |
+| Mix | Dry/wet balance (0–1) |
 
 ---
 
-## Технические детали
+## UI Elements
+
+### Top Bar
+- **Status** — displayed to the right of the title in gray text
+- **▶ Play / ⏹ Stop** — single button for starting and stopping audio (green in Play mode, red in Stop mode)
+- **Record** — record audio to WAV format (button highlights red during recording)
+- **Save preset** — to localStorage
+- **Load preset** — from localStorage
+- **Share** — copies URL with state to clipboard
+- **📊** — show/hide oscilloscope (button highlights when oscilloscope is visible)
+- **🎛** — open/close effects panel (button highlights when panel is open)
+
+**Button grouping on mobile:**
+Buttons are divided into logical groups with visual separators:
+1. Playback controls: Play/Stop, Record
+2. Preset management: Save, Load, Share
+3. Panels: 📊 (Scope), 🎛 (Effects)
+
+### Auto-start Audio
+When enabling any formula (clicking checkbox) audio automatically starts if not already running. This eliminates the need to press Play first.
+
+### Oscilloscope with Spectrogram
+- **Spectrogram (waterfall)** — background display of frequency spectrum, scrolling right
+  - Palette from blue (quiet) to red (loud)
+  - Low frequencies at bottom, high at top
+- **Grid** — overlaid on spectrogram for easy orientation
+- **Waveform** — signal waveform drawn on top of everything
+- Auto-scaling on Y axis
+- Spans full screen width
+- Collapses with 📊 button in top bar
+- When collapsed — panel is completely hidden (takes no space)
+- When hidden, drawing stops to save CPU
+- Automatically hides when effects panel opens
+- Collapsed by default on mobile
+
+### Effects Panel
+- Opens with 🎛 button
+- Has scrolling when content overflows (max-height: 60vh)
+- Automatically hides oscilloscope when opened
+
+### Formula Cards
+- **Disable all** — disables all formulas at once
+- **▼ Collapse all / ▶ Expand all** — collapses/expands all formulas for compact view
+- Checkbox — enable/disable generator (auto-starts audio on first enable)
+- **Active formula highlighting** — enabled generators are marked with green border on left
+- **▼ / ▶** — collapse/expand formula sliders
+- **+/− buttons** — next to each slider for precise one-step adjustment
+- "Reset state" — resets internal state (only for: Gliss, PM, Quasi, Lorenz, Karplus-Strong)
+
+---
+
+## Technical Details
 
 ### AudioWorklet Processor
 
 ```javascript
 class FormulaGeneratorProcessor extends AudioWorkletProcessor {
-  // Генерация семплов в process()
-  // Коммуникация через port.postMessage({type: 'set'|'reset', params})
+  // Sample generation in process()
+  // Communication via port.postMessage({type: 'set'|'reset', params})
 }
 ```
 
-### Состояние (State)
+### State
 
 ```javascript
 {
-  v: 2,                    // версия формата
+  v: 2,                    // format version
   masterGain: 0.25,
   scopeCollapsed: false,
   fx: {
@@ -447,7 +447,7 @@ class FormulaGeneratorProcessor extends AudioWorkletProcessor {
 ```
 
 ### URL Sharing
-Состояние кодируется в base64url и добавляется в hash:
+State is encoded in base64url and added to hash:
 
 ```text
 https://.../#s=eyJ2IjoyLCJtYXN0ZXJHYWluIjowLjI1LC4uLn0
@@ -455,72 +455,71 @@ https://.../#s=eyJ2IjoyLCJtYXN0ZXJHYWluIjowLjI1LC4uLn0
 
 ---
 
-## Советы по использованию
+## Usage Tips
 
-1. **Всегда начинай с низкого Gain** — некоторые формулы могут давать громкий выход
-2. **Используй Limiter** при экспериментах с хаосом (Lorenz, Rossler, Logistic)
-3. **Комбинируй генераторы** — включай несколько одновременно
-4. **Reset state** — доступен для 7 формул: Gliss, PM, Quasi, Lorenz, Karplus-Strong, Rossler, Shepard
-   - Для Karplus-Strong это "щипок" струны заново
-   - Для Gliss — начало с f0
-   - Для Lorenz/Rossler — сброс состояния аттрактора
-   - Для Shepard — перезапуск иллюзии с начала
-5. **Выключить все** — быстрый способ отключить все генераторы
-6. **Шумы** — три типа шума для разных задач:
-   - Pink noise — приятный для релаксации
-   - Brown noise — глубокий гул
-   - Velvet noise — текстурный, щёлкающий
-7. **Тон Шепарда** — попробуй отрицательную скорость для иллюзии бесконечного спуска
-8. **Delay + Phaser** — отлично сочетаются с Chorus для богатого звука
-9. **Запись** — используй Record для сохранения интересных звуков
-   - Формат записи: WAV (16-bit PCM) — воспроизводится везде
-   - На мобильных устройствах: используется Web Share API для удобной передачи файла
-   - Если автоматическое скачивание не сработало — кликни по ссылке "Download" в статусе
-
----
-
-## Особенности iOS
-
-Safari на iOS имеет политику автовоспроизведения, которая требует особого обращения с Web Audio API:
-
-- **AudioContext** может стартовать в состоянии `suspended` даже после создания по клику пользователя
-- В этом состоянии аудио-граф обрабатывает данные (осциллограф показывает сигнал), но звук не выводится на динамики
-- Приложение автоматически вызывает `resume()` при старте для корректной работы на iOS
-
-**Для пользователей:** Нажмите кнопку "▶ Play" или включите любую формулу — звук активируется автоматически.
+1. **Always start with low Gain** — some formulas can produce loud output
+2. **Use Limiter** when experimenting with chaos (Lorenz, Rossler, Logistic)
+3. **Combine generators** — enable several simultaneously
+4. **Reset state** — available for 7 formulas: Gliss, PM, Quasi, Lorenz, Karplus-Strong, Rossler, Shepard
+   - For Karplus-Strong this is "plucking" the string again
+   - For Gliss — start from f0
+   - For Lorenz/Rossler — reset attractor state
+   - For Shepard — restart illusion from beginning
+5. **Disable all** — quick way to disable all generators
+6. **Noises** — three types of noise for different purposes:
+   - Pink noise — pleasant for relaxation
+   - Brown noise — deep rumble
+   - Velvet noise — textured, clicking
+7. **Shepard Tone** — try negative speed for endless falling illusion
+8. **Delay + Phaser** — combine well with Chorus for rich sound
+9. **Recording** — use Record to save interesting sounds
+   - Recording format: WAV (16-bit PCM) — plays everywhere
+   - On mobile devices: uses Web Share API for convenient file sharing
+   - If automatic download doesn't work — click the "Download" link in status
 
 ---
 
-## Предотвращение sleep mode (Wake Lock)
+## iOS Specifics
 
-На мобильных устройствах экран может автоматически выключаться через некоторое время бездействия. Чтобы этого не происходило во время воспроизведения аудио, приложение использует **Screen Wake Lock API**.
+Safari on iOS has an autoplay policy that requires special handling of Web Audio API:
 
-### Как это работает
+- **AudioContext** may start in `suspended` state even after creation on user click
+- In this state, the audio graph processes data (oscilloscope shows signal), but sound is not output to speakers
+- The app automatically calls `resume()` on start for correct iOS operation
 
-- При запуске аудио (кнопка Play или включение формулы) запрашивается wake lock — экран не будет гаснуть
-- При остановке аудио (кнопка Stop) wake lock освобождается
-- Если пользователь переключился на другую вкладку или свернул браузер, браузер автоматически освобождает wake lock
-- При возврате на вкладку (если аудио всё ещё играет) wake lock запрашивается заново
+**For users:** Press the "▶ Play" button or enable any formula — sound will activate automatically.
 
-### Поддержка браузерами
+---
 
-| Браузер | Поддержка |
-|---------|-----------|
+## Preventing Sleep Mode (Wake Lock)
+
+On mobile devices, the screen may automatically turn off after some inactivity. To prevent this during audio playback, the app uses **Screen Wake Lock API**.
+
+### How It Works
+
+- When starting audio (Play button or enabling a formula) wake lock is requested — screen won't turn off
+- When stopping audio (Stop button) wake lock is released
+- If user switches to another tab or minimizes browser, browser automatically releases wake lock
+- When returning to tab (if audio is still playing) wake lock is requested again
+
+### Browser Support
+
+| Browser | Support |
+|---------|---------|
 | Chrome / Edge | 84+ |
 | Safari (iOS) | 16.4+ |
-| Firefox | Не поддерживается |
+| Firefox | Not supported |
 
-На неподдерживаемых браузерах функция просто не активируется (graceful degradation) — приложение продолжает работать, но экран может выключаться по таймауту устройства.
+On unsupported browsers the feature simply doesn't activate (graceful degradation) — app continues working, but screen may turn off per device timeout.
 
 ---
 
-## Зависимости
+## Dependencies
 
-Нет внешних зависимостей. Чистый HTML + CSS + JavaScript.
+No external dependencies. Pure HTML + CSS + JavaScript.
 
 - Web Audio API (AudioWorklet, BiquadFilter, Convolver, DynamicsCompressor)
-- AudioWorklet для записи в WAV (16-bit PCM)
-- Web Share API для передачи файлов на мобильных (опционально)
-- Screen Wake Lock API для предотвращения sleep mode (опционально)
-- Canvas 2D для осциллоскопа
-
+- AudioWorklet for WAV recording (16-bit PCM)
+- Web Share API for file sharing on mobile (optional)
+- Screen Wake Lock API for preventing sleep mode (optional)
+- Canvas 2D for oscilloscope
