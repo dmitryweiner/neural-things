@@ -268,7 +268,7 @@
         <div class="ctrl with-adj">
           <label>Cutoff (Hz)</label>
           <button class="adj-btn" data-slider="fxFilterFreq" data-dir="-1">−</button>
-          <input id="fxFilterFreq" type="range" min="20" max="18000" step="1" value="12000">
+          <input id="fxFilterFreq" type="range" min="20" max="2000" step="1" value="1000">
           <button class="adj-btn" data-slider="fxFilterFreq" data-dir="1">+</button>
           <div class="small" id="fxFilterFreqVal">12000</div>
         </div>
@@ -311,14 +311,14 @@
         <div class="ctrl with-adj">
           <label>Mix (dry↔wet)</label>
           <button class="adj-btn" data-slider="fxChorusMix" data-dir="-1">−</button>
-          <input id="fxChorusMix" type="range" min="0" max="1" step="0.001" value="0.35">
+          <input id="fxChorusMix" type="range" min="0" max="1" step="0.01" value="0.35">
           <button class="adj-btn" data-slider="fxChorusMix" data-dir="1">+</button>
           <div class="small" id="fxChorusMixVal">0.35</div>
         </div>
         <div class="ctrl with-adj">
           <label>Feedback</label>
           <button class="adj-btn" data-slider="fxChorusFb" data-dir="-1">−</button>
-          <input id="fxChorusFb" type="range" min="0" max="0.95" step="0.001" value="0.15">
+          <input id="fxChorusFb" type="range" min="0" max="0.95" step="0.01" value="0.15">
           <button class="adj-btn" data-slider="fxChorusFb" data-dir="1">+</button>
           <div class="small" id="fxChorusFbVal">0.15</div>
         </div>
@@ -339,7 +339,7 @@
         <div class="ctrl with-adj">
           <label>Mix (dry↔wet)</label>
           <button class="adj-btn" data-slider="fxReverbMix" data-dir="-1">−</button>
-          <input id="fxReverbMix" type="range" min="0" max="1" step="0.001" value="0.25">
+          <input id="fxReverbMix" type="range" min="0" max="1" step="0.01" value="0.25">
           <button class="adj-btn" data-slider="fxReverbMix" data-dir="1">+</button>
           <div class="small" id="fxReverbMixVal">0.25</div>
         </div>
@@ -1081,23 +1081,7 @@
     setVal('#fxPhaserDepth', fx.phaserDepth); setVal('#fxPhaserStages', fx.phaserStages);
     setVal('#fxPhaserFb', fx.phaserFb); setVal('#fxPhaserMix', fx.phaserMix);
 
-    $('#fxFilterFreqVal').textContent = $('#fxFilterFreq').value;
-    $('#fxFilterQVal').textContent = Number($('#fxFilterQ').value).toFixed(1);
-    $('#fxChorusRateVal').textContent = Number($('#fxChorusRate').value).toFixed(2);
-    $('#fxChorusDepthVal').textContent = Number($('#fxChorusDepth').value).toFixed(1);
-    $('#fxChorusMixVal').textContent = Number($('#fxChorusMix').value).toFixed(2);
-    $('#fxChorusFbVal').textContent = Number($('#fxChorusFb').value).toFixed(2);
-    $('#fxReverbDecayVal').textContent = Number($('#fxReverbDecay').value).toFixed(1);
-    $('#fxReverbMixVal').textContent = Number($('#fxReverbMix').value).toFixed(2);
-    $('#fxLimiterThrVal').textContent = Number($('#fxLimiterThr').value).toFixed(1);
-    $('#fxLimiterRelVal').textContent = Number($('#fxLimiterRel').value).toFixed(2);
-    $('#fxDelayTimeVal').textContent = Number($('#fxDelayTime').value).toFixed(2);
-    $('#fxDelayFbVal').textContent = Number($('#fxDelayFb').value).toFixed(2);
-    $('#fxDelayMixVal').textContent = Number($('#fxDelayMix').value).toFixed(2);
-    $('#fxPhaserRateVal').textContent = Number($('#fxPhaserRate').value).toFixed(2);
-    $('#fxPhaserDepthVal').textContent = Number($('#fxPhaserDepth').value).toFixed(2);
-    $('#fxPhaserFbVal').textContent = Number($('#fxPhaserFb').value).toFixed(2);
-    $('#fxPhaserMixVal').textContent = Number($('#fxPhaserMix').value).toFixed(2);
+    updateFXLabels();
 
     const formulas = state.formulas || {};
     for (const f of FORMULAS){
@@ -1400,6 +1384,27 @@
     }
   }
 
+  // Update FX labels only (can be called without audio context)
+  function updateFXLabels(){
+    $('#fxFilterFreqVal').textContent = $('#fxFilterFreq').value;
+    $('#fxFilterQVal').textContent = Number($('#fxFilterQ').value).toFixed(1);
+    $('#fxChorusRateVal').textContent = Number($('#fxChorusRate').value).toFixed(2);
+    $('#fxChorusDepthVal').textContent = Number($('#fxChorusDepth').value).toFixed(1);
+    $('#fxChorusMixVal').textContent = Number($('#fxChorusMix').value).toFixed(2);
+    $('#fxChorusFbVal').textContent = Number($('#fxChorusFb').value).toFixed(2);
+    $('#fxReverbDecayVal').textContent = Number($('#fxReverbDecay').value).toFixed(1);
+    $('#fxReverbMixVal').textContent = Number($('#fxReverbMix').value).toFixed(2);
+    $('#fxLimiterThrVal').textContent = Number($('#fxLimiterThr').value).toFixed(1);
+    $('#fxLimiterRelVal').textContent = Number($('#fxLimiterRel').value).toFixed(2);
+    $('#fxDelayTimeVal').textContent = Number($('#fxDelayTime').value).toFixed(2);
+    $('#fxDelayFbVal').textContent = Number($('#fxDelayFb').value).toFixed(2);
+    $('#fxDelayMixVal').textContent = Number($('#fxDelayMix').value).toFixed(2);
+    $('#fxPhaserRateVal').textContent = Number($('#fxPhaserRate').value).toFixed(2);
+    $('#fxPhaserDepthVal').textContent = Number($('#fxPhaserDepth').value).toFixed(2);
+    $('#fxPhaserFbVal').textContent = Number($('#fxPhaserFb').value).toFixed(2);
+    $('#fxPhaserMixVal').textContent = Number($('#fxPhaserMix').value).toFixed(2);
+  }
+
   function updateFXParams(){
     if (!ctx) return;
 
@@ -1408,8 +1413,6 @@
     const fq = Number($('#fxFilterQ').value);
     filterNode.frequency.setValueAtTime(ff, ctx.currentTime);
     filterNode.Q.setValueAtTime(fq, ctx.currentTime);
-    $('#fxFilterFreqVal').textContent = String(ff);
-    $('#fxFilterQVal').textContent = fq.toFixed(1);
 
     const mode = $('#fxChorusMode').value;
     const rate = Number($('#fxChorusRate').value);
@@ -1425,15 +1428,8 @@
     chorusWet.gain.setValueAtTime(mix, ctx.currentTime);
     chorusFb.gain.setValueAtTime(fb, ctx.currentTime);
 
-    $('#fxChorusRateVal').textContent = rate.toFixed(2);
-    $('#fxChorusDepthVal').textContent = depthMs.toFixed(1);
-    $('#fxChorusMixVal').textContent = mix.toFixed(2);
-    $('#fxChorusFbVal').textContent = fb.toFixed(2);
-
     const decay = Number($('#fxReverbDecay').value);
     const rMix = Number($('#fxReverbMix').value);
-    $('#fxReverbDecayVal').textContent = decay.toFixed(1);
-    $('#fxReverbMixVal').textContent = prove2(rMix);
     reverbDry.gain.setValueAtTime(1 - rMix, ctx.currentTime);
     reverbWet.gain.setValueAtTime(rMix, ctx.currentTime);
 
@@ -1442,8 +1438,6 @@
 
     const thr = Number($('#fxLimiterThr').value);
     const rel = Number($('#fxLimiterRel').value);
-    $('#fxLimiterThrVal').textContent = thr.toFixed(1);
-    $('#fxLimiterRelVal').textContent = rel.toFixed(2);
 
     limiter.threshold.setValueAtTime(thr, ctx.currentTime);
     limiter.ratio.setValueAtTime(20, ctx.currentTime);
@@ -1455,9 +1449,6 @@
     const delayTime = Number($('#fxDelayTime').value);
     const delayFbVal = Number($('#fxDelayFb').value);
     const delayMixVal = Number($('#fxDelayMix').value);
-    $('#fxDelayTimeVal').textContent = delayTime.toFixed(2);
-    $('#fxDelayFbVal').textContent = delayFbVal.toFixed(2);
-    $('#fxDelayMixVal').textContent = delayMixVal.toFixed(2);
 
     delayNode.delayTime.setValueAtTime(delayTime, ctx.currentTime);
     delayFb.gain.setValueAtTime(delayFbVal, ctx.currentTime);
@@ -1470,10 +1461,6 @@
     const phaserStages = Number($('#fxPhaserStages').value);
     const phaserFbVal = Number($('#fxPhaserFb').value);
     const phaserMixVal = Number($('#fxPhaserMix').value);
-    $('#fxPhaserRateVal').textContent = phaserRate.toFixed(2);
-    $('#fxPhaserDepthVal').textContent = phaserDepthVal.toFixed(2);
-    $('#fxPhaserFbVal').textContent = phaserFbVal.toFixed(2);
-    $('#fxPhaserMixVal').textContent = phaserMixVal.toFixed(2);
 
     phaserLFO.frequency.setValueAtTime(phaserRate, ctx.currentTime);
     phaserFb.gain.setValueAtTime(phaserFbVal, ctx.currentTime);
@@ -1488,8 +1475,6 @@
       phaserFilters[i].frequency.setValueAtTime(baseFreq, ctx.currentTime);
       phaserLFOGains[i].gain.setValueAtTime(freqRange, ctx.currentTime);
     }
-
-    function prove2(x){ return Number(x).toFixed(2); }
   }
 
   async function startAudio(){
@@ -1669,6 +1654,8 @@
   let spectroCtx = null;    // Offscreen canvas context for spectrogram
   let lastCanvasWidth = 0;
   let lastCanvasHeight = 0;
+  let lastSpectroTime = 0;
+  const SPECTRO_INTERVAL = 33; // ~30 updates per second (constant speed)
 
   // Color palette: blue to red (HSL hue 240 -> 0)
   function getSpectroColor(value) {
@@ -1761,31 +1748,36 @@
 
       // Mode: spectrum - draw spectrogram only
       if (scopeMode === 'spectrum') {
-        // Update spectrogram: shift left and add new column
-        if (spectroCtx) {
-          // Shift existing spectrogram to the left by 2 pixels
-          const shiftAmount = 2;
-          spectroCtx.drawImage(spectroCanvas, -shiftAmount, 0);
+        // Update spectrogram with time-based throttling (constant speed)
+        const now = performance.now();
+        if (now - lastSpectroTime >= SPECTRO_INTERVAL) {
+          lastSpectroTime = now;
           
-          // Draw new column on the right (logarithmic frequency scale)
-          const bins = freqBuf.length;
-          const minFreq = 20;      // 20 Hz — lower bound of human hearing
-          const maxFreq = 10000;   // 10 kHz — upper display limit
-          const nyquist = ctx.sampleRate / 2;
-          
-          for (let i = 0; i < h; i++) {
-            // Logarithmic mapping: Y position -> frequency
-            // y=0 (top) -> maxFreq, y=h (bottom) -> minFreq
-            const normalizedY = i / h;
-            const freq = maxFreq * Math.pow(minFreq / maxFreq, normalizedY);
-            const binIndex = Math.floor((freq / nyquist) * bins);
-            const value = freqBuf[Math.min(binIndex, bins - 1)];
-            spectroCtx.fillStyle = getSpectroColor(value);
-            spectroCtx.fillRect(w - shiftAmount, i, shiftAmount, 1);
+          if (spectroCtx) {
+            // Shift existing spectrogram to the left by 2 pixels
+            const shiftAmount = 2;
+            spectroCtx.drawImage(spectroCanvas, -shiftAmount, 0);
+            
+            // Draw new column on the right (logarithmic frequency scale)
+            const bins = freqBuf.length;
+            const minFreq = 20;      // 20 Hz — lower bound of human hearing
+            const maxFreq = 10000;   // 10 kHz — upper display limit
+            const nyquist = ctx.sampleRate / 2;
+            
+            for (let i = 0; i < h; i++) {
+              // Logarithmic mapping: Y position -> frequency
+              // y=0 (top) -> maxFreq, y=h (bottom) -> minFreq
+              const normalizedY = i / h;
+              const freq = maxFreq * Math.pow(minFreq / maxFreq, normalizedY);
+              const binIndex = Math.floor((freq / nyquist) * bins);
+              const value = freqBuf[Math.min(binIndex, bins - 1)];
+              spectroCtx.fillStyle = getSpectroColor(value);
+              spectroCtx.fillRect(w - shiftAmount, i, shiftAmount, 1);
+            }
           }
         }
 
-        // Draw spectrogram
+        // Draw spectrogram (always, to keep display updated)
         if (spectroCtx) {
           c2d.drawImage(spectroCanvas, 0, 0);
         } else {
@@ -2069,8 +2061,9 @@
   ];
   for (const id of fxParamInputs){
     $('#'+id).addEventListener('input', () => {
+      updateFXLabels(); // Always update UI labels
       if (!ctx) return;
-      updateFXParams();
+      updateFXParams(); // Only update audio if context exists
     });
   }
 
@@ -2230,23 +2223,7 @@
   }
 
   // Initialize FX labels
-  $('#fxFilterFreqVal').textContent = $('#fxFilterFreq').value;
-  $('#fxFilterQVal').textContent = Number($('#fxFilterQ').value).toFixed(1);
-  $('#fxChorusRateVal').textContent = Number($('#fxChorusRate').value).toFixed(2);
-  $('#fxChorusDepthVal').textContent = Number($('#fxChorusDepth').value).toFixed(1);
-  $('#fxChorusMixVal').textContent = Number($('#fxChorusMix').value).toFixed(2);
-  $('#fxChorusFbVal').textContent = Number($('#fxChorusFb').value).toFixed(2);
-  $('#fxReverbDecayVal').textContent = Number($('#fxReverbDecay').value).toFixed(1);
-  $('#fxReverbMixVal').textContent = Number($('#fxReverbMix').value).toFixed(2);
-  $('#fxLimiterThrVal').textContent = Number($('#fxLimiterThr').value).toFixed(1);
-  $('#fxLimiterRelVal').textContent = Number($('#fxLimiterRel').value).toFixed(2);
-  $('#fxDelayTimeVal').textContent = Number($('#fxDelayTime').value).toFixed(2);
-  $('#fxDelayFbVal').textContent = Number($('#fxDelayFb').value).toFixed(2);
-  $('#fxDelayMixVal').textContent = Number($('#fxDelayMix').value).toFixed(2);
-  $('#fxPhaserRateVal').textContent = Number($('#fxPhaserRate').value).toFixed(2);
-  $('#fxPhaserDepthVal').textContent = Number($('#fxPhaserDepth').value).toFixed(2);
-  $('#fxPhaserFbVal').textContent = Number($('#fxPhaserFb').value).toFixed(2);
-  $('#fxPhaserMixVal').textContent = Number($('#fxPhaserMix').value).toFixed(2);
+  updateFXLabels();
 
 })();
 </script>

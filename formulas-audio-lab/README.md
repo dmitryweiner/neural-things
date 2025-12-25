@@ -307,7 +307,7 @@ Standard Web Audio API biquad filter.
 | Parameter | Description |
 |-----------|-------------|
 | Type | low-pass / high-pass / band-pass |
-| Cutoff | Cutoff frequency (20–18000 Hz) |
+| Cutoff | Cutoff frequency (20–2000 Hz) |
 | Q | Quality factor (0.1–30) |
 
 ### Chorus / Flanger
@@ -520,6 +520,16 @@ On unsupported browsers the feature simply doesn't activate (graceful degradatio
 
 ---
 
+## Browser Compatibility
+
+| Browser | Version | Status |
+|---------|---------|--------|
+| Chrome / Edge | 66+ | Fully supported |
+| Safari (iOS/macOS) | 14.1+ | Fully supported |
+| Firefox | 146+ | Fully supported |
+
+---
+
 ## Dependencies
 
 No external dependencies. Pure HTML + CSS + JavaScript.
@@ -527,12 +537,19 @@ No external dependencies. Pure HTML + CSS + JavaScript.
 - Web Audio API (AudioWorklet, BiquadFilter, Convolver, DynamicsCompressor)
 - AudioWorklet for WAV recording (16-bit PCM)
 - Web Share API for file sharing on mobile (optional)
-- Screen Wake Lock API for preventing sleep mode (optional)
+- Screen Wake Lock API for preventing sleep mode (optional, not available in Firefox)
 - Canvas 2D for oscilloscope
 
 ---
 
 ## Changelog
+
+### 2025-12-25
+
+- **Fixed:** Spectrogram now scrolls at **constant speed** regardless of browser throttling — uses time-based updates (~30 fps) instead of per-frame updates
+- **Fixed:** Effect parameter values now **update in real-time** even when audio is not playing — labels next to sliders always reflect current values
+- **Changed:** Effect slider step for Mix/Feedback increased from 0.001 to 0.01 — buttons +/- now change values by meaningful amounts
+- **Changed:** Filter Cutoff range reduced from 20–18000 Hz to **20–2000 Hz** — more control in the musically interesting frequency range
 
 ### 2025-12-24
 
