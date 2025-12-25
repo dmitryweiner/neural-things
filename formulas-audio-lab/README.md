@@ -544,6 +544,11 @@ No external dependencies. Pure HTML + CSS + JavaScript.
 
 ## Changelog
 
+### 2025-12-25 (v2)
+
+- **Added:** **Hold-to-repeat** for +/- buttons — press and hold to continuously change slider values (~150ms interval)
+- **Fixed:** **Background audio on Android** — when browser is minimized, visualization stops (saves CPU) while audio continues without clicks or distortion. Upon returning, audio and visualization resume automatically
+
 ### 2025-12-25
 
 - **Fixed:** Spectrogram now scrolls at **constant speed** regardless of browser throttling — uses time-based updates (~30 fps) instead of per-frame updates

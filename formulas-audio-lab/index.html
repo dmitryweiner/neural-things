@@ -124,6 +124,8 @@
       align-items: center;
       justify-content: center;
       line-height: 1;
+      touch-action: manipulation; /* Prevent zoom/scroll on touch */
+      user-select: none;
     }
     .adj-btn:hover { background: #1d3557; border-color: #3d5a80; }
     .adj-btn:active { background: #27ae60; }
@@ -989,11 +991,11 @@
   }
   for (const f of FORMULAS) makeFormulaUI(f);
 
-  // ---------- +/- Adjustment buttons ----------
-  formulasRoot.addEventListener('click', (e) => {
-    const btn = e.target.closest('.adj-btn');
-    if (!btn) return;
-    
+  // ---------- +/- Adjustment buttons (with hold-to-repeat) ----------
+  let adjRepeatInterval = null;
+  const ADJ_REPEAT_DELAY = 150; // ms between repeats when holding
+
+  function adjustSlider(btn) {
     const sliderId = btn.dataset.slider;
     const dir = Number(btn.dataset.dir);
     const slider = document.getElementById(sliderId);
@@ -1007,7 +1009,39 @@
     
     slider.value = newVal;
     slider.dispatchEvent(new Event('input', { bubbles: true }));
-  });
+  }
+
+  function stopAdjRepeat() {
+    if (adjRepeatInterval) {
+      clearInterval(adjRepeatInterval);
+      adjRepeatInterval = null;
+    }
+  }
+
+  function setupAdjustmentButtons(container) {
+    container.addEventListener('pointerdown', (e) => {
+      const btn = e.target.closest('.adj-btn');
+      if (!btn) return;
+      
+      e.preventDefault(); // Prevent text selection on long press
+      stopAdjRepeat();
+      
+      // Immediate first adjustment
+      adjustSlider(btn);
+      
+      // Start repeating while held
+      adjRepeatInterval = setInterval(() => adjustSlider(btn), ADJ_REPEAT_DELAY);
+    });
+
+    container.addEventListener('pointerup', stopAdjRepeat);
+    container.addEventListener('pointerleave', stopAdjRepeat);
+    container.addEventListener('pointercancel', stopAdjRepeat);
+  }
+
+  setupAdjustmentButtons(formulasRoot);
+  
+  // Global pointerup to stop repeat if user releases outside container
+  document.addEventListener('pointerup', stopAdjRepeat);
 
   // ---------- State serialization ----------
   function readStateFromUI(){
@@ -1188,10 +1222,39 @@
     }
   }
 
-  // Re-request wake lock when returning to tab (browser releases it on visibility change)
+  // Page visibility state
+  let isPageVisible = !document.hidden;
+
+  // Handle page visibility changes (minimize, tab switch, etc.)
   document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible' && ctx && ctx.state === 'running') {
-      await requestWakeLock();
+    isPageVisible = document.visibilityState === 'visible';
+    
+    if (isPageVisible) {
+      // Page became visible - resume audio and visualization
+      if (ctx) {
+        // Resume AudioContext if it was suspended by the browser
+        if (ctx.state === 'suspended') {
+          try {
+            await ctx.resume();
+          } catch (e) {
+            console.log('AudioContext resume failed:', e);
+          }
+        }
+        // Re-request wake lock
+        if (ctx.state === 'running') {
+          await requestWakeLock();
+        }
+        // Restart visualization if audio is running
+        if (ctx.state === 'running' && analyser && !scopeRAF) {
+          startScopeAndMeter();
+        }
+      }
+    } else {
+      // Page hidden - stop visualization to save CPU, audio continues in AudioWorklet
+      if (scopeRAF) {
+        cancelAnimationFrame(scopeRAF);
+        scopeRAF = null;
+      }
     }
   });
 
@@ -1720,6 +1783,9 @@
       scopeRAF = requestAnimationFrame(draw);
       if (!analyser) return;
       
+      // Skip drawing if page is hidden (save CPU, prevent audio issues on mobile)
+      if (!isPageVisible) return;
+      
       // Skip drawing if scope is collapsed (save CPU)
       if (scopeWrap.classList.contains('scopeCollapsed')) return;
 
@@ -1991,24 +2057,7 @@
   });
 
   // +/- buttons for master volume
-  document.querySelector('.topgrid').addEventListener('click', (e) => {
-    const btn = e.target.closest('.adj-btn');
-    if (!btn) return;
-    
-    const sliderId = btn.dataset.slider;
-    const dir = Number(btn.dataset.dir);
-    const slider = document.getElementById(sliderId);
-    if (!slider) return;
-    
-    const step = Number(slider.step) || 1;
-    const min = Number(slider.min);
-    const max = Number(slider.max);
-    let newVal = Number(slider.value) + dir * step;
-    newVal = Math.max(min, Math.min(max, newVal));
-    
-    slider.value = newVal;
-    slider.dispatchEvent(new Event('input', { bubbles: true }));
-  });
+  setupAdjustmentButtons(document.querySelector('.topgrid'));
 
   // Effects panel toggle
   const effectsPanel = $('#effectsPanel');
@@ -2023,24 +2072,7 @@
   });
 
   // +/- Adjustment buttons for effects panel
-  effectsPanel.addEventListener('click', (e) => {
-    const btn = e.target.closest('.adj-btn');
-    if (!btn) return;
-    
-    const sliderId = btn.dataset.slider;
-    const dir = Number(btn.dataset.dir);
-    const slider = document.getElementById(sliderId);
-    if (!slider) return;
-    
-    const step = Number(slider.step) || 1;
-    const min = Number(slider.min);
-    const max = Number(slider.max);
-    let newVal = Number(slider.value) + dir * step;
-    newVal = Math.max(min, Math.min(max, newVal));
-    
-    slider.value = newVal;
-    slider.dispatchEvent(new Event('input', { bubbles: true }));
-  });
+  setupAdjustmentButtons(effectsPanel);
 
   // FX controls
   const fxRoutingInputs = ['fxFilterOn','fxChorusOn','fxReverbOn','fxLimiterOn','fxDelayOn','fxPhaserOn'];
