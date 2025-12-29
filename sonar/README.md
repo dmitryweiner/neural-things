@@ -16,11 +16,12 @@ This is a **single-page web prototype** that emits short **19 kHz tone bursts** 
 The app is intentionally kept as a **single HTML file** with embedded JavaScript. It has four main subsystems:
 
 1. **UI + Control Layer**
-   - Sticky top bar with main control buttons (Start/Stop toggle, Clear, Export PNG).
+   - Sticky top bar with main control buttons (Start/Stop toggle, Export PNG).
+   - Clear button overlaid on the sonogram canvas (top-right corner) for quick access.
    - Collapsible settings panel with slider-based parameters (frequency, burst length, listen time, channel, amplitude, analysis window sizes).
    - Each slider has +/- buttons for fine adjustment with hold-to-repeat behavior.
-   - Collapsible info panel showing status and sensor readings (sample rate, heading).
-   - Displays Wake Lock status indicator.
+   - Collapsible info panel showing status, sensor readings (sample rate, heading), Wake Lock status, and real-time intensity chart.
+   - **Intensity chart**: displays current angle's intensity data as a line graph (X = time after burst, Y = intensity). Only updates when the info panel is open to save resources.
 
 2. **Audio I/O Layer (Web Audio API)**
    - Creates an `AudioContext`.
@@ -169,14 +170,18 @@ This is:
   - Green "▶ Start" when stopped, orange "⏹ Stop" when running
   - Start: enables sensors, activates Wake Lock, initializes audio, starts scan loop
   - Stop: stops scan loop, releases Wake Lock
-- **Clear**
-  - Clears the polar sonogram data and redraws empty display
 - **Export PNG**
   - Downloads the current canvas as a PNG
 - **⚙️ Settings** (toggle)
   - Opens/closes the collapsible settings panel
 - **📊 Info** (toggle)
-  - Opens/closes the system info panel (status, sample rate, heading, wake lock)
+  - Opens/closes the system info panel (status, sample rate, heading, wake lock, intensity chart)
+
+### Sonogram canvas overlay
+
+- **Clear** (button in top-right corner of the sonogram)
+  - Clears the polar sonogram data and redraws empty display
+  - Positioned directly on the canvas for quick access during scanning
 
 ### Settings panel (collapsible)
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Ultrasonic Tone Sonogram (19 kHz) — prototype</title>
+  <title>Ultrasonic Sonogram</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 16px; }
     
@@ -158,9 +158,48 @@
     .wake-lock-status.inactive { background: #f8d7da; color: #721c24; }
     .wake-lock-status.unsupported { background: #fff3cd; color: #856404; }
     
+    /* Info chart */
+    .infoChartSection { margin-top: 4px; }
+    .infoChartLabel { font-size: 11px; color: #666; margin-bottom: 6px; }
+    #infoChart {
+      width: 100%;
+      max-width: 400px;
+      height: 100px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #1a1a1f;
+    }
+    
     /* Canvas area */
     .canvas-section { max-width: 600px; margin-top: 16px; }
     .canvas-section h3 { margin: 0 0 10px; font-size: 14px; }
+    
+    .canvas-container {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .canvas-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(4px);
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .canvas-btn:hover {
+      background: rgba(255, 255, 255, 0.95);
+      border-color: rgba(0, 0, 0, 0.25);
+    }
+    .canvas-btn:active {
+      background: rgba(230, 230, 230, 0.95);
+    }
     
     canvas { 
       width: 100%; 
@@ -186,15 +225,11 @@
 <body>
 
 <section class="topbar">
-  <h2>Ultrasonic "sonar" in browser (19 kHz, 1 channel, angle = orientation)</h2>
-  <p class="topbar-desc">
-    Web Audio API → emit 19 kHz short bursts → record microphone → compute energy at 19 kHz over time (Goertzel) → draw polar sonogram.
-  </p>
+  <h2>Ultrasonic Sonogram</h2>
 
   <div class="row">
     <div class="btn-group">
       <button id="toggleBtn">▶ Start</button>
-      <button id="btnClear">Clear</button>
       <button id="btnPng">Export PNG</button>
     </div>
 
@@ -279,15 +314,23 @@
     </div>
     <div class="sep"></div>
     <span id="wakeLockStatus" class="wake-lock-status unsupported">Wake Lock: checking...</span>
+    <div class="sep"></div>
+    <div class="infoChartSection">
+      <div class="infoChartLabel">Intensity vs Time (current angle)</div>
+      <canvas id="infoChart" width="400" height="100"></canvas>
+    </div>
   </div>
 </section>
 
 <section class="canvas-section">
   <h3>Polar Sonogram</h3>
-  <canvas id="canvas" width="520" height="520"></canvas>
+  <div class="canvas-container">
+    <canvas id="canvas" width="520" height="520"></canvas>
+    <button id="btnClear" class="canvas-btn">Clear</button>
+  </div>
   <p class="muted">
     Polar view: angle = heading (0° at top, clockwise), radius = time-of-flight (center = close, edge = far). 
-    Brighter = more energy at 19 kHz. Green line = current device heading.
+    Brighter = more energy. Green line = current device heading.
   </p>
 </section>
 
@@ -303,6 +346,9 @@
 
   const canvas = $("canvas");
   const g = canvas.getContext("2d", { alpha: false });
+
+  const infoChart = $("infoChart");
+  const chartCtx = infoChart.getContext("2d", { alpha: false });
 
   function setStatus(s) { statusEl.textContent = "Status: " + s; }
   function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
@@ -578,6 +624,96 @@
     drawPolarSonogram(null);
   }
 
+  // --- Info chart drawing
+  function drawInfoChart(bins) {
+    const w = infoChart.width;
+    const h = infoChart.height;
+    const padding = { top: 8, right: 8, bottom: 20, left: 32 };
+    const plotW = w - padding.left - padding.right;
+    const plotH = h - padding.top - padding.bottom;
+
+    // Clear with dark background
+    chartCtx.fillStyle = "#1a1a1f";
+    chartCtx.fillRect(0, 0, w, h);
+
+    if (!bins || bins.length === 0) return;
+
+    // Draw grid lines
+    chartCtx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+    chartCtx.lineWidth = 1;
+    
+    // Horizontal grid (intensity levels)
+    for (let i = 0; i <= 4; i++) {
+      const y = padding.top + (i / 4) * plotH;
+      chartCtx.beginPath();
+      chartCtx.moveTo(padding.left, y);
+      chartCtx.lineTo(w - padding.right, y);
+      chartCtx.stroke();
+    }
+
+    // Y-axis labels
+    chartCtx.fillStyle = "#666";
+    chartCtx.font = "9px system-ui";
+    chartCtx.textAlign = "right";
+    chartCtx.textBaseline = "middle";
+    for (let i = 0; i <= 4; i++) {
+      const val = 1 - i / 4;
+      const y = padding.top + (i / 4) * plotH;
+      chartCtx.fillText(val.toFixed(1), padding.left - 4, y);
+    }
+
+    // X-axis label
+    chartCtx.fillStyle = "#666";
+    chartCtx.font = "9px system-ui";
+    chartCtx.textAlign = "center";
+    chartCtx.textBaseline = "top";
+    chartCtx.fillText("time →", w / 2, h - 12);
+
+    // Draw the intensity line
+    chartCtx.strokeStyle = "#00ff00";
+    chartCtx.lineWidth = 1.5;
+    chartCtx.beginPath();
+
+    for (let i = 0; i < bins.length; i++) {
+      const x = padding.left + (i / (bins.length - 1)) * plotW;
+      const y = padding.top + (1 - bins[i]) * plotH;
+      
+      if (i === 0) {
+        chartCtx.moveTo(x, y);
+      } else {
+        chartCtx.lineTo(x, y);
+      }
+    }
+    chartCtx.stroke();
+
+    // Draw filled area under the line
+    chartCtx.fillStyle = "rgba(0, 255, 0, 0.15)";
+    chartCtx.beginPath();
+    chartCtx.moveTo(padding.left, padding.top + plotH);
+    for (let i = 0; i < bins.length; i++) {
+      const x = padding.left + (i / (bins.length - 1)) * plotW;
+      const y = padding.top + (1 - bins[i]) * plotH;
+      chartCtx.lineTo(x, y);
+    }
+    chartCtx.lineTo(padding.left + plotW, padding.top + plotH);
+    chartCtx.closePath();
+    chartCtx.fill();
+  }
+
+  function clearInfoChart() {
+    const w = infoChart.width;
+    const h = infoChart.height;
+    chartCtx.fillStyle = "#1a1a1f";
+    chartCtx.fillRect(0, 0, w, h);
+    
+    // Draw "no data" text
+    chartCtx.fillStyle = "#444";
+    chartCtx.font = "11px system-ui";
+    chartCtx.textAlign = "center";
+    chartCtx.textBaseline = "middle";
+    chartCtx.fillText("No data — start scanning", w / 2, h / 2);
+  }
+
   function updatePolarDataAtAngle(angleDeg, bins) {
     const bucket = Math.floor(normalizeDeg(angleDeg)) % ANGLE_BUCKETS;
     
@@ -829,6 +965,11 @@
       updatePolarDataAtAngle(deg, bins);
       drawPolarSonogram(deg);
 
+      // Update info chart only if panel is open
+      if (infoPanel.classList.contains('open')) {
+        drawInfoChart(bins);
+      }
+
       await new Promise(r => setTimeout(r, 0));
     }
 
@@ -888,6 +1029,7 @@
   // init
   resetPolarData();
   resetImage();
+  clearInfoChart();
   setStatus("idle");
   headingEl.textContent = "—";
   bucketEl.textContent = "—";
