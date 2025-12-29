@@ -158,93 +158,6 @@
     .wake-lock-status.inactive { background: #f8d7da; color: #721c24; }
     .wake-lock-status.unsupported { background: #fff3cd; color: #856404; }
     
-    /* Calibration panel */
-    .calibrationPanel {
-      border: 1px solid #ddd;
-      border-radius: 12px;
-      padding: 14px;
-      max-width: 700px;
-      margin-top: 12px;
-      display: none;
-      background: #fafafa;
-    }
-    .calibrationPanel.open { display: block; }
-    
-    .calib-section {
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 12px;
-      background: #fff;
-    }
-    .calib-section:last-child { margin-bottom: 0; }
-    .calib-section h4 {
-      margin: 0 0 10px;
-      font-size: 13px;
-      font-weight: 600;
-      color: #333;
-    }
-    .calib-row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-      margin-top: 8px;
-    }
-    .calib-row:first-of-type { margin-top: 0; }
-    
-    .calib-btn {
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      background: #fff;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 500;
-    }
-    .calib-btn:hover { background: #f5f5f5; border-color: #bbb; }
-    .calib-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .calib-btn.primary {
-      background: #2196f3;
-      color: #fff;
-      border-color: #2196f3;
-    }
-    .calib-btn.primary:hover:not(:disabled) { background: #1e88e5; }
-    .calib-btn.running {
-      background: #ff9800;
-      color: #fff;
-      border-color: #ff9800;
-    }
-    
-    .calib-info {
-      font-size: 11px;
-      color: #666;
-      padding: 4px 8px;
-      background: #f5f5f5;
-      border-radius: 4px;
-    }
-    .calib-info.highlight {
-      background: #e8f5e9;
-      color: #2e7d32;
-      font-weight: 500;
-    }
-    
-    #freqResponseChart {
-      width: 100%;
-      max-width: 400px;
-      height: 120px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      background: #1a1a1f;
-      margin-top: 8px;
-    }
-    
-    .calib-progress {
-      font-size: 11px;
-      color: #666;
-      margin-top: 6px;
-    }
-    
     /* Info chart */
     .infoChartSection { margin-top: 4px; }
     .infoChartLabel { font-size: 11px; color: #666; margin-bottom: 6px; }
@@ -323,7 +236,6 @@
     <div class="btn-group">
       <button id="settingsBtn" class="collapseBtn" type="button">⚙️ Settings</button>
       <button id="infoBtn" class="collapseBtn" type="button">📊 Info</button>
-      <button id="calibrationBtn" class="collapseBtn" type="button">🔧 Calibration</button>
     </div>
   </div>
 
@@ -406,93 +318,6 @@
     <div class="infoChartSection">
       <div class="infoChartLabel">Intensity vs Time (current angle)</div>
       <canvas id="infoChart" width="400" height="100"></canvas>
-    </div>
-  </div>
-
-  <div id="calibrationPanel" class="calibrationPanel">
-    <!-- 1. Frequency Response Test -->
-    <div class="calib-section">
-      <h4>📈 Frequency Response Test</h4>
-      <p class="muted" style="margin: 0 0 8px; font-size: 11px;">
-        Test which frequencies work best on your device. Sweeps 15–20 kHz and measures mic response.
-      </p>
-      <div class="calib-row">
-        <button id="runFreqTest" class="calib-btn primary">▶ Run Frequency Test</button>
-        <span id="freqTestStatus" class="calib-info">Ready</span>
-      </div>
-      <div class="calib-progress" id="freqTestProgress"></div>
-      <canvas id="freqResponseChart" width="400" height="120"></canvas>
-      <div class="calib-row" style="margin-top: 8px;">
-        <span class="calib-info highlight" id="freqRecommendation">Best frequency: —</span>
-        <button id="applyBestFreq" class="calib-btn" disabled>Apply to Settings</button>
-      </div>
-    </div>
-
-    <!-- 2. Compass Zero Calibration -->
-    <div class="calib-section">
-      <h4>🧭 Compass Zero</h4>
-      <p class="muted" style="margin: 0 0 8px; font-size: 11px;">
-        Set current direction as 0° reference. All angles will be relative to this point.
-      </p>
-      <div class="calib-row">
-        <button id="setZero" class="calib-btn primary">Set 0°</button>
-        <button id="resetZero" class="calib-btn">Reset to Magnetic North</button>
-        <span id="compassOffset" class="calib-info">Offset: 0°</span>
-      </div>
-      <div class="calib-row">
-        <span class="muted" style="font-size: 11px;">Current raw heading: <span id="rawHeading">—</span></span>
-      </div>
-    </div>
-
-    <!-- 3. Range Calibration -->
-    <div class="calib-section">
-      <h4>📏 Range Calibration</h4>
-      <p class="muted" style="margin: 0 0 8px; font-size: 11px;">
-        Configure speed of sound for distance calculations (varies with temperature).
-      </p>
-      <div class="ctrl with-adj" style="max-width: 400px;">
-        <label for="speedOfSound">Speed of sound (m/s)</label>
-        <button class="adj-btn" data-slider="speedOfSound" data-dir="-1">−</button>
-        <input id="speedOfSound" type="range" min="300" max="360" step="1" value="343">
-        <button class="adj-btn" data-slider="speedOfSound" data-dir="1">+</button>
-        <div class="small" id="speedOfSoundVal">343</div>
-      </div>
-      <div class="calib-row" style="margin-top: 10px;">
-        <span class="calib-info" id="maxRangeInfo">Max range: — m</span>
-        <label style="font-size: 11px; display: flex; align-items: center; gap: 4px;">
-          <input type="checkbox" id="showRangeLabels"> Show distance labels on sonogram
-        </label>
-      </div>
-    </div>
-
-    <!-- 4. Sensitivity Calibration -->
-    <div class="calib-section">
-      <h4>🎚️ Sensitivity</h4>
-      <p class="muted" style="margin: 0 0 8px; font-size: 11px;">
-        Adjust visualization normalization and thresholds.
-      </p>
-      <div class="ctrl" style="max-width: 400px;">
-        <label for="normMode">Normalization</label>
-        <select id="normMode">
-          <option value="per-burst">Per-burst (dynamic)</option>
-          <option value="global">Global (stable)</option>
-        </select>
-        <div></div>
-      </div>
-      <div class="ctrl with-adj" style="max-width: 400px; margin-top: 10px;">
-        <label for="noiseFloor">Noise floor</label>
-        <button class="adj-btn" data-slider="noiseFloor" data-dir="-1">−</button>
-        <input id="noiseFloor" type="range" min="0" max="0.5" step="0.01" value="0">
-        <button class="adj-btn" data-slider="noiseFloor" data-dir="1">+</button>
-        <div class="small" id="noiseFloorVal">0.00</div>
-      </div>
-      <div class="ctrl with-adj" style="max-width: 400px; margin-top: 10px;">
-        <label for="gamma">Gamma (contrast)</label>
-        <button class="adj-btn" data-slider="gamma" data-dir="-1">−</button>
-        <input id="gamma" type="range" min="0.2" max="3" step="0.1" value="0.5">
-        <button class="adj-btn" data-slider="gamma" data-dir="1">+</button>
-        <div class="small" id="gammaVal">0.5</div>
-      </div>
     </div>
   </div>
 </section>
@@ -588,11 +413,7 @@
     listenMs: { decimals: 0 },
     amp: { decimals: 2 },
     frame: { decimals: 0 },
-    hop: { decimals: 0 },
-    // Calibration sliders
-    speedOfSound: { decimals: 0 },
-    noiseFloor: { decimals: 2 },
-    gamma: { decimals: 1 }
+    hop: { decimals: 0 }
   };
 
   for (const [id, cfg] of Object.entries(sliderConfigs)) {
@@ -625,19 +446,6 @@
     infoPanel.classList.toggle('open', open);
     infoBtn.classList.toggle('active', open);
   });
-
-  // Calibration panel toggle
-  const calibrationPanel = $("calibrationPanel");
-  const calibrationBtn = $("calibrationBtn");
-
-  calibrationBtn.addEventListener('click', () => {
-    const open = !calibrationPanel.classList.contains('open');
-    calibrationPanel.classList.toggle('open', open);
-    calibrationBtn.classList.toggle('active', open);
-  });
-
-  // Setup adjustment buttons for calibration panel
-  setupAdjustmentButtons($("calibrationPanel"));
 
   // --- Polar data storage
   const ANGLE_BUCKETS = 360;
@@ -756,34 +564,10 @@
     g.strokeStyle = 'rgba(80, 80, 90, 0.5)';
     g.lineWidth = 1;
     
-    // Calculate max range in meters for labels
-    const listenMs = scanParams.listenMs;
-    const speed = calibrationState.speedOfSound;
-    const maxRangeM = (listenMs / 1000) * speed / 2;
-    
     for (const frac of [0.25, 0.5, 0.75]) {
       g.beginPath();
       g.arc(cx, cy, maxR * frac, 0, Math.PI * 2);
       g.stroke();
-      
-      // Draw range labels if enabled
-      if (calibrationState.showRangeLabels) {
-        const rangeM = maxRangeM * frac;
-        g.fillStyle = 'rgba(150, 150, 160, 0.9)';
-        g.font = '10px system-ui';
-        g.textAlign = 'left';
-        g.textBaseline = 'bottom';
-        g.fillText(rangeM.toFixed(2) + 'm', cx + 4, cy - maxR * frac - 2);
-      }
-    }
-    
-    // Draw edge label (max range)
-    if (calibrationState.showRangeLabels) {
-      g.fillStyle = 'rgba(150, 150, 160, 0.9)';
-      g.font = '10px system-ui';
-      g.textAlign = 'left';
-      g.textBaseline = 'bottom';
-      g.fillText(maxRangeM.toFixed(2) + 'm', cx + 4, cy - maxR - 2);
     }
 
     g.beginPath();
@@ -952,25 +736,17 @@
     }
 
     window.addEventListener("deviceorientation", (ev) => {
-      let raw = null;
       if (typeof ev.webkitCompassHeading === "number") {
-        raw = ev.webkitCompassHeading;
-      } else if (ev.absolute === true && typeof ev.alpha === "number") {
-        raw = ev.alpha;
-      } else if (typeof ev.alpha === "number") {
-        raw = ev.alpha;
-      }
-      
-      if (raw !== null) {
-        rawHeadingDegrees = normalizeDeg(raw);
-        // Apply compass offset
-        headingDegrees = normalizeDeg(raw - calibrationState.compassOffset);
+        headingDegrees = normalizeDeg(ev.webkitCompassHeading);
         hasHeading = true;
-        headingEl.textContent = headingDegrees.toFixed(1) + "°";
-        // Update raw heading display in calibration panel
-        const rawEl = $("rawHeading");
-        if (rawEl) rawEl.textContent = rawHeadingDegrees.toFixed(1) + "°";
+      } else if (ev.absolute === true && typeof ev.alpha === "number") {
+        headingDegrees = normalizeDeg(ev.alpha);
+        hasHeading = true;
+      } else if (typeof ev.alpha === "number") {
+        headingDegrees = normalizeDeg(ev.alpha);
+        hasHeading = true;
       }
+      headingEl.textContent = hasHeading ? headingDegrees.toFixed(1) + "°" : "—";
     }, { passive: true });
 
     notesEl.textContent = "Sensors enabled (if supported). Rotate the device to change heading.";
@@ -994,289 +770,6 @@
     hopSize: 128,
     burst: null  // cached tone buffer, regenerated when freq/burstMs change
   };
-
-  // --- Calibration state
-  let calibrationState = {
-    // Compass zero
-    compassOffset: 0,  // degrees to subtract from raw heading
-    
-    // Range calibration
-    speedOfSound: 343,  // m/s
-    showRangeLabels: false,
-    
-    // Sensitivity
-    normMode: 'per-burst',  // 'per-burst' or 'global'
-    noiseFloor: 0,
-    gamma: 0.5,
-    
-    // Global normalization state (for 'global' mode)
-    globalMinLog: Infinity,
-    globalMaxLog: -Infinity,
-    
-    // Frequency test results
-    freqTestResults: null,  // array of {freq, power}
-    bestFrequency: null
-  };
-
-  // --- Frequency Response Test
-  const freqResponseChart = $("freqResponseChart");
-  const freqChartCtx = freqResponseChart.getContext("2d", { alpha: false });
-
-  function clearFreqResponseChart() {
-    const w = freqResponseChart.width;
-    const h = freqResponseChart.height;
-    freqChartCtx.fillStyle = "#1a1a1f";
-    freqChartCtx.fillRect(0, 0, w, h);
-    freqChartCtx.fillStyle = "#444";
-    freqChartCtx.font = "11px system-ui";
-    freqChartCtx.textAlign = "center";
-    freqChartCtx.textBaseline = "middle";
-    freqChartCtx.fillText("Run test to see frequency response", w / 2, h / 2);
-  }
-
-  function drawFreqResponseChart(results, currentIdx = -1) {
-    const w = freqResponseChart.width;
-    const h = freqResponseChart.height;
-    const padding = { top: 12, right: 12, bottom: 24, left: 40 };
-    const plotW = w - padding.left - padding.right;
-    const plotH = h - padding.top - padding.bottom;
-
-    freqChartCtx.fillStyle = "#1a1a1f";
-    freqChartCtx.fillRect(0, 0, w, h);
-
-    if (!results || results.length === 0) return;
-
-    // Find max power for normalization
-    let maxPower = 0;
-    for (const r of results) {
-      if (r.power > maxPower) maxPower = r.power;
-    }
-    if (maxPower === 0) maxPower = 1;
-
-    // Find best frequency
-    let bestIdx = 0;
-    for (let i = 1; i < results.length; i++) {
-      if (results[i].power > results[bestIdx].power) bestIdx = i;
-    }
-
-    // Draw grid
-    freqChartCtx.strokeStyle = "rgba(255, 255, 255, 0.1)";
-    freqChartCtx.lineWidth = 1;
-    for (let i = 0; i <= 4; i++) {
-      const y = padding.top + (i / 4) * plotH;
-      freqChartCtx.beginPath();
-      freqChartCtx.moveTo(padding.left, y);
-      freqChartCtx.lineTo(w - padding.right, y);
-      freqChartCtx.stroke();
-    }
-
-    // Draw bars
-    const barWidth = plotW / results.length * 0.8;
-    const gap = plotW / results.length * 0.2;
-
-    for (let i = 0; i < results.length; i++) {
-      const r = results[i];
-      const x = padding.left + (i / results.length) * plotW + gap / 2;
-      const barH = (r.power / maxPower) * plotH;
-      const y = padding.top + plotH - barH;
-
-      // Color: green for best, yellow for current, blue for others
-      if (i === bestIdx) {
-        freqChartCtx.fillStyle = "#4caf50";
-      } else if (i === currentIdx) {
-        freqChartCtx.fillStyle = "#ff9800";
-      } else {
-        freqChartCtx.fillStyle = "#2196f3";
-      }
-
-      freqChartCtx.fillRect(x, y, barWidth, barH);
-    }
-
-    // X-axis labels (every 2nd or 3rd)
-    freqChartCtx.fillStyle = "#888";
-    freqChartCtx.font = "9px system-ui";
-    freqChartCtx.textAlign = "center";
-    freqChartCtx.textBaseline = "top";
-    const labelStep = Math.ceil(results.length / 6);
-    for (let i = 0; i < results.length; i += labelStep) {
-      const x = padding.left + ((i + 0.5) / results.length) * plotW;
-      freqChartCtx.fillText((results[i].freq / 1000).toFixed(1) + "k", x, h - 14);
-    }
-
-    // Y-axis label
-    freqChartCtx.save();
-    freqChartCtx.translate(12, h / 2);
-    freqChartCtx.rotate(-Math.PI / 2);
-    freqChartCtx.textAlign = "center";
-    freqChartCtx.fillText("Power", 0, 0);
-    freqChartCtx.restore();
-  }
-
-  let freqTestRunning = false;
-
-  async function runFrequencyTest() {
-    if (freqTestRunning || running) return;
-    
-    const runBtn = $("runFreqTest");
-    const statusEl = $("freqTestStatus");
-    const progressEl = $("freqTestProgress");
-    const recommendEl = $("freqRecommendation");
-    const applyBtn = $("applyBestFreq");
-
-    try {
-      freqTestRunning = true;
-      runBtn.textContent = "⏹ Stop";
-      runBtn.classList.add("running");
-      statusEl.textContent = "Initializing...";
-      applyBtn.disabled = true;
-
-      await ensureAudio();
-      if (audioCtx.state !== "running") await audioCtx.resume();
-
-      const sr = audioCtx.sampleRate;
-      const testAmp = Number($("amp").value);
-      const testChannel = $("channel").value;
-      const burstMs = 10;  // fixed burst for testing
-      const listenMs = 30;
-
-      // Frequency range: 15kHz to 20kHz, step 500Hz
-      const freqStart = 15000;
-      const freqEnd = 20000;
-      const freqStep = 500;
-      const frequencies = [];
-      for (let f = freqStart; f <= freqEnd; f += freqStep) {
-        frequencies.push(f);
-      }
-
-      const results = [];
-      calibrationState.freqTestResults = results;
-
-      for (let i = 0; i < frequencies.length; i++) {
-        if (!freqTestRunning) break;
-
-        const freq = frequencies[i];
-        statusEl.textContent = `Testing ${freq} Hz...`;
-        progressEl.textContent = `${i + 1} / ${frequencies.length}`;
-
-        // Generate and play burst
-        const burst = makeToneBurst(sr, freq, burstMs / 1000);
-        const burstSec = playBurstOneChannel(burst, testAmp, testChannel);
-
-        // Record
-        const recSec = burstSec + (listenMs / 1000);
-        const recorded = await recordWindow(recSec);
-
-        // Measure power at this frequency
-        const skip = Math.floor(burstSec * sr * 0.5);
-        const tail = recorded.subarray(skip);
-        const power = goertzelPower(tail, sr, freq);
-
-        results.push({ freq, power });
-        drawFreqResponseChart(results, i);
-
-        // Small delay between tests
-        await new Promise(r => setTimeout(r, 50));
-      }
-
-      // Find best frequency
-      if (results.length > 0) {
-        let bestIdx = 0;
-        for (let i = 1; i < results.length; i++) {
-          if (results[i].power > results[bestIdx].power) bestIdx = i;
-        }
-        calibrationState.bestFrequency = results[bestIdx].freq;
-        recommendEl.textContent = `Best frequency: ${results[bestIdx].freq} Hz`;
-        applyBtn.disabled = false;
-      }
-
-      statusEl.textContent = "Complete";
-      progressEl.textContent = "";
-
-    } catch (e) {
-      console.error("Frequency test error:", e);
-      statusEl.textContent = "Error: " + (e?.message || e);
-    } finally {
-      freqTestRunning = false;
-      runBtn.textContent = "▶ Run Frequency Test";
-      runBtn.classList.remove("running");
-    }
-  }
-
-  $("runFreqTest").onclick = () => {
-    if (freqTestRunning) {
-      freqTestRunning = false;
-    } else {
-      runFrequencyTest();
-    }
-  };
-
-  $("applyBestFreq").onclick = () => {
-    if (calibrationState.bestFrequency) {
-      const slider = $("freq");
-      slider.value = calibrationState.bestFrequency;
-      slider.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-  };
-
-  // --- Compass Zero Calibration
-  let rawHeadingDegrees = 0;
-
-  $("setZero").onclick = () => {
-    calibrationState.compassOffset = rawHeadingDegrees;
-    updateCompassOffsetDisplay();
-    // Clear polar data when changing zero point
-    resetImage();
-  };
-
-  $("resetZero").onclick = () => {
-    calibrationState.compassOffset = 0;
-    updateCompassOffsetDisplay();
-    resetImage();
-  };
-
-  function updateCompassOffsetDisplay() {
-    const offset = calibrationState.compassOffset;
-    const sign = offset >= 0 ? "+" : "";
-    $("compassOffset").textContent = `Offset: ${sign}${offset.toFixed(1)}°`;
-  }
-
-  // --- Range Calibration
-  function updateRangeInfo() {
-    const listenMs = Number($("listenMs").value);
-    const speed = calibrationState.speedOfSound;
-    // Max range = (listenMs / 1000) * speed / 2  (divide by 2 for round-trip)
-    const maxRange = (listenMs / 1000) * speed / 2;
-    $("maxRangeInfo").textContent = `Max range: ${maxRange.toFixed(2)} m`;
-  }
-
-  $("speedOfSound").addEventListener('input', () => {
-    calibrationState.speedOfSound = Number($("speedOfSound").value);
-    updateRangeInfo();
-  });
-
-  $("listenMs").addEventListener('input', updateRangeInfo);
-
-  $("showRangeLabels").addEventListener('change', (e) => {
-    calibrationState.showRangeLabels = e.target.checked;
-    // Redraw sonogram with/without labels
-    drawPolarSonogram(hasHeading ? headingDegrees : null);
-  });
-
-  // --- Sensitivity Calibration
-  $("normMode").addEventListener('change', (e) => {
-    calibrationState.normMode = e.target.value;
-    // Reset global normalization state when switching
-    calibrationState.globalMinLog = Infinity;
-    calibrationState.globalMaxLog = -Infinity;
-  });
-
-  $("noiseFloor").addEventListener('input', () => {
-    calibrationState.noiseFloor = Number($("noiseFloor").value);
-  });
-
-  $("gamma").addEventListener('input', () => {
-    calibrationState.gamma = Number($("gamma").value);
-  });
 
   function syncParamsFromUI() {
     const newFreq = Number($("freq").value);
@@ -1464,29 +957,12 @@
 
     const logPowers = powers.map(p => Math.log10(p + 1e-10));
     
-    let minLog, maxLog;
-    
-    if (calibrationState.normMode === 'global') {
-      // Update global min/max
-      for (const lp of logPowers) {
-        if (lp < calibrationState.globalMinLog) calibrationState.globalMinLog = lp;
-        if (lp > calibrationState.globalMaxLog) calibrationState.globalMaxLog = lp;
-      }
-      minLog = calibrationState.globalMinLog;
-      maxLog = calibrationState.globalMaxLog;
-    } else {
-      // Per-burst normalization (original behavior)
-      minLog = logPowers[0];
-      maxLog = logPowers[0];
-      for (const lp of logPowers) {
-        if (lp < minLog) minLog = lp;
-        if (lp > maxLog) maxLog = lp;
-      }
+    let minLog = logPowers[0], maxLog = logPowers[0];
+    for (const lp of logPowers) {
+      if (lp < minLog) minLog = lp;
+      if (lp > maxLog) maxLog = lp;
     }
-    
     const rangeLog = maxLog - minLog || 1;
-    const noiseFloor = calibrationState.noiseFloor;
-    const gamma = calibrationState.gamma;
 
     const out = new Float32Array(numBins);
 
@@ -1502,13 +978,8 @@
         m = Math.max(m, logPowers[i]);
       }
       
-      let normalized = clamp((m - minLog) / rangeLog, 0, 1);
-      
-      // Apply noise floor
-      normalized = Math.max(0, normalized - noiseFloor) / (1 - noiseFloor);
-      
-      // Apply gamma correction
-      out[b] = Math.pow(normalized, gamma);
+      const normalized = clamp((m - minLog) / rangeLog, 0, 1);
+      out[b] = Math.pow(normalized, 0.5);
     }
     return out;
   }
@@ -1610,14 +1081,11 @@
   resetPolarData();
   resetImage();
   clearInfoChart();
-  clearFreqResponseChart();
   setStatus("idle");
   headingEl.textContent = "—";
   bucketEl.textContent = "—";
   setupLiveParamsSync();
   syncParamsFromUI(); // initialize scanParams from current UI values
-  updateRangeInfo();  // initialize range display
-  updateCompassOffsetDisplay();  // initialize compass offset display
   
   if ('wakeLock' in navigator) {
     updateWakeLockStatus('inactive');

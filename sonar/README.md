@@ -22,7 +22,6 @@ The app is intentionally kept as a **single HTML file** with embedded JavaScript
    - Each slider has +/- buttons for fine adjustment with hold-to-repeat behavior.
    - Collapsible info panel showing status, sensor readings (sample rate, heading), Wake Lock status, and real-time intensity chart.
    - **Intensity chart**: displays current angle's intensity data as a line graph (X = time after burst, Y = intensity). Only updates when the info panel is open to save resources.
-   - Collapsible **calibration panel** with tools for frequency response testing, compass zero calibration, range calibration, and sensitivity adjustments.
 
 2. **Audio I/O Layer (Web Audio API)**
    - Creates an `AudioContext`.
@@ -177,8 +176,6 @@ This is:
   - Opens/closes the collapsible settings panel
 - **📊 Info** (toggle)
   - Opens/closes the system info panel (status, sample rate, heading, wake lock, intensity chart)
-- **🔧 Calibration** (toggle)
-  - Opens/closes the calibration panel for device-specific tuning
 
 ### Sonogram canvas overlay
 
@@ -209,67 +206,6 @@ All settings can be changed **while the scan is running**:
 - Parameter changes are applied with a short debounce delay (~250 ms) to avoid excessive updates during slider dragging.
 - When frequency or burst duration changes, the tone buffer is automatically regenerated.
 - Previously collected polar data is preserved — useful for comparing different frequency responses without losing existing measurements.
-
----
-
-## Calibration panel
-
-The calibration panel provides tools to optimize the sonar for your specific device. Access it via the **🔧 Calibration** button.
-
-### 1. Frequency Response Test
-
-Many devices filter ultrasonic frequencies differently. This test helps find the best working frequency:
-
-- Click **Run Frequency Test** to sweep from 15 kHz to 20 kHz (500 Hz steps)
-- For each frequency: emits a tone, records mic response, measures power
-- Results are displayed as a bar chart (green = best frequency)
-- Click **Apply to Settings** to use the recommended frequency
-
-> Tip: Run this test before starting a scan session to find the optimal frequency for your device.
-
-### 2. Compass Zero
-
-Allows setting a custom 0° reference direction:
-
-- **Set 0°**: saves current heading as the reference point
-- **Reset to Magnetic North**: restores default behavior
-- All angles on the sonogram become relative to your chosen 0° direction
-- Useful for aligning the sonogram to a specific room orientation or landmark
-
-> Note: Changing the zero point clears the current sonogram data.
-
-### 3. Range Calibration
-
-Configures distance calculations based on sound propagation:
-
-| Parameter | Range | Default | Description |
-|-----------|-------|---------|-------------|
-| Speed of sound (m/s) | 300–360 | 343 | Sound velocity (varies with temperature: ~331 m/s at 0°C, ~343 m/s at 20°C) |
-| Show distance labels | on/off | off | Displays meter labels on the sonogram circles |
-
-The **Max range** indicator shows the maximum measurable distance based on current `listenMs` setting and speed of sound:
-
-```
-Max range = (listenMs / 1000) × speed / 2
-```
-
-The division by 2 accounts for the round-trip (sound travels to object and back).
-
-### 4. Sensitivity
-
-Controls how the signal is normalized and displayed:
-
-| Parameter | Options/Range | Default | Description |
-|-----------|---------------|---------|-------------|
-| Normalization | Per-burst / Global | Per-burst | **Per-burst**: each scan cycle normalized independently (dynamic, high contrast). **Global**: uses accumulated min/max across all scans (stable brightness, better for comparisons) |
-| Noise floor | 0–0.5 | 0 | Threshold below which values are set to black. Increases with slider to hide weak signals |
-| Gamma | 0.2–3.0 | 0.5 | Contrast curve. <1 = brighter midtones, >1 = darker midtones |
-
-Recommended workflow:
-1. Start with **Per-burst** normalization to see immediate results
-2. Switch to **Global** once you have a feel for typical signal levels
-3. Adjust **Noise floor** to remove background noise
-4. Tweak **Gamma** for visual preference
 
 ---
 
@@ -316,10 +252,10 @@ Recommended workflow:
 
 ## Future improvements (ideas)
 
-- ~~Add a **"Set 0°"** calibration button to define a user reference direction.~~ ✅ Done (Calibration panel)
+- Add a **"Set 0°"** calibration button to define a user reference direction.
 - Add temporal averaging or max-hold per angle bucket.
-- ~~Display approximate range in milliseconds/meters (with a user-configurable speed of sound).~~ ✅ Done (Calibration panel)
-- ~~Replace per-burst normalization with a global rolling normalization for stable brightness.~~ ✅ Done (Calibration panel)
-- ~~Add an FFT-based spectral view for debugging microphone response near 19 kHz.~~ ✅ Done (Frequency Response Test)
+- Display approximate range in milliseconds/meters (with a user-configurable speed of sound).
+- Replace per-burst normalization with a global rolling normalization for stable brightness.
+- Add an FFT-based spectral view for debugging microphone response near 19 kHz.
 - Store raw frames and export data as CSV/JSON for offline processing.
 - Add color mapping options (heat map, radar green, etc.) instead of grayscale.
