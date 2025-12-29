@@ -316,24 +316,24 @@
     <div class="ctrl with-adj">
       <label for="burstMs">Burst duration (ms)</label>
       <button class="adj-btn" data-slider="burstMs" data-dir="-1">−</button>
-      <input id="burstMs" type="range" min="1" max="40" step="1" value="6">
+      <input id="burstMs" type="range" min="1" max="40" step="1" value="8">
       <button class="adj-btn" data-slider="burstMs" data-dir="1">+</button>
-      <div class="small" id="burstMsVal">6</div>
+      <div class="small" id="burstMsVal">8</div>
     </div>
 
     <div class="ctrl with-adj">
       <label for="listenMs">Listen after (ms)</label>
       <button class="adj-btn" data-slider="listenMs" data-dir="-1">−</button>
-      <input id="listenMs" type="range" min="5" max="250" step="1" value="50">
+      <input id="listenMs" type="range" min="5" max="250" step="1" value="80">
       <button class="adj-btn" data-slider="listenMs" data-dir="1">+</button>
-      <div class="small" id="listenMsVal">50</div>
+      <div class="small" id="listenMsVal">80</div>
     </div>
 
     <div class="ctrl">
       <label for="channel">Output channel</label>
       <select id="channel">
         <option value="L">Left</option>
-        <option value="R">Right</option>
+        <option value="R" selected>Right</option>
       </select>
       <div></div>
     </div>
@@ -349,9 +349,9 @@
     <div class="ctrl with-adj">
       <label for="frame">Frame size (samples)</label>
       <button class="adj-btn" data-slider="frame" data-dir="-1">−</button>
-      <input id="frame" type="range" min="128" max="4096" step="128" value="512">
+      <input id="frame" type="range" min="128" max="4096" step="128" value="256">
       <button class="adj-btn" data-slider="frame" data-dir="1">+</button>
-      <div class="small" id="frameVal">512</div>
+      <div class="small" id="frameVal">256</div>
     </div>
 
     <div class="ctrl with-adj">
@@ -837,13 +837,14 @@
   let running = false;
 
   // --- Live scan parameters (synced from UI with debounce)
+  // Default values optimized based on calibration data analysis
   let scanParams = {
     freq: 19000,
-    burstMs: 6,
-    listenMs: 50,
-    channel: 'L',
+    burstMs: 8,
+    listenMs: 80,
+    channel: 'R',
     amp: 0.18,
-    frameSize: 512,
+    frameSize: 256,
     hopSize: 128,
     burst: null  // cached tone buffer, regenerated when freq/burstMs change
   };

@@ -205,12 +205,12 @@ All numeric parameters use sliders with +/- fine adjustment buttons:
 
 | Parameter | Range | Default | Description |
 |-----------|-------|---------|-------------|
-| Frequency (Hz) | 16000–20000 | 19000 | Tone frequency |
-| Burst duration (ms) | 1–40 | 6 | Duration of emitted tone burst |
-| Listen after (ms) | 5–250 | 50 | How long to keep recording after emission |
-| Output channel | L/R | Left | Left or Right speaker output |
+| Frequency (Hz) | 16000–20000 | 19000 | Tone frequency (optimized via calibration) |
+| Burst duration (ms) | 1–40 | 8 | Duration of emitted tone burst (optimized) |
+| Listen after (ms) | 5–250 | 80 | How long to keep recording after emission (optimized) |
+| Output channel | L/R | Right | Left or Right speaker output (Right channel optimized) |
 | Amplitude | 0.01–1 | 0.18 | Output volume scalar (use low values) |
-| Frame size (samples) | 128–4096 | 512 | Analysis window size for Goertzel |
+| Frame size (samples) | 128–4096 | 256 | Analysis window size for Goertzel (optimized) |
 | Hop (samples) | 32–2048 | 128 | Step between frames (overlap) |
 
 The +/- buttons support hold-to-repeat for continuous adjustment.
@@ -293,6 +293,8 @@ The JSON can be analyzed to find:
 - **Optimal timing**: burst/listen durations that capture reflections cleanly
 - **Best channel**: left vs right speaker may have different responses
 - **SNR patterns**: signal-to-noise ratio indicates detection reliability
+
+> **Note**: The default parameters in the app have been optimized based on calibration data analysis. For a typical Android device, the best settings are: **19000 Hz, Right channel, 8 ms burst, 80 ms listen, 256 frame size, 128 hop**. These defaults provide the best SNR (~13.7) and signal clarity for 1-meter distance measurements.
 
 ---
 
