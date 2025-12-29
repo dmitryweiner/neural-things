@@ -1164,12 +1164,12 @@
 
   let calibrationRunning = false;
 
-  // Parameter sweep ranges
-  const CALIB_FREQUENCIES = [15000, 16000, 17000, 18000, 19000, 20000];
-  const CALIB_BURST_MS = [3, 6, 10, 15];
-  const CALIB_LISTEN_MS = [30, 50, 100, 150];
-  const CALIB_FRAME_SIZES = [256, 512, 1024, 2048];
-  const CALIB_HOP_SIZES = [64, 128, 256];
+  // Parameter sweep ranges (~540 combinations)
+  const CALIB_FREQUENCIES = [17000, 17500, 18000, 18500, 19000];
+  const CALIB_BURST_MS = [4, 8, 12];
+  const CALIB_LISTEN_MS = [30, 50, 80];
+  const CALIB_FRAME_SIZES = [256, 512, 1024];
+  const CALIB_HOP_SIZES = [128, 256];
   const CALIB_CHANNELS = ['L', 'R'];
   const CALIB_ITERATIONS = 3;  // measurements per parameter combination
 

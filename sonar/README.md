@@ -234,20 +234,20 @@ The **📐 Calibrate** button runs an automated parameter sweep to find optimal 
 1. Stop any active scanning
 2. Place the device **1 meter from a flat wall** (or other reflective surface)
 3. Click **Calibrate**
-4. Wait for the sweep to complete (tests ~2300 parameter combinations)
+4. Wait for the sweep to complete (~540 combinations, takes ~5-7 minutes)
 5. A JSON file will be downloaded with all measurements
 
 ### What it tests
 
-The calibration iterates through all combinations of:
+The calibration iterates through all combinations of (~540 total):
 
 | Parameter | Values tested |
 |-----------|---------------|
-| Frequency | 15000, 16000, 17000, 18000, 19000, 20000 Hz |
-| Burst duration | 3, 6, 10, 15 ms |
-| Listen time | 30, 50, 100, 150 ms |
-| Frame size | 256, 512, 1024, 2048 samples |
-| Hop size | 64, 128, 256 samples |
+| Frequency | 17000, 17500, 18000, 18500, 19000 Hz |
+| Burst duration | 4, 8, 12 ms |
+| Listen time | 30, 50, 80 ms |
+| Frame size | 256, 512, 1024 samples |
+| Hop size | 128, 256 samples |
 | Channel | Left, Right |
 
 For each combination, **3 measurements** are taken and averaged.
