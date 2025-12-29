@@ -301,6 +301,7 @@
       <button id="settingsBtn" class="collapseBtn" type="button">⚙️ Settings</button>
       <button id="infoBtn" class="collapseBtn" type="button">📊 Info</button>
       <button id="calibrateBtn" class="collapseBtn" type="button" style="display: none;">📐 Calibrate</button>
+      <input type="file" id="calibrationFileInput" accept=".json" style="display: none;" />
     </div>
   </div>
 
@@ -1370,6 +1371,149 @@
   calibCancelBtn.onclick = () => {
     calibrationRunning = false;
     calibStatus.textContent = 'Cancelling...';
+  };
+
+  // --- Calibration data analysis
+  // Function to analyze calibration JSON and find optimal parameters
+  // Usage: analyzeCalibrationData(jsonData) or load JSON file and call this function
+  function analyzeCalibrationData(data) {
+    if (!data || !data.measurements || !Array.isArray(data.measurements)) {
+      console.error('Invalid calibration data format');
+      return null;
+    }
+
+    // Expected time-of-flight for 1m distance (round trip = 2m)
+    // Speed of sound ~343 m/s, so 2m / 343 m/s = ~5.83 ms
+    const EXPECTED_TOF_MS = 5.83;
+    const TOF_TOLERANCE_MS = 1.5; // ±1.5ms tolerance
+
+    // Filter and score measurements
+    const scored = data.measurements.map(m => {
+      const { params, results } = m;
+      
+      // Score based on:
+      // 1. SNR (higher is better)
+      // 2. Mean power (higher is better)
+      // 3. Time-of-flight accuracy (closer to expected is better)
+      // 4. Stability (lower variance in powers is better)
+      
+      const tofError = Math.abs(results.peakTimeMs - EXPECTED_TOF_MS);
+      const tofScore = Math.max(0, 1 - (tofError / TOF_TOLERANCE_MS));
+      
+      // Calculate variance in powers
+      const powers = results.powers.filter(p => p > 0);
+      const variance = powers.length > 1 
+        ? powers.reduce((sum, p) => sum + Math.pow(p - results.meanPower, 2), 0) / powers.length
+        : 0;
+      const stabilityScore = results.meanPower > 0 ? 1 / (1 + variance / results.meanPower) : 0;
+      
+      // Combined score (weighted)
+      const score = (
+        results.snr * 0.4 +           // SNR is important
+        Math.log10(results.meanPower + 1e-10) * 0.3 +  // Log power (wider range)
+        tofScore * 0.2 +              // Time-of-flight accuracy
+        stabilityScore * 0.1          // Stability
+      );
+      
+      return {
+        params,
+        results,
+        score,
+        tofError,
+        stabilityScore
+      };
+    });
+
+    // Filter out measurements with zero power or very poor SNR
+    const valid = scored.filter(m => 
+      m.results.meanPower > 0 && 
+      m.results.snr > 0.5 &&
+      m.results.peakTimeMs > 2 && 
+      m.results.peakTimeMs < 15
+    );
+
+    // Sort by score (descending)
+    valid.sort((a, b) => b.score - a.score);
+
+    // Group by frequency and channel to see patterns
+    const byFreqChannel = {};
+    valid.forEach(m => {
+      const key = `${m.params.frequency}_${m.params.channel}`;
+      if (!byFreqChannel[key] || m.score > byFreqChannel[key].score) {
+        byFreqChannel[key] = m;
+      }
+    });
+
+    const result = {
+      deviceInfo: data.deviceInfo,
+      totalMeasurements: data.measurements.length,
+      validMeasurements: valid.length,
+      topResults: valid.slice(0, 20),
+      bestByFreqChannel: byFreqChannel,
+      recommended: valid[0] || null
+    };
+
+    // Log results to console
+    console.log('=== CALIBRATION ANALYSIS RESULTS ===');
+    console.log(`Device: ${data.deviceInfo.userAgent}`);
+    console.log(`Sample Rate: ${data.deviceInfo.sampleRate} Hz`);
+    console.log(`Total measurements: ${data.measurements.length}`);
+    console.log(`Valid measurements: ${valid.length}`);
+    console.log('\n=== TOP 10 BEST PARAMETER COMBINATIONS ===');
+    valid.slice(0, 10).forEach((m, i) => {
+      const { params, results, score, tofError } = m;
+      console.log(`${i + 1}. Score: ${score.toFixed(3)} | SNR: ${results.snr.toFixed(2)} | Power: ${results.meanPower.toFixed(6)}`);
+      console.log(`   ${params.frequency}Hz, ${params.channel}, burst=${params.burstMs}ms, listen=${params.listenMs}ms, frame=${params.frameSize}, hop=${params.hopSize}`);
+      console.log(`   Peak Time: ${results.peakTimeMs.toFixed(2)}ms (error: ${tofError.toFixed(2)}ms)`);
+    });
+    
+    if (result.recommended) {
+      console.log('\n=== RECOMMENDED PARAMETERS ===');
+      console.log(JSON.stringify(result.recommended.params, null, 2));
+      console.log(`SNR: ${result.recommended.results.snr.toFixed(2)}`);
+      console.log(`Mean Power: ${result.recommended.results.meanPower.toFixed(6)}`);
+      console.log(`Peak Time: ${result.recommended.results.peakTimeMs.toFixed(2)}ms`);
+    }
+
+    return result;
+  }
+
+  // Make function available globally for console access
+  window.analyzeCalibrationData = analyzeCalibrationData;
+
+  // Helper function to load and analyze JSON file
+  window.loadAndAnalyzeCalibration = async (file) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      return analyzeCalibrationData(data);
+    } catch (e) {
+      console.error('Error loading calibration file:', e);
+      return null;
+    }
+  };
+
+  // File input handler for calibration analysis
+  const calibrationFileInput = $("calibrationFileInput");
+  if (calibrationFileInput) {
+    calibrationFileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        console.log('Loading calibration file:', file.name);
+        await window.loadAndAnalyzeCalibration(file);
+      }
+      // Reset input so same file can be loaded again
+      e.target.value = '';
+    });
+  }
+
+  // Expose file input trigger for console access
+  window.analyzeCalibrationFile = () => {
+    if (calibrationFileInput) {
+      calibrationFileInput.click();
+    } else {
+      console.error('Calibration file input not found');
+    }
   };
 
   // init

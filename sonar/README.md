@@ -294,6 +294,26 @@ The JSON can be analyzed to find:
 - **Best channel**: left vs right speaker may have different responses
 - **SNR patterns**: signal-to-noise ratio indicates detection reliability
 
+#### Built-in analysis function
+
+The app includes a built-in analysis function that can be used from the browser console:
+
+```javascript
+// Method 1: Load and analyze a JSON file
+analyzeCalibrationFile();  // Opens file picker, then analyzes the selected file
+
+// Method 2: Analyze data already in memory
+const data = { /* your calibration JSON */ };
+const results = analyzeCalibrationData(data);
+console.log(results.recommended.params);  // Best parameters
+```
+
+The analysis function:
+- Scores each parameter combination based on SNR, power, time-of-flight accuracy, and stability
+- Returns top 20 results sorted by score
+- Groups results by frequency and channel
+- Recommends optimal parameters for the device
+
 > **Note**: The default parameters in the app have been optimized based on calibration data analysis. For a typical Android device, the best settings are: **19000 Hz, Right channel, 8 ms burst, 80 ms listen, 256 frame size, 128 hop**. These defaults provide the best SNR (~13.7) and signal clarity for 1-meter distance measurements.
 
 ---
