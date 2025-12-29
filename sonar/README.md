@@ -1,11 +1,11 @@
 # Ultrasonic Tone Sonogram (19 kHz) — Browser Prototype
 
-This is a **single-page web prototype** that emits short **19 kHz tone bursts** from **one stereo channel** (Left or Right), records the microphone response, measures the **signal energy at the target frequency over time**, and visualizes the result as a **polar sonogram** where:
+This is a **single-page web prototype** that emits short **19 kHz tone bursts** from **one stereo channel** (Left or Right), records the microphone response, measures the **signal energy at the target frequency over time**, and visualizes the result as a **rotating polar sonogram** where:
 
-- **Angle** ≈ device heading / orientation (0° at top, clockwise like a compass)
+- **Current direction** is always at top (green line points up)
+- **Sonogram rotates** as you turn the device, keeping your facing direction at 12 o'clock
 - **Radius** ≈ time-of-flight (delay after emission); center = close, edge = far
 - **Brightness** ≈ relative energy at ~19 kHz in that time window
-- **Green line** = current device heading indicator
 
 > ⚠️ Practical note: many consumer devices aggressively filter near-ultrasonic frequencies (speakers, microphones, OS processing, echo cancellation, noise suppression, auto gain). Results vary widely between devices.
 
@@ -13,10 +13,10 @@ This is a **single-page web prototype** that emits short **19 kHz tone bursts** 
 
 ## High-level architecture
 
-The app is intentionally kept as a **single HTML file** with embedded JavaScript. It has four main subsystems:
+The app is intentionally kept as a **single HTML file** with embedded JavaScript. It has five main subsystems:
 
 1. **UI + Control Layer**
-   - Sticky top bar with main control buttons (Start/Stop toggle, Export PNG).
+   - Sticky top bar with main control buttons (Start/Stop toggle, Export PNG, Calibrate).
    - Clear button overlaid on the sonogram canvas (top-right corner) for quick access.
    - Collapsible settings panel with slider-based parameters (frequency, burst length, listen time, channel, amplitude, analysis window sizes).
    - Each slider has +/- buttons for fine adjustment with hold-to-repeat behavior.
@@ -40,6 +40,11 @@ The app is intentionally kept as a **single HTML file** with embedded JavaScript
 4. **Device Management Layer**
    - Handles device orientation events for heading.
    - Manages Wake Lock API to prevent screen sleep during scanning.
+
+5. **Calibration System**
+   - Automated parameter sweep for finding optimal settings on a specific device.
+   - Tests combinations of frequency, burst duration, listen time, frame size, hop size, and channel.
+   - Exports detailed JSON measurements for analysis.
 
 ---
 
@@ -77,34 +82,43 @@ Each scan cycle (one emitted burst) follows this pipeline:
 
 7. **Render polar sonogram**
    - For each pixel on the square canvas, compute its polar coordinates (angle, radius).
+   - Apply rotation offset so current heading appears at top (0° screen position).
    - Look up the corresponding energy value from `polarData`.
    - Draw grayscale pixel (brighter = more energy).
    - Overlay reference circles and cardinal lines.
-   - Draw a green line from center to edge showing current heading.
+   - Draw a green line from center to top edge (current direction always up).
 
 ---
 
 ## Polar visualization model
 
-The sonogram uses a **polar coordinate system** rendered on a square canvas:
+The sonogram uses a **rotating polar coordinate system** rendered on a square canvas:
 
 - **Center** = device position (no delay / immediate reflection)
 - **Edge** = maximum measured delay
-- **Angle** = device heading (0° at top, clockwise)
+- **Top (0°)** = current device facing direction (always)
 - **Brightness** = normalized energy at 19 kHz
+
+### Rotation behavior
+
+Unlike traditional radar displays where the sweep rotates and data stays fixed, this sonogram rotates the **data** so the current facing direction is always at the top. This creates a "what's in front of me" view:
+
+- As you rotate the device, the entire sonogram image rotates beneath the fixed green direction line
+- The green line always points up (12 o'clock position)
+- Objects that were to your left appear on the left, objects ahead appear at the top
 
 Visual elements:
 - **Grayscale data**: each pixel's brightness corresponds to measured energy at that angle/range
 - **Reference circles**: concentric circles at 25%, 50%, 75% of max radius
 - **Cardinal lines**: horizontal and vertical lines through center
-- **Green heading line**: shows current device orientation in real-time
-- **Green dot + label**: marks the exact heading angle at the edge
+- **Green direction line**: fixed at top, shows current facing direction
 
 Data storage:
 - `polarData[360][256]` — 360 angle buckets (1° each) × 256 radius bins
 - Updated incrementally as the device rotates
+- Rendered with rotation offset based on current heading
 
-This representation is more intuitive for sonar-like applications than a rectangular X-Y plot, as it mimics traditional radar/sonar displays.
+This representation keeps your current direction always visible at the top, making it intuitive to understand "what's ahead" vs "what's behind".
 
 ---
 
@@ -176,6 +190,8 @@ This is:
   - Opens/closes the collapsible settings panel
 - **📊 Info** (toggle)
   - Opens/closes the system info panel (status, sample rate, heading, wake lock, intensity chart)
+- **📐 Calibrate**
+  - Runs automated parameter sweep for device-specific calibration (see Calibration section)
 
 ### Sonogram canvas overlay
 
@@ -206,6 +222,77 @@ All settings can be changed **while the scan is running**:
 - Parameter changes are applied with a short debounce delay (~250 ms) to avoid excessive updates during slider dragging.
 - When frequency or burst duration changes, the tone buffer is automatically regenerated.
 - Previously collected polar data is preserved — useful for comparing different frequency responses without losing existing measurements.
+
+---
+
+## Calibration
+
+The **📐 Calibrate** button runs an automated parameter sweep to find optimal settings for your specific device. This is useful because different phones/computers have vastly different speaker and microphone frequency responses.
+
+### How to use
+
+1. Stop any active scanning
+2. Place the device **1 meter from a flat wall** (or other reflective surface)
+3. Click **Calibrate**
+4. Wait for the sweep to complete (tests ~2300 parameter combinations)
+5. A JSON file will be downloaded with all measurements
+
+### What it tests
+
+The calibration iterates through all combinations of:
+
+| Parameter | Values tested |
+|-----------|---------------|
+| Frequency | 15000, 16000, 17000, 18000, 19000, 20000 Hz |
+| Burst duration | 3, 6, 10, 15 ms |
+| Listen time | 30, 50, 100, 150 ms |
+| Frame size | 256, 512, 1024, 2048 samples |
+| Hop size | 64, 128, 256 samples |
+| Channel | Left, Right |
+
+For each combination, **3 measurements** are taken and averaged.
+
+### JSON output format
+
+```json
+{
+  "deviceInfo": {
+    "userAgent": "Mozilla/5.0 ...",
+    "sampleRate": 48000,
+    "timestamp": "2025-12-29T12:00:00.000Z",
+    "platform": "iPhone"
+  },
+  "targetDistance": 1.0,
+  "measurements": [
+    {
+      "params": {
+        "frequency": 19000,
+        "burstMs": 6,
+        "listenMs": 50,
+        "frameSize": 512,
+        "hopSize": 128,
+        "channel": "L"
+      },
+      "results": {
+        "iterations": 3,
+        "powers": [0.12, 0.14, 0.11],
+        "meanPower": 0.123,
+        "peakBin": 45,
+        "peakTimeMs": 5.7,
+        "snr": 12.5
+      }
+    }
+  ]
+}
+```
+
+### Analyzing results
+
+The JSON can be analyzed to find:
+- **Best frequency**: which ultrasonic frequency passes through the device's audio path
+- **Optimal timing**: burst/listen durations that capture reflections cleanly
+- **Best channel**: left vs right speaker may have different responses
+- **SNR patterns**: signal-to-noise ratio indicates detection reliability
 
 ---
 
@@ -252,10 +339,9 @@ All settings can be changed **while the scan is running**:
 
 ## Future improvements (ideas)
 
-- Add a **"Set 0°"** calibration button to define a user reference direction.
 - Add temporal averaging or max-hold per angle bucket.
 - Display approximate range in milliseconds/meters (with a user-configurable speed of sound).
 - Replace per-burst normalization with a global rolling normalization for stable brightness.
 - Add an FFT-based spectral view for debugging microphone response near 19 kHz.
-- Store raw frames and export data as CSV/JSON for offline processing.
 - Add color mapping options (heat map, radar green, etc.) instead of grayscale.
+- Auto-apply optimal parameters after calibration based on analysis.

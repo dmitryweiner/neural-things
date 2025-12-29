@@ -216,6 +216,70 @@
     
     .sep { height: 1px; background: #eee; margin: 12px 0; }
     
+    /* Calibration overlay */
+    .calibration-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      padding: 20px;
+    }
+    .calibration-overlay.hidden { display: none; }
+    .calibration-overlay h3 {
+      margin: 0 0 16px;
+      font-size: 20px;
+      font-weight: 600;
+    }
+    .calibration-overlay .calib-status {
+      font-size: 14px;
+      color: #aaa;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .calibration-overlay .calib-progress {
+      width: 300px;
+      max-width: 90%;
+      height: 8px;
+      background: #333;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .calibration-overlay .calib-progress-bar {
+      height: 100%;
+      background: #27ae60;
+      transition: width 0.2s ease;
+    }
+    .calibration-overlay .calib-params {
+      font-size: 12px;
+      color: #888;
+      font-family: monospace;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .calibration-overlay .calib-cancel {
+      padding: 10px 24px;
+      border-radius: 8px;
+      border: 1px solid #666;
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .calibration-overlay .calib-cancel:hover {
+      background: #333;
+      border-color: #888;
+    }
+    
     @media (max-width: 600px) {
       .ctrl { grid-template-columns: 100px 1fr 50px; }
       .ctrl.with-adj { grid-template-columns: 100px auto 1fr auto 50px; }
@@ -236,6 +300,7 @@
     <div class="btn-group">
       <button id="settingsBtn" class="collapseBtn" type="button">⚙️ Settings</button>
       <button id="infoBtn" class="collapseBtn" type="button">📊 Info</button>
+      <button id="calibrateBtn" class="collapseBtn" type="button">📐 Calibrate</button>
     </div>
   </div>
 
@@ -329,10 +394,21 @@
     <button id="btnClear" class="canvas-btn">Clear</button>
   </div>
   <p class="muted">
-    Polar view: angle = heading (0° at top, clockwise), radius = time-of-flight (center = close, edge = far). 
-    Brighter = more energy. Green line = current device heading.
+    Polar view: current direction always at top (green line), radius = time-of-flight (center = close, edge = far). 
+    Brighter = more energy. Sonogram rotates as you turn.
   </p>
 </section>
+
+<!-- Calibration overlay -->
+<div id="calibrationOverlay" class="calibration-overlay hidden">
+  <h3>📐 Calibration in progress</h3>
+  <div class="calib-status" id="calibStatus">Place device 1m from wall, then click Calibrate</div>
+  <div class="calib-progress">
+    <div class="calib-progress-bar" id="calibProgressBar" style="width: 0%"></div>
+  </div>
+  <div class="calib-params" id="calibParams">—</div>
+  <button class="calib-cancel" id="calibCancelBtn">Cancel</button>
+</div>
 
 <script>
 (() => {
@@ -517,6 +593,8 @@
   });
 
   // --- Polar rendering
+  // The sonogram rotates so that current direction always points up (0° position).
+  // Green line is fixed at top, data rotates beneath it.
   function drawPolarSonogram(currentHeadingDeg) {
     const w = canvas.width;
     const h = canvas.height;
@@ -526,6 +604,10 @@
 
     const imgData = g.createImageData(w, h);
     const data = imgData.data;
+
+    // Rotation offset: we add currentHeadingDeg to screen angle to look up data
+    // This makes the current heading appear at the top (0° screen position)
+    const rotationOffset = typeof currentHeadingDeg === 'number' ? currentHeadingDeg : 0;
 
     for (let py = 0; py < h; py++) {
       for (let px = 0; px < w; px++) {
@@ -543,11 +625,17 @@
           continue;
         }
 
-        let angleDeg = Math.atan2(dx, -dy) * 180 / Math.PI;
-        if (angleDeg < 0) angleDeg += 360;
+        // Screen angle (0° at top, clockwise)
+        let screenAngleDeg = Math.atan2(dx, -dy) * 180 / Math.PI;
+        if (screenAngleDeg < 0) screenAngleDeg += 360;
+        
+        // Data angle = screen angle + rotation offset
+        // This rotates the data so current heading is at top
+        let dataAngleDeg = screenAngleDeg + rotationOffset;
+        dataAngleDeg = ((dataAngleDeg % 360) + 360) % 360;
         
         const radiusBin = Math.floor((r / maxR) * (RADIUS_BINS - 1));
-        const angleBucket = Math.floor(angleDeg) % ANGLE_BUCKETS;
+        const angleBucket = Math.floor(dataAngleDeg) % ANGLE_BUCKETS;
         
         const v = polarData[angleBucket][radiusBin];
         const c = Math.floor(clamp(v, 0, 1) * 255);
@@ -577,30 +665,19 @@
     g.lineTo(cx + maxR, cy);
     g.stroke();
 
+    // Green direction line: always points up (current direction)
     if (typeof currentHeadingDeg === 'number') {
-      const rad = (currentHeadingDeg * Math.PI) / 180;
-      const lineX = cx + Math.sin(rad) * maxR;
-      const lineY = cy - Math.cos(rad) * maxR;
-
       g.strokeStyle = '#00ff00';
       g.lineWidth = 2;
       g.beginPath();
       g.moveTo(cx, cy);
-      g.lineTo(lineX, lineY);
+      g.lineTo(cx, cy - maxR);  // Always points up
       g.stroke();
 
       g.fillStyle = '#00ff00';
       g.beginPath();
-      g.arc(lineX, lineY, 4, 0, Math.PI * 2);
+      g.arc(cx, cy - maxR, 4, 0, Math.PI * 2);  // Dot at top
       g.fill();
-
-      g.fillStyle = '#00ff00';
-      g.font = 'bold 12px system-ui';
-      const labelX = cx + Math.sin(rad) * (maxR + 15);
-      const labelY = cy - Math.cos(rad) * (maxR + 15);
-      g.textAlign = 'center';
-      g.textBaseline = 'middle';
-      g.fillText(currentHeadingDeg.toFixed(0) + '°', labelX, labelY);
     }
 
     g.fillStyle = '#666';
@@ -1075,6 +1152,223 @@
     a.download = "sonogram_19k_polar.png";
     a.href = canvas.toDataURL("image/png");
     a.click();
+  };
+
+  // --- Calibration system
+  const calibrationOverlay = $("calibrationOverlay");
+  const calibStatus = $("calibStatus");
+  const calibProgressBar = $("calibProgressBar");
+  const calibParams = $("calibParams");
+  const calibCancelBtn = $("calibCancelBtn");
+  const calibrateBtn = $("calibrateBtn");
+
+  let calibrationRunning = false;
+
+  // Parameter sweep ranges
+  const CALIB_FREQUENCIES = [15000, 16000, 17000, 18000, 19000, 20000];
+  const CALIB_BURST_MS = [3, 6, 10, 15];
+  const CALIB_LISTEN_MS = [30, 50, 100, 150];
+  const CALIB_FRAME_SIZES = [256, 512, 1024, 2048];
+  const CALIB_HOP_SIZES = [64, 128, 256];
+  const CALIB_CHANNELS = ['L', 'R'];
+  const CALIB_ITERATIONS = 3;  // measurements per parameter combination
+
+  function calculateTotalCalibCombinations() {
+    return CALIB_FREQUENCIES.length * 
+           CALIB_BURST_MS.length * 
+           CALIB_LISTEN_MS.length * 
+           CALIB_FRAME_SIZES.length * 
+           CALIB_HOP_SIZES.length * 
+           CALIB_CHANNELS.length;
+  }
+
+  async function runCalibration() {
+    if (calibrationRunning || running) return;
+
+    try {
+      calibrationRunning = true;
+      calibrationOverlay.classList.remove('hidden');
+      calibStatus.textContent = 'Initializing audio...';
+      calibProgressBar.style.width = '0%';
+      calibParams.textContent = '—';
+
+      // Ensure audio is ready
+      await ensureAudio();
+      if (audioCtx.state !== 'running') await audioCtx.resume();
+
+      const sr = audioCtx.sampleRate;
+      const totalCombinations = calculateTotalCalibCombinations();
+      let completedCombinations = 0;
+
+      const results = {
+        deviceInfo: {
+          userAgent: navigator.userAgent,
+          sampleRate: sr,
+          timestamp: new Date().toISOString(),
+          platform: navigator.platform || 'unknown'
+        },
+        targetDistance: 1.0,
+        measurements: []
+      };
+
+      calibStatus.textContent = `Running calibration: 0 / ${totalCombinations}`;
+
+      // Iterate through all parameter combinations
+      for (const freq of CALIB_FREQUENCIES) {
+        for (const burstMs of CALIB_BURST_MS) {
+          for (const listenMs of CALIB_LISTEN_MS) {
+            for (const frameSize of CALIB_FRAME_SIZES) {
+              for (const hopSize of CALIB_HOP_SIZES) {
+                for (const channel of CALIB_CHANNELS) {
+                  if (!calibrationRunning) {
+                    // Cancelled
+                    calibrationOverlay.classList.add('hidden');
+                    return;
+                  }
+
+                  // Update UI
+                  const progress = ((completedCombinations / totalCombinations) * 100).toFixed(1);
+                  calibProgressBar.style.width = progress + '%';
+                  calibStatus.textContent = `Running calibration: ${completedCombinations + 1} / ${totalCombinations}`;
+                  calibParams.textContent = `freq=${freq}Hz burst=${burstMs}ms listen=${listenMs}ms frame=${frameSize} hop=${hopSize} ch=${channel}`;
+
+                  // Generate burst for this frequency/duration
+                  const burst = makeToneBurst(sr, freq, burstMs / 1000);
+                  const amp = 0.18;  // Fixed amplitude for calibration
+
+                  // Run multiple iterations
+                  const iterationResults = [];
+                  for (let iter = 0; iter < CALIB_ITERATIONS; iter++) {
+                    if (!calibrationRunning) {
+                      calibrationOverlay.classList.add('hidden');
+                      return;
+                    }
+
+                    // Play burst and record
+                    const burstSec = playBurstOneChannel(burst, amp, channel);
+                    const recSec = burstSec + (listenMs / 1000);
+                    const recorded = await recordWindow(recSec);
+
+                    // Skip the burst portion
+                    const skip = Math.floor(burstSec * sr * 0.9);
+                    const tail = recorded.subarray(skip);
+
+                    // Compute energy at target frequency for each frame
+                    const powers = [];
+                    for (let i = 0; i + frameSize <= tail.length; i += hopSize) {
+                      const frame = tail.subarray(i, i + frameSize);
+                      powers.push(goertzelPower(frame, sr, freq));
+                    }
+
+                    if (powers.length > 0) {
+                      // Find peak power and its position
+                      let peakPower = powers[0];
+                      let peakIdx = 0;
+                      let sumPower = 0;
+                      for (let i = 0; i < powers.length; i++) {
+                        sumPower += powers[i];
+                        if (powers[i] > peakPower) {
+                          peakPower = powers[i];
+                          peakIdx = i;
+                        }
+                      }
+                      const meanPower = sumPower / powers.length;
+                      
+                      // Calculate peak time in ms
+                      const peakTimeSamples = skip + peakIdx * hopSize;
+                      const peakTimeMs = (peakTimeSamples / sr) * 1000;
+                      
+                      // Simple SNR estimate: peak / mean
+                      const snr = meanPower > 0 ? peakPower / meanPower : 0;
+
+                      iterationResults.push({
+                        peakPower,
+                        meanPower,
+                        peakTimeMs,
+                        snr,
+                        peakBin: peakIdx,
+                        numBins: powers.length
+                      });
+                    }
+
+                    // Small delay between iterations
+                    await new Promise(r => setTimeout(r, 30));
+                  }
+
+                  // Aggregate iteration results
+                  if (iterationResults.length > 0) {
+                    const powers = iterationResults.map(r => r.peakPower);
+                    const meanPeakPower = powers.reduce((a, b) => a + b, 0) / powers.length;
+                    const avgPeakTimeMs = iterationResults.reduce((a, r) => a + r.peakTimeMs, 0) / iterationResults.length;
+                    const avgSnr = iterationResults.reduce((a, r) => a + r.snr, 0) / iterationResults.length;
+
+                    results.measurements.push({
+                      params: {
+                        frequency: freq,
+                        burstMs,
+                        listenMs,
+                        frameSize,
+                        hopSize,
+                        channel
+                      },
+                      results: {
+                        iterations: iterationResults.length,
+                        powers: powers,
+                        meanPower: meanPeakPower,
+                        peakBin: Math.round(iterationResults.reduce((a, r) => a + r.peakBin, 0) / iterationResults.length),
+                        peakTimeMs: avgPeakTimeMs,
+                        snr: avgSnr
+                      }
+                    });
+                  }
+
+                  completedCombinations++;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Calibration complete - download JSON
+      calibStatus.textContent = 'Calibration complete! Downloading results...';
+      calibProgressBar.style.width = '100%';
+      calibParams.textContent = `${results.measurements.length} measurements collected`;
+
+      const jsonStr = JSON.stringify(results, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sonar_calibration_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      // Close overlay after short delay
+      await new Promise(r => setTimeout(r, 1500));
+      calibrationOverlay.classList.add('hidden');
+
+    } catch (e) {
+      console.error('Calibration error:', e);
+      calibStatus.textContent = 'Error: ' + (e?.message || e);
+      await new Promise(r => setTimeout(r, 3000));
+      calibrationOverlay.classList.add('hidden');
+    } finally {
+      calibrationRunning = false;
+    }
+  }
+
+  calibrateBtn.onclick = () => {
+    if (running) {
+      alert('Please stop scanning before running calibration.');
+      return;
+    }
+    runCalibration();
+  };
+
+  calibCancelBtn.onclick = () => {
+    calibrationRunning = false;
+    calibStatus.textContent = 'Cancelling...';
   };
 
   // init
