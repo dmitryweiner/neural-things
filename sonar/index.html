@@ -759,6 +759,68 @@
   let micTap = null;
   let running = false;
 
+  // --- Live scan parameters (synced from UI with debounce)
+  let scanParams = {
+    freq: 19000,
+    burstMs: 6,
+    listenMs: 50,
+    channel: 'L',
+    amp: 0.18,
+    frameSize: 512,
+    hopSize: 128,
+    burst: null  // cached tone buffer, regenerated when freq/burstMs change
+  };
+
+  function syncParamsFromUI() {
+    const newFreq = Number($("freq").value);
+    const newBurstMs = Number($("burstMs").value);
+    const needNewBurst = audioCtx && (
+      newFreq !== scanParams.freq || 
+      newBurstMs !== scanParams.burstMs
+    );
+
+    scanParams.freq = newFreq;
+    scanParams.burstMs = newBurstMs;
+    scanParams.listenMs = Number($("listenMs").value);
+    scanParams.channel = String($("channel").value);
+    scanParams.amp = Number($("amp").value);
+    scanParams.frameSize = Number($("frame").value);
+    scanParams.hopSize = Number($("hop").value);
+
+    if (needNewBurst) {
+      const sr = audioCtx.sampleRate;
+      scanParams.burst = makeToneBurst(sr, scanParams.freq, scanParams.burstMs / 1000);
+    }
+  }
+
+  // --- Debounced parameter sync
+  const PARAMS_DEBOUNCE_MS = 250;
+  let paramsSyncTimer = null;
+
+  function scheduleSyncParams() {
+    if (paramsSyncTimer) clearTimeout(paramsSyncTimer);
+    paramsSyncTimer = setTimeout(() => {
+      syncParamsFromUI();
+      paramsSyncTimer = null;
+    }, PARAMS_DEBOUNCE_MS);
+  }
+
+  // Wire up debounced sync to all settings controls
+  function setupLiveParamsSync() {
+    const sliderIds = ['freq', 'burstMs', 'listenMs', 'amp', 'frame', 'hop'];
+    for (const id of sliderIds) {
+      const slider = $(id);
+      if (slider) {
+        slider.addEventListener('input', scheduleSyncParams);
+      }
+    }
+    // Also listen to channel select changes
+    const channelSelect = $("channel");
+    if (channelSelect) {
+      channelSelect.addEventListener('change', scheduleSyncParams);
+    }
+  }
+
   async function ensureAudio() {
     if (audioCtx) return;
 
@@ -923,21 +985,20 @@
   }
 
   async function scanLoop() {
-    const freq = Number($("freq").value);
-    const burstMs = Number($("burstMs").value);
-    const listenMs = Number($("listenMs").value);
-    const channel = String($("channel").value);
-    const amp = Number($("amp").value);
-    const frameSize = Number($("frame").value);
-    const hopSize = Number($("hop").value);
-
     const sr = audioCtx.sampleRate;
-    const burst = makeToneBurst(sr, freq, burstMs / 1000);
+    
+    // Initialize burst buffer if not already created
+    if (!scanParams.burst) {
+      scanParams.burst = makeToneBurst(sr, scanParams.freq, scanParams.burstMs / 1000);
+    }
 
     running = true;
     setStatus("running");
 
     while (running) {
+      // Read current params from the live-synced object
+      const { freq, listenMs, channel, amp, frameSize, hopSize, burst } = scanParams;
+
       const deg = hasHeading ? headingDegrees : (performance.now() / 50) % 360;
       const bucket = Math.floor(normalizeDeg(deg));
       bucketEl.textContent = bucket + "° / " + ANGLE_BUCKETS;
@@ -1023,6 +1084,8 @@
   setStatus("idle");
   headingEl.textContent = "—";
   bucketEl.textContent = "—";
+  setupLiveParamsSync();
+  syncParamsFromUI(); // initialize scanParams from current UI values
   
   if ('wakeLock' in navigator) {
     updateWakeLockStatus('inactive');

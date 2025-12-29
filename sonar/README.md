@@ -199,6 +199,14 @@ All numeric parameters use sliders with +/- fine adjustment buttons:
 
 The +/- buttons support hold-to-repeat for continuous adjustment.
 
+### Live parameter updates
+
+All settings can be changed **while the scan is running**:
+
+- Parameter changes are applied with a short debounce delay (~250 ms) to avoid excessive updates during slider dragging.
+- When frequency or burst duration changes, the tone buffer is automatically regenerated.
+- Previously collected polar data is preserved — useful for comparing different frequency responses without losing existing measurements.
+
 ---
 
 ## Expected limitations
