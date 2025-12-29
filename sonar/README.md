@@ -80,7 +80,6 @@ Each scan cycle (one emitted burst) follows this pipeline:
 The app uses **device orientation events** rather than a phased array:
 
 - Sensors are **automatically enabled** when the user clicks **Start** (requires user gesture for iOS permission).
-- Alternatively, the user can manually tap **"Enable sensors"** before starting.
 - The app registers a `deviceorientation` listener.
 - Heading selection priority:
   1. `ev.webkitCompassHeading` (best on iOS Safari)
@@ -138,9 +137,6 @@ The sonogram is *not* a true ultrasound B-scan (no real beam forming). It is a *
   - Clears the sonogram image to black
 - **Export PNG**
   - Downloads the current canvas as a PNG
-- **Enable sensors**
-  - Manually requests permission (if required) and starts listening to device orientation
-  - Note: this is now called automatically on Start, but the button remains for manual re-enable if needed
 
 Parameters:
 - `Frequency (Hz)`: tone frequency (default 19000)

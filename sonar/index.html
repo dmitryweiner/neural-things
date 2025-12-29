@@ -69,7 +69,6 @@
       <button id="btnStop" disabled>Stop</button>
       <button id="btnClear">Clear</button>
       <button id="btnPng">Export PNG</button>
-      <button id="btnSensors">Enable sensors</button>
     </div>
 
     <p class="warn">
@@ -84,7 +83,6 @@
       <div><b>angle bucket:</b> <span id="bucket">—</span></div>
       <div><b>notes:</b> <span id="notes">—</span></div>
     </div>
-    <div class="muted" id="debug" style="margin-top:8px; font-family:monospace; white-space:pre-wrap; max-height:120px; overflow-y:auto; background:#f8f8f8; padding:6px; border-radius:6px;"></div>
   </div>
 
   <h3>Sonogram</h3>
@@ -101,15 +99,6 @@
   const headingEl = $("heading");
   const bucketEl = $("bucket");
   const notesEl = $("notes");
-  const debugEl = $("debug");
-
-  const debugLines = [];
-  function debug(msg) {
-    debugLines.push(msg);
-    if (debugLines.length > 15) debugLines.shift();
-    debugEl.textContent = debugLines.join("\n");
-    debugEl.scrollTop = debugEl.scrollHeight;
-  }
 
   const canvas = $("canvas");
   const g = canvas.getContext("2d", { alpha: false });
@@ -330,16 +319,21 @@
       powers.push(goertzelPower(frame, sr, freq));
     }
     
-    // Debug: log powers count
-    debug(`powers: count=${powers.length}, frameSize=${frameSize}, tailLen=${recordedTail.length}`);
+    if (powers.length === 0) return new Float32Array(numBins);
+
+    // Use log scale for better dynamic range (makes weak signals visible)
+    const logPowers = powers.map(p => Math.log10(p + 1e-10));
     
-    // Normalize powers
-    let maxP = 1e-12;
-    for (const p of powers) if (p > maxP) maxP = p;
+    // Find min/max for normalization
+    let minLog = logPowers[0], maxLog = logPowers[0];
+    for (const lp of logPowers) {
+      if (lp < minLog) minLog = lp;
+      if (lp > maxLog) maxLog = lp;
+    }
+    const rangeLog = maxLog - minLog || 1;
 
     // Map powers to bins - handle both upsampling (few powers) and downsampling (many powers)
     const out = new Float32Array(numBins);
-    if (powers.length === 0) return out;
 
     for (let b = 0; b < numBins; b++) {
       // Map bin index to powers index range
@@ -350,12 +344,15 @@
       const iStart = Math.floor(pStart);
       const iEnd = Math.max(iStart + 1, Math.ceil(pEnd));
       
-      let m = 0;
-      for (let i = iStart; i < iEnd && i < powers.length; i++) {
-        m = Math.max(m, powers[i] / maxP);
+      let m = -Infinity;
+      for (let i = iStart; i < iEnd && i < logPowers.length; i++) {
+        m = Math.max(m, logPowers[i]);
       }
-      // gamma for contrast
-      out[b] = Math.pow(clamp(m, 0, 1), 0.6);
+      
+      // Normalize to 0..1 using log scale
+      const normalized = clamp((m - minLog) / rangeLog, 0, 1);
+      // Apply gamma for contrast
+      out[b] = Math.pow(normalized, 0.5);
     }
     return out;
   }
@@ -387,8 +384,6 @@
       const x = headingToX(deg);
       bucketEl.textContent = String(x) + " / " + canvas.width;
 
-      // Debug: show heading and X position on screen
-      debug(`heading=${hasHeading}, deg=${deg.toFixed(1)}, x=${x}`);
 
       // 1) play burst
       const burstSec = playBurstOneChannel(burst, amp, channel);
@@ -404,14 +399,6 @@
       // 4) energy envelope at freq -> bins
       const bins = energyEnvelopeBins(tail, sr, freq, frameSize, hopSize, canvas.height);
 
-      // Debug: analyze bins data
-      let minBin = 1, maxBin = 0, maxBinIdx = 0, nonZeroCount = 0;
-      for (let i = 0; i < bins.length; i++) {
-        if (bins[i] < minBin) minBin = bins[i];
-        if (bins[i] > maxBin) { maxBin = bins[i]; maxBinIdx = i; }
-        if (bins[i] > 0.01) nonZeroCount++;
-      }
-      debug(`bins: len=${bins.length}, max=${maxBin.toFixed(2)}@y=${maxBinIdx}, nonZero=${nonZeroCount}/${bins.length}, tail=${tail.length}`);
 
       // 5) draw column at heading position
       drawColumnAtX(x, bins);
@@ -434,10 +421,6 @@
   }
 
   // --- UI wiring
-  $("btnSensors").onclick = async () => {
-    await enableSensors();
-  };
-
   $("btnStart").onclick = async () => {
     try {
       $("btnStart").disabled = true;
