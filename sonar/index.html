@@ -439,22 +439,12 @@
     const open = !settingsPanel.classList.contains('open');
     settingsPanel.classList.toggle('open', open);
     settingsBtn.classList.toggle('active', open);
-    // Close info panel when opening settings
-    if (open) {
-      infoPanel.classList.remove('open');
-      infoBtn.classList.remove('active');
-    }
   });
 
   infoBtn.addEventListener('click', () => {
     const open = !infoPanel.classList.contains('open');
     infoPanel.classList.toggle('open', open);
     infoBtn.classList.toggle('active', open);
-    // Close settings panel when opening info
-    if (open) {
-      settingsPanel.classList.remove('open');
-      settingsBtn.classList.remove('active');
-    }
   });
 
   // --- Polar data storage
