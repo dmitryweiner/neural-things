@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -25,41 +25,41 @@
   </style>
 </head>
 <body>
-  <h2>Ультразвуковой “сонар” в браузере (19 кГц, 1 канал, угол = ориентация)</h2>
+  <h2>Ultrasonic "sonar" in browser (19 kHz, 1 channel, angle = orientation)</h2>
   <p class="muted">
-    Прототип: Web Audio API → излучаем 19 кГц короткими пачками → пишем микрофон → считаем энергию на 19 кГц по времени (Goertzel) → рисуем сонограмму.
+    Prototype: Web Audio API → emit 19 kHz short bursts → record microphone → compute energy at 19 kHz over time (Goertzel) → draw sonogram.
   </p>
 
   <div class="card">
     <div class="row">
-      <label>Частота (Гц)
+      <label>Frequency (Hz)
         <input id="freq" type="number" value="19000" min="16000" max="20000" step="10" />
       </label>
 
-      <label>Длительность burst (мс)
+      <label>Burst duration (ms)
         <input id="burstMs" type="number" value="6" min="1" max="40" step="1" />
       </label>
 
-      <label>Пауза/прослушка после (мс)
+      <label>Listen after (ms)
         <input id="listenMs" type="number" value="50" min="5" max="250" step="1" />
       </label>
 
-      <label>Канал излучения
+      <label>Output channel
         <select id="channel">
-          <option value="L">Left (левый)</option>
-          <option value="R">Right (правый)</option>
+          <option value="L">Left</option>
+          <option value="R">Right</option>
         </select>
       </label>
 
-      <label>Амплитуда (0..1)
+      <label>Amplitude (0..1)
         <input id="amp" type="number" value="0.18" min="0.01" max="1" step="0.01" />
       </label>
 
-      <label>Окно анализа (samples)
+      <label>Analysis window (samples)
         <input id="frame" type="number" value="512" min="128" max="4096" step="128" />
       </label>
 
-      <label>Шаг по времени (samples)
+      <label>Time step (samples)
         <input id="hop" type="number" value="128" min="32" max="2048" step="32" />
       </label>
     </div>
@@ -73,8 +73,8 @@
     </div>
 
     <p class="warn">
-      ⚠️ 19–20 кГц на многих устройствах режется динамиками/микрофоном и “улучшалками” (AEC/NS/AGC). Для теста часто лучше ПК + внешний аудиоинтерфейс.
-      Не выкручивай громкость: “не слышно” ≠ “безопасно”.
+      ⚠️ 19–20 kHz is often filtered by speakers/microphones and "enhancements" (AEC/NS/AGC) on many devices. For testing, a PC + external audio interface often works better.
+      Don't crank up the volume: "can't hear it" ≠ "safe".
     </p>
 
     <div class="muted" id="status">Status: idle</div>
@@ -86,10 +86,10 @@
     </div>
   </div>
 
-  <h3>Сонограмма</h3>
+  <h3>Sonogram</h3>
   <canvas id="canvas" width="1100" height="520"></canvas>
   <p class="muted">
-    X = угол (heading 0..360°, раскладывается по ширине), Y = “дальность” (время после излучения). Чем ярче — тем больше энергии на 19 кГц в этом задержанном окне.
+    X = angle (heading 0..360°, mapped across width), Y = "range" (time after emission). Brighter = more energy at 19 kHz in that delayed window.
   </p>
 
 <script>
@@ -366,6 +366,9 @@
       const x = headingToX(deg);
       bucketEl.textContent = String(x) + " / " + canvas.width;
 
+      // Debug: log heading and X position to help diagnose drawing issues
+      console.log(`[sonar] hasHeading=${hasHeading}, deg=${deg.toFixed(1)}, x=${x}`);
+
       // 1) play burst
       const burstSec = playBurstOneChannel(burst, amp, channel);
 
@@ -410,13 +413,11 @@
       $("btnStart").disabled = true;
       $("btnStop").disabled = false;
 
+      // Auto-enable sensors on Start (requires user gesture for iOS permission)
+      await enableSensors();
+
       await ensureAudio();
       if (audioCtx.state !== "running") await audioCtx.resume();
-
-      // Hint if sensors not enabled
-      if (!hasHeading) {
-        notesEl.textContent = notesEl.textContent || "Tip: нажми Enable sensors, чтобы X = реальный heading.";
-      }
 
       scanLoop();
     } catch (e) {
