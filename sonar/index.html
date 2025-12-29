@@ -15,19 +15,38 @@
     }
     button { padding: 8px 10px; border-radius: 10px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
     button.primary { border-color: #888; font-weight: 600; }
-    canvas { width: 100%; max-width: 1100px; height: auto; border: 1px solid #ddd; border-radius: 12px; }
+    canvas { 
+      width: 100%; 
+      max-width: 520px; 
+      height: auto; 
+      border: 1px solid #ddd; 
+      border-radius: 12px;
+      aspect-ratio: 1;
+    }
     .muted { color: #666; font-size: 12px; }
     .warn { color: #8a3b00; font-size: 12px; }
     code { background: #f6f6f6; padding: 1px 6px; border-radius: 6px; }
     .kpi { display:flex; gap:16px; flex-wrap:wrap; margin-top:8px; }
     .kpi div { font-size:12px; color:#333; }
     .kpi b { font-size:12px; }
+    .wake-lock-status { 
+      display: inline-flex; 
+      align-items: center; 
+      gap: 4px; 
+      font-size: 12px; 
+      padding: 2px 8px; 
+      border-radius: 6px; 
+      background: #f0f0f0;
+    }
+    .wake-lock-status.active { background: #d4edda; color: #155724; }
+    .wake-lock-status.inactive { background: #f8d7da; color: #721c24; }
+    .wake-lock-status.unsupported { background: #fff3cd; color: #856404; }
   </style>
 </head>
 <body>
   <h2>Ultrasonic "sonar" in browser (19 kHz, 1 channel, angle = orientation)</h2>
   <p class="muted">
-    Prototype: Web Audio API → emit 19 kHz short bursts → record microphone → compute energy at 19 kHz over time (Goertzel) → draw sonogram.
+    Prototype: Web Audio API → emit 19 kHz short bursts → record microphone → compute energy at 19 kHz over time (Goertzel) → draw polar sonogram.
   </p>
 
   <div class="card">
@@ -69,6 +88,7 @@
       <button id="btnStop" disabled>Stop</button>
       <button id="btnClear">Clear</button>
       <button id="btnPng">Export PNG</button>
+      <span id="wakeLockStatus" class="wake-lock-status unsupported">Wake Lock: checking...</span>
     </div>
 
     <p class="warn">
@@ -85,10 +105,11 @@
     </div>
   </div>
 
-  <h3>Sonogram</h3>
-  <canvas id="canvas" width="1100" height="520"></canvas>
+  <h3>Polar Sonogram</h3>
+  <canvas id="canvas" width="520" height="520"></canvas>
   <p class="muted">
-    X = angle (heading 0..360°, mapped across width), Y = "range" (time after emission). Brighter = more energy at 19 kHz in that delayed window.
+    Polar view: angle = heading (0° at top, clockwise), radius = time-of-flight (center = close, edge = far). 
+    Brighter = more energy at 19 kHz. Green line = current device heading.
   </p>
 
 <script>
@@ -99,39 +120,211 @@
   const headingEl = $("heading");
   const bucketEl = $("bucket");
   const notesEl = $("notes");
+  const wakeLockStatusEl = $("wakeLockStatus");
 
   const canvas = $("canvas");
   const g = canvas.getContext("2d", { alpha: false });
 
   function setStatus(s) { statusEl.textContent = "Status: " + s; }
-  function clamp(x,a,b){ return Math.max(a, Math.min(b,x)); }
+  function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
 
-  // --- Sonogram image buffer (grayscale)
-  let img = null;
+  // --- Polar data storage
+  const ANGLE_BUCKETS = 360; // 1° resolution
+  const RADIUS_BINS = 256;   // range bins
+  let polarData = null;      // [angle][radius] -> 0..1 energy value
 
-  function resetImage() {
-    g.fillStyle = "#000";
-    g.fillRect(0, 0, canvas.width, canvas.height);
-    img = g.getImageData(0, 0, canvas.width, canvas.height);
-    g.putImageData(img, 0, 0);
+  function resetPolarData() {
+    polarData = new Array(ANGLE_BUCKETS);
+    for (let a = 0; a < ANGLE_BUCKETS; a++) {
+      polarData[a] = new Float32Array(RADIUS_BINS);
+    }
   }
 
-  function drawColumnAtX(x, columnValues01) {
-    const w = img.width, h = img.height;
-    x = ((x % w) + w) % w;
-    for (let y = 0; y < h; y++) {
-      const v = clamp(columnValues01[y] ?? 0, 0, 1);
-      const c = Math.floor(v * 255);
-      const i = (y * w + x) * 4;
-      img.data[i+0] = c;
-      img.data[i+1] = c;
-      img.data[i+2] = c;
-      img.data[i+3] = 255;
+  // --- Wake Lock API
+  let wakeLock = null;
+
+  function updateWakeLockStatus(status) {
+    wakeLockStatusEl.className = 'wake-lock-status ' + status;
+    switch (status) {
+      case 'active':
+        wakeLockStatusEl.textContent = '🔒 Wake Lock: active';
+        break;
+      case 'inactive':
+        wakeLockStatusEl.textContent = '🔓 Wake Lock: inactive';
+        break;
+      case 'unsupported':
+        wakeLockStatusEl.textContent = '⚠️ Wake Lock: unsupported';
+        break;
+      default:
+        wakeLockStatusEl.textContent = 'Wake Lock: ' + status;
+    }
+  }
+
+  async function enableWakeLock() {
+    if (!('wakeLock' in navigator)) {
+      updateWakeLockStatus('unsupported');
+      return;
+    }
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      updateWakeLockStatus('active');
+      
+      wakeLock.addEventListener('release', () => {
+        updateWakeLockStatus('inactive');
+        wakeLock = null;
+      });
+    } catch (e) {
+      console.warn('Wake Lock failed:', e);
+      updateWakeLockStatus('inactive');
+    }
+  }
+
+  async function releaseWakeLock() {
+    if (wakeLock) {
+      try {
+        await wakeLock.release();
+      } catch (e) {
+        console.warn('Wake Lock release failed:', e);
+      }
+      wakeLock = null;
+      updateWakeLockStatus('inactive');
+    }
+  }
+
+  // Re-acquire wake lock on visibility change (required by spec)
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && running && !wakeLock) {
+      await enableWakeLock();
+    }
+  });
+
+  // --- Polar rendering
+  function drawPolarSonogram(currentHeadingDeg) {
+    const w = canvas.width;
+    const h = canvas.height;
+    const cx = w / 2;
+    const cy = h / 2;
+    const maxR = Math.min(cx, cy) - 2; // leave 2px margin
+
+    const imgData = g.createImageData(w, h);
+    const data = imgData.data;
+
+    // Draw polar data
+    for (let py = 0; py < h; py++) {
+      for (let px = 0; px < w; px++) {
+        const dx = px - cx;
+        const dy = py - cy;
+        const r = Math.sqrt(dx * dx + dy * dy);
+        
+        const i = (py * w + px) * 4;
+        
+        if (r > maxR) {
+          // Outside the circle - dark background
+          data[i] = 20;
+          data[i + 1] = 20;
+          data[i + 2] = 25;
+          data[i + 3] = 255;
+          continue;
+        }
+
+        // Convert to polar coordinates
+        // atan2(dx, -dy) gives 0° at top, positive clockwise
+        let angleDeg = Math.atan2(dx, -dy) * 180 / Math.PI;
+        if (angleDeg < 0) angleDeg += 360;
+        
+        // Map radius to bin index (center = 0, edge = RADIUS_BINS-1)
+        const radiusBin = Math.floor((r / maxR) * (RADIUS_BINS - 1));
+        const angleBucket = Math.floor(angleDeg) % ANGLE_BUCKETS;
+        
+        // Get value from polar data
+        const v = polarData[angleBucket][radiusBin];
+        const c = Math.floor(clamp(v, 0, 1) * 255);
+        
+        data[i] = c;
+        data[i + 1] = c;
+        data[i + 2] = c;
+        data[i + 3] = 255;
+      }
+    }
+
+    g.putImageData(imgData, 0, 0);
+
+    // Draw crosshairs / reference circles
+    g.strokeStyle = 'rgba(80, 80, 90, 0.5)';
+    g.lineWidth = 1;
+    
+    // Concentric circles at 25%, 50%, 75%
+    for (const frac of [0.25, 0.5, 0.75]) {
+      g.beginPath();
+      g.arc(cx, cy, maxR * frac, 0, Math.PI * 2);
+      g.stroke();
+    }
+
+    // Cardinal direction lines
+    g.beginPath();
+    g.moveTo(cx, cy - maxR);
+    g.lineTo(cx, cy + maxR);
+    g.moveTo(cx - maxR, cy);
+    g.lineTo(cx + maxR, cy);
+    g.stroke();
+
+    // Draw current heading line (green)
+    if (typeof currentHeadingDeg === 'number') {
+      const headingRad = (currentHeadingDeg - 90) * Math.PI / 180;
+      const hx = cx + Math.cos(headingRad + Math.PI / 2) * maxR;
+      const hy = cy - Math.sin(headingRad + Math.PI / 2) * maxR;
+      
+      // Correct calculation: 0° at top, clockwise
+      const rad = (currentHeadingDeg * Math.PI) / 180;
+      const lineX = cx + Math.sin(rad) * maxR;
+      const lineY = cy - Math.cos(rad) * maxR;
+
+      g.strokeStyle = '#00ff00';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(cx, cy);
+      g.lineTo(lineX, lineY);
+      g.stroke();
+
+      // Small circle at tip
+      g.fillStyle = '#00ff00';
+      g.beginPath();
+      g.arc(lineX, lineY, 4, 0, Math.PI * 2);
+      g.fill();
+
+      // Label
+      g.fillStyle = '#00ff00';
+      g.font = 'bold 12px system-ui';
+      const labelX = cx + Math.sin(rad) * (maxR + 15);
+      const labelY = cy - Math.cos(rad) * (maxR + 15);
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(currentHeadingDeg.toFixed(0) + '°', labelX, labelY);
+    }
+
+    // Center dot
+    g.fillStyle = '#666';
+    g.beginPath();
+    g.arc(cx, cy, 3, 0, Math.PI * 2);
+    g.fill();
+  }
+
+  function resetImage() {
+    resetPolarData();
+    drawPolarSonogram(null);
+  }
+
+  function updatePolarDataAtAngle(angleDeg, bins) {
+    const bucket = Math.floor(normalizeDeg(angleDeg)) % ANGLE_BUCKETS;
+    
+    // Map bins to RADIUS_BINS
+    for (let r = 0; r < RADIUS_BINS; r++) {
+      const srcIdx = Math.floor((r / RADIUS_BINS) * bins.length);
+      polarData[bucket][r] = bins[srcIdx] || 0;
     }
   }
 
   // --- Orientation / heading
-  // headingDegrees: 0..360 (approx compass heading if absolute), otherwise just alpha-ish.
   let headingDegrees = 0;
   let hasHeading = false;
 
@@ -143,7 +336,6 @@
 
   async function enableSensors() {
     notesEl.textContent = "";
-    // iOS requires user gesture + permission for DeviceOrientationEvent
     try {
       if (typeof DeviceOrientationEvent !== "undefined" &&
           typeof DeviceOrientationEvent.requestPermission === "function") {
@@ -155,23 +347,19 @@
     }
 
     window.addEventListener("deviceorientation", (ev) => {
-      // iOS Safari: webkitCompassHeading is the most useful
       if (typeof ev.webkitCompassHeading === "number") {
         headingDegrees = normalizeDeg(ev.webkitCompassHeading);
         hasHeading = true;
       } else if (ev.absolute === true && typeof ev.alpha === "number") {
-        // absolute alpha: 0..360 (but on many devices absolute is unreliable)
         headingDegrees = normalizeDeg(ev.alpha);
         hasHeading = true;
       } else if (typeof ev.alpha === "number") {
-        // fallback: relative yaw-ish
         headingDegrees = normalizeDeg(ev.alpha);
         hasHeading = true;
       }
       headingEl.textContent = hasHeading ? headingDegrees.toFixed(1) + "°" : "—";
     }, { passive: true });
 
-    // If no events arrive, user will see heading unchanged.
     notesEl.textContent = "Sensors enabled (if supported). Rotate the device to change heading.";
   }
 
@@ -217,30 +405,28 @@
 
       micTap = new AudioWorkletNode(audioCtx, "tap-processor");
       micSource.connect(micTap);
-      // no destination connection needed for worklet tap
     } else {
       const bufSize = 2048;
       micTap = audioCtx.createScriptProcessor(bufSize, 1, 1);
       micSource.connect(micTap);
-      micTap.connect(audioCtx.destination); // ScriptProcessor needs output connection
+      micTap.connect(audioCtx.destination);
     }
 
     srEl.textContent = String(audioCtx.sampleRate);
   }
 
-  // Generate a Hann-windowed tone burst
   function makeToneBurst(sr, freq, durationSec) {
     const N = Math.max(16, Math.floor(durationSec * sr));
     const x = new Float32Array(N);
     for (let n = 0; n < N; n++) {
       const t = n / sr;
-      const w = 0.5 * (1 - Math.cos(2 * Math.PI * n / (N - 1))); // Hann
+      const w = 0.5 * (1 - Math.cos(2 * Math.PI * n / (N - 1)));
       x[n] = Math.sin(2 * Math.PI * freq * t) * w;
     }
     return x;
   }
 
-  function playBurstOneChannel(burst, amp, channel /* 'L'|'R' */) {
+  function playBurstOneChannel(burst, amp, channel) {
     const sr = audioCtx.sampleRate;
     const N = burst.length;
     const buf = audioCtx.createBuffer(2, N, sr);
@@ -292,7 +478,6 @@
     });
   }
 
-  // --- Goertzel: power at a single target frequency for one frame
   function goertzelPower(frame, sr, freq) {
     const N = frame.length;
     const k = Math.round((N * freq) / sr);
@@ -306,12 +491,10 @@
       s2 = s1;
       s1 = s0;
     }
-    // power ~ s1^2 + s2^2 - coeff*s1*s2
-    const power = s1*s1 + s2*s2 - coeff*s1*s2;
+    const power = s1 * s1 + s2 * s2 - coeff * s1 * s2;
     return Math.max(0, power);
   }
 
-  // Convert recorded tail to range bins (canvas height), measuring energy at freq over time
   function energyEnvelopeBins(recordedTail, sr, freq, frameSize, hopSize, numBins) {
     const powers = [];
     for (let i = 0; i + frameSize <= recordedTail.length; i += hopSize) {
@@ -321,10 +504,8 @@
     
     if (powers.length === 0) return new Float32Array(numBins);
 
-    // Use log scale for better dynamic range (makes weak signals visible)
     const logPowers = powers.map(p => Math.log10(p + 1e-10));
     
-    // Find min/max for normalization
     let minLog = logPowers[0], maxLog = logPowers[0];
     for (const lp of logPowers) {
       if (lp < minLog) minLog = lp;
@@ -332,15 +513,12 @@
     }
     const rangeLog = maxLog - minLog || 1;
 
-    // Map powers to bins - handle both upsampling (few powers) and downsampling (many powers)
     const out = new Float32Array(numBins);
 
     for (let b = 0; b < numBins; b++) {
-      // Map bin index to powers index range
       const pStart = (b / numBins) * powers.length;
       const pEnd = ((b + 1) / numBins) * powers.length;
       
-      // Take max of all powers in this range (or interpolate if range is < 1)
       const iStart = Math.floor(pStart);
       const iEnd = Math.max(iStart + 1, Math.ceil(pEnd));
       
@@ -349,18 +527,10 @@
         m = Math.max(m, logPowers[i]);
       }
       
-      // Normalize to 0..1 using log scale
       const normalized = clamp((m - minLog) / rangeLog, 0, 1);
-      // Apply gamma for contrast
       out[b] = Math.pow(normalized, 0.5);
     }
     return out;
-  }
-
-  function headingToX(deg) {
-    const w = canvas.width;
-    const x = Math.floor((normalizeDeg(deg) / 360) * (w - 1));
-    return clamp(x, 0, w - 1);
   }
 
   async function scanLoop() {
@@ -379,11 +549,9 @@
     setStatus("running");
 
     while (running) {
-      // Pick angle from sensors; if not available, still draw sequentially by time using a moving x
       const deg = hasHeading ? headingDegrees : (performance.now() / 50) % 360;
-      const x = headingToX(deg);
-      bucketEl.textContent = String(x) + " / " + canvas.width;
-
+      const bucket = Math.floor(normalizeDeg(deg));
+      bucketEl.textContent = bucket + "° / " + ANGLE_BUCKETS;
 
       // 1) play burst
       const burstSec = playBurstOneChannel(burst, amp, channel);
@@ -392,26 +560,16 @@
       const recSec = burstSec + (listenMs / 1000);
       const recorded = await recordWindow(recSec);
 
-      // 3) take tail AFTER most of the emitted burst to reduce direct leakage
+      // 3) take tail AFTER most of the emitted burst
       const skip = Math.floor(burstSec * sr * 0.9);
       const tail = recorded.subarray(skip);
 
       // 4) energy envelope at freq -> bins
-      const bins = energyEnvelopeBins(tail, sr, freq, frameSize, hopSize, canvas.height);
+      const bins = energyEnvelopeBins(tail, sr, freq, frameSize, hopSize, RADIUS_BINS);
 
-
-      // 5) draw column at heading position
-      drawColumnAtX(x, bins);
-      g.putImageData(img, 0, 0);
-
-      // simple overlay label sometimes
-      if (x % 80 === 0) {
-        g.save();
-        g.fillStyle = "rgba(255,255,255,0.85)";
-        g.font = "12px system-ui";
-        g.fillText(`${normalizeDeg(deg).toFixed(0)}°`, x + 6, 16);
-        g.restore();
-      }
+      // 5) update polar data and redraw
+      updatePolarDataAtAngle(deg, bins);
+      drawPolarSonogram(deg);
 
       // yield
       await new Promise(r => setTimeout(r, 0));
@@ -426,9 +584,8 @@
       $("btnStart").disabled = true;
       $("btnStop").disabled = false;
 
-      // Auto-enable sensors on Start (requires user gesture for iOS permission)
       await enableSensors();
-
+      await enableWakeLock();
       await ensureAudio();
       if (audioCtx.state !== "running") await audioCtx.resume();
 
@@ -441,8 +598,9 @@
     }
   };
 
-  $("btnStop").onclick = () => {
+  $("btnStop").onclick = async () => {
     running = false;
+    await releaseWakeLock();
     $("btnStop").disabled = true;
     $("btnStart").disabled = false;
   };
@@ -451,16 +609,24 @@
 
   $("btnPng").onclick = () => {
     const a = document.createElement("a");
-    a.download = "sonogram_19k.png";
+    a.download = "sonogram_19k_polar.png";
     a.href = canvas.toDataURL("image/png");
     a.click();
   };
 
   // init
+  resetPolarData();
   resetImage();
   setStatus("idle");
   headingEl.textContent = "—";
   bucketEl.textContent = "—";
+  
+  // Check Wake Lock support on load
+  if ('wakeLock' in navigator) {
+    updateWakeLockStatus('inactive');
+  } else {
+    updateWakeLockStatus('unsupported');
+  }
 })();
 </script>
 </body>

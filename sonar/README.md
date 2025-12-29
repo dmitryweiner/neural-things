@@ -1,10 +1,11 @@
 # Ultrasonic Tone Sonogram (19 kHz) — Browser Prototype
 
-This is a **single-page web prototype** that emits short **19 kHz tone bursts** from **one stereo channel** (Left or Right), records the microphone response, measures the **signal energy at the target frequency over time**, and visualizes the result as a **sonogram** where:
+This is a **single-page web prototype** that emits short **19 kHz tone bursts** from **one stereo channel** (Left or Right), records the microphone response, measures the **signal energy at the target frequency over time**, and visualizes the result as a **polar sonogram** where:
 
-- **X axis** ≈ device heading / orientation angle (0–360° mapped across the canvas width)
-- **Y axis** ≈ time-of-flight (delay after emission) mapped down the canvas height
+- **Angle** ≈ device heading / orientation (0° at top, clockwise like a compass)
+- **Radius** ≈ time-of-flight (delay after emission); center = close, edge = far
 - **Brightness** ≈ relative energy at ~19 kHz in that time window
+- **Green line** = current device heading indicator
 
 > ⚠️ Practical note: many consumer devices aggressively filter near-ultrasonic frequencies (speakers, microphones, OS processing, echo cancellation, noise suppression, auto gain). Results vary widely between devices.
 
@@ -12,12 +13,13 @@ This is a **single-page web prototype** that emits short **19 kHz tone bursts** 
 
 ## High-level architecture
 
-The app is intentionally kept as a **single HTML file** with embedded JavaScript. It has three main subsystems:
+The app is intentionally kept as a **single HTML file** with embedded JavaScript. It has four main subsystems:
 
 1. **UI + Control Layer**
    - Reads user parameters (frequency, burst length, listen time, channel, amplitude, analysis window sizes).
    - Provides start/stop/clear/export controls.
    - Shows basic status and sensor readings (sample rate, heading).
+   - Displays Wake Lock status indicator.
 
 2. **Audio I/O Layer (Web Audio API)**
    - Creates an `AudioContext`.
@@ -30,7 +32,12 @@ The app is intentionally kept as a **single HTML file** with embedded JavaScript
    - After each emission, records a short microphone window (burst + listening interval).
    - Skips most of the direct emission portion to reduce immediate leakage.
    - Computes energy at the target frequency per time frame using a single-frequency detector (Goertzel).
-   - Draws one “column” of the sonogram at the X coordinate derived from device heading.
+   - Stores energy data in a polar data structure `polarData[angle][radius]`.
+   - Renders the sonogram in polar coordinates with the current heading indicator.
+
+4. **Device Management Layer**
+   - Handles device orientation events for heading.
+   - Manages Wake Lock API to prevent screen sleep during scanning.
 
 ---
 
@@ -55,22 +62,63 @@ Each scan cycle (one emitted burst) follows this pipeline:
 
 4. **Remove immediate leakage**
    - Discard the first ~90% of the burst duration from the recorded buffer.
-   - The remaining tail buffer represents the “listening” segment.
+   - The remaining tail buffer represents the "listening" segment.
 
 5. **Compute energy envelope at ~19 kHz**
    - Slice the tail into overlapping frames of `frameSize` samples with hop `hopSize`.
    - For each frame compute single-frequency power using the **Goertzel algorithm**.
 
-6. **Map envelope to sonogram bins**
-   - Convert the per-frame power series into `canvas.height` bins using max-downsampling.
-   - Normalize by peak power for that burst and apply a mild gamma for contrast.
+6. **Store in polar data structure**
+   - Map the heading angle to one of 360 buckets (1° resolution).
+   - Map the energy envelope bins to 256 radius bins.
+   - Store normalized energy values in `polarData[angle][radius]`.
 
-7. **Draw into the sonogram**
-   - Convert heading degrees `0..360` to x-pixel coordinate `0..canvas.width-1`.
-   - Draw one vertical column (one pixel wide) at that x coordinate:
-     - Top row corresponds to small delay
-     - Bottom corresponds to larger delay
-   - Brightness corresponds to normalized power at the target frequency.
+7. **Render polar sonogram**
+   - For each pixel on the square canvas, compute its polar coordinates (angle, radius).
+   - Look up the corresponding energy value from `polarData`.
+   - Draw grayscale pixel (brighter = more energy).
+   - Overlay reference circles and cardinal lines.
+   - Draw a green line from center to edge showing current heading.
+
+---
+
+## Polar visualization model
+
+The sonogram uses a **polar coordinate system** rendered on a square canvas:
+
+- **Center** = device position (no delay / immediate reflection)
+- **Edge** = maximum measured delay
+- **Angle** = device heading (0° at top, clockwise)
+- **Brightness** = normalized energy at 19 kHz
+
+Visual elements:
+- **Grayscale data**: each pixel's brightness corresponds to measured energy at that angle/range
+- **Reference circles**: concentric circles at 25%, 50%, 75% of max radius
+- **Cardinal lines**: horizontal and vertical lines through center
+- **Green heading line**: shows current device orientation in real-time
+- **Green dot + label**: marks the exact heading angle at the edge
+
+Data storage:
+- `polarData[360][256]` — 360 angle buckets (1° each) × 256 radius bins
+- Updated incrementally as the device rotates
+
+This representation is more intuitive for sonar-like applications than a rectangular X-Y plot, as it mimics traditional radar/sonar displays.
+
+---
+
+## Wake Lock API
+
+To prevent the phone from sleeping during scanning sessions, the app uses the **Screen Wake Lock API**:
+
+- **Automatic activation**: Wake Lock is requested when scanning starts.
+- **Automatic release**: Wake Lock is released when scanning stops.
+- **Visibility handling**: If the page becomes hidden and then visible again while scanning, the Wake Lock is re-acquired (required by the API specification).
+- **Status indicator**: A badge in the UI shows the current Wake Lock state:
+  - 🔒 **Active** — screen will stay on
+  - 🔓 **Inactive** — screen may sleep
+  - ⚠️ **Unsupported** — browser doesn't support Wake Lock API
+
+> Note: Wake Lock API requires HTTPS (or localhost) and is supported in Chrome, Edge, and other Chromium-based browsers. Safari support is limited.
 
 ---
 
@@ -112,29 +160,18 @@ This is:
 
 ---
 
-## Visualization model (sonogram)
-
-- The canvas holds an `ImageData` buffer.
-- Each scan cycle writes one **vertical column** at the x-position corresponding to heading.
-- Color is grayscale:
-  - `0` → black
-  - `1` → white
-- The app renders the full `ImageData` back onto the canvas each cycle.
-
-The sonogram is *not* a true ultrasound B-scan (no real beam forming). It is a **heading-indexed echo intensity map** at a single frequency.
-
----
-
 ## UI controls
 
 - **Start**
   - Automatically enables device orientation sensors (if supported)
+  - Activates Wake Lock to prevent screen sleep
   - Initializes AudioContext and microphone stream
   - Starts the scan loop
 - **Stop**
-  - Stops the scan loop (does not necessarily stop mic stream)
+  - Stops the scan loop
+  - Releases Wake Lock
 - **Clear**
-  - Clears the sonogram image to black
+  - Clears the polar sonogram data and redraws empty display
 - **Export PNG**
   - Downloads the current canvas as a PNG
 
@@ -168,11 +205,14 @@ Parameters:
 5. **Timing precision**
    - Browser scheduling + audio pipeline latency makes absolute range estimation approximate.
 
+6. **Wake Lock support**
+   - Not all browsers support the Wake Lock API (notably older Safari versions).
+
 ---
 
 ## Tips for better results
 
-- Prefer **desktop + external USB audio interface** without “enhancement” processing.
+- Prefer **desktop + external USB audio interface** without "enhancement" processing.
 - Reduce background noise and keep the phone/PC still while scanning.
 - Keep amplitude low and avoid prolonged high-volume ultrasonic output.
 - Try slightly lower frequencies (e.g. **17–18 kHz**) if 19 kHz is filtered out.
@@ -183,15 +223,16 @@ Parameters:
 ## Files
 
 - `index.html` (or any single HTML file)
-  - Contains everything: UI, sensors, audio emission, recording, processing, rendering.
+  - Contains everything: UI, sensors, audio emission, recording, processing, polar rendering.
 
 ---
 
 ## Future improvements (ideas)
 
-- Add a **“Set 0°”** calibration button to define a user reference direction.
+- Add a **"Set 0°"** calibration button to define a user reference direction.
 - Add temporal averaging or max-hold per angle bucket.
 - Display approximate range in milliseconds/meters (with a user-configurable speed of sound).
 - Replace per-burst normalization with a global rolling normalization for stable brightness.
 - Add an FFT-based spectral view for debugging microphone response near 19 kHz.
 - Store raw frames and export data as CSV/JSON for offline processing.
+- Add color mapping options (heat map, radar green, etc.) instead of grayscale.
