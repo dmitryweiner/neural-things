@@ -5,30 +5,146 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Ultrasonic Tone Sonogram (19 kHz) — prototype</title>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 16px; }
-    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
-    .card { border: 1px solid #ddd; border-radius: 12px; padding: 12px; max-width: 1100px; }
-    label { display: grid; gap: 4px; font-size: 12px; }
-    input, select {
-      padding: 6px 8px; border: 1px solid #ccc; border-radius: 8px; min-width: 140px;
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 16px; }
+    
+    /* Top bar with controls */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
       background: #fff;
+      border-bottom: 1px solid #ddd;
+      padding: 12px 0;
+      margin: -16px -16px 16px -16px;
+      padding: 12px 16px;
     }
-    button { padding: 8px 10px; border-radius: 10px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
-    button.primary { border-color: #888; font-weight: 600; }
-    canvas { 
-      width: 100%; 
-      max-width: 520px; 
-      height: auto; 
-      border: 1px solid #ddd; 
+    .topbar h2 { margin: 0 0 10px; font-size: 18px; font-weight: 700; }
+    .topbar-desc { color: #666; font-size: 12px; margin-bottom: 12px; }
+    
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    
+    button {
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      background: #fff;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    #toggleBtn {
+      background: #27ae60;
+      color: #fff;
+      border-color: #27ae60;
+      box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+    }
+    #toggleBtn:hover:not(:disabled) {
+      background: #2ecc71;
+      border-color: #2ecc71;
+    }
+    #toggleBtn.running {
+      background: #e67e22;
+      border-color: #e67e22;
+      box-shadow: 0 2px 8px rgba(230, 126, 34, 0.3);
+    }
+    #toggleBtn.running:hover {
+      background: #f39c12;
+      border-color: #f39c12;
+    }
+    
+    .collapseBtn {
+      background: #f5f5f5;
+      border: 1px solid #ddd;
+      color: #333;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .collapseBtn:hover { background: #eee; }
+    .collapseBtn.active {
+      background: #e3f2fd;
+      border-color: #2196f3;
+      color: #1976d2;
+    }
+    
+    /* Settings panel */
+    .settingsPanel {
+      border: 1px solid #ddd;
       border-radius: 12px;
-      aspect-ratio: 1;
+      padding: 14px;
+      max-width: 700px;
+      margin-top: 12px;
+      display: none;
+      background: #fafafa;
     }
-    .muted { color: #666; font-size: 12px; }
-    .warn { color: #8a3b00; font-size: 12px; }
-    code { background: #f6f6f6; padding: 1px 6px; border-radius: 6px; }
-    .kpi { display:flex; gap:16px; flex-wrap:wrap; margin-top:8px; }
-    .kpi div { font-size:12px; color:#333; }
-    .kpi b { font-size:12px; }
+    .settingsPanel.open { display: block; }
+    
+    /* Slider controls */
+    .ctrl {
+      display: grid;
+      grid-template-columns: 140px 1fr 60px;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+    }
+    .ctrl.with-adj {
+      grid-template-columns: 140px auto 1fr auto 60px;
+      gap: 6px;
+    }
+    .ctrl:first-child { margin-top: 0; }
+    .ctrl label { font-size: 12px; color: #333; font-weight: 500; }
+    input[type="range"] { width: 100%; }
+    
+    select {
+      padding: 8px 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #fff;
+      min-width: 120px;
+    }
+    
+    .small { font-size: 12px; color: #666; text-align: right; }
+    
+    .adj-btn {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      color: #333;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      touch-action: manipulation;
+      user-select: none;
+    }
+    .adj-btn:hover { background: #f0f0f0; border-color: #bbb; }
+    .adj-btn:active { background: #27ae60; color: #fff; border-color: #27ae60; }
+    
+    /* System info panel */
+    .infoPanel {
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 14px;
+      max-width: 700px;
+      margin-top: 12px;
+      display: none;
+      background: #fafafa;
+    }
+    .infoPanel.open { display: block; }
+    
+    .kpi { display: flex; gap: 16px; flex-wrap: wrap; }
+    .kpi div { font-size: 12px; color: #333; }
+    .kpi b { font-size: 12px; }
+    
     .wake-lock-status { 
       display: inline-flex; 
       align-items: center; 
@@ -41,76 +157,139 @@
     .wake-lock-status.active { background: #d4edda; color: #155724; }
     .wake-lock-status.inactive { background: #f8d7da; color: #721c24; }
     .wake-lock-status.unsupported { background: #fff3cd; color: #856404; }
+    
+    /* Canvas area */
+    .canvas-section { max-width: 600px; margin-top: 16px; }
+    .canvas-section h3 { margin: 0 0 10px; font-size: 14px; }
+    
+    canvas { 
+      width: 100%; 
+      max-width: 520px; 
+      height: auto; 
+      border: 1px solid #ddd; 
+      border-radius: 12px;
+      aspect-ratio: 1;
+    }
+    
+    .muted { color: #666; font-size: 12px; }
+    .warn { color: #8a3b00; font-size: 12px; margin-top: 10px; }
+    code { background: #f6f6f6; padding: 1px 6px; border-radius: 6px; }
+    
+    .sep { height: 1px; background: #eee; margin: 12px 0; }
+    
+    @media (max-width: 600px) {
+      .ctrl { grid-template-columns: 100px 1fr 50px; }
+      .ctrl.with-adj { grid-template-columns: 100px auto 1fr auto 50px; }
+    }
   </style>
 </head>
 <body>
+
+<section class="topbar">
   <h2>Ultrasonic "sonar" in browser (19 kHz, 1 channel, angle = orientation)</h2>
-  <p class="muted">
-    Prototype: Web Audio API → emit 19 kHz short bursts → record microphone → compute energy at 19 kHz over time (Goertzel) → draw polar sonogram.
+  <p class="topbar-desc">
+    Web Audio API → emit 19 kHz short bursts → record microphone → compute energy at 19 kHz over time (Goertzel) → draw polar sonogram.
   </p>
 
-  <div class="card">
-    <div class="row">
-      <label>Frequency (Hz)
-        <input id="freq" type="number" value="19000" min="16000" max="20000" step="10" />
-      </label>
-
-      <label>Burst duration (ms)
-        <input id="burstMs" type="number" value="6" min="1" max="40" step="1" />
-      </label>
-
-      <label>Listen after (ms)
-        <input id="listenMs" type="number" value="50" min="5" max="250" step="1" />
-      </label>
-
-      <label>Output channel
-        <select id="channel">
-          <option value="L">Left</option>
-          <option value="R">Right</option>
-        </select>
-      </label>
-
-      <label>Amplitude (0..1)
-        <input id="amp" type="number" value="0.18" min="0.01" max="1" step="0.01" />
-      </label>
-
-      <label>Analysis window (samples)
-        <input id="frame" type="number" value="512" min="128" max="4096" step="128" />
-      </label>
-
-      <label>Time step (samples)
-        <input id="hop" type="number" value="128" min="32" max="2048" step="32" />
-      </label>
-    </div>
-
-    <div class="row" style="margin-top:12px;">
-      <button class="primary" id="btnStart">Start</button>
-      <button id="btnStop" disabled>Stop</button>
+  <div class="row">
+    <div class="btn-group">
+      <button id="toggleBtn">▶ Start</button>
       <button id="btnClear">Clear</button>
       <button id="btnPng">Export PNG</button>
-      <span id="wakeLockStatus" class="wake-lock-status unsupported">Wake Lock: checking...</span>
+    </div>
+
+    <div class="btn-group">
+      <button id="settingsBtn" class="collapseBtn" type="button">⚙️ Settings</button>
+      <button id="infoBtn" class="collapseBtn" type="button">📊 Info</button>
+    </div>
+  </div>
+
+  <div id="settingsPanel" class="settingsPanel">
+    <div class="ctrl with-adj">
+      <label for="freq">Frequency (Hz)</label>
+      <button class="adj-btn" data-slider="freq" data-dir="-1">−</button>
+      <input id="freq" type="range" min="16000" max="20000" step="10" value="19000">
+      <button class="adj-btn" data-slider="freq" data-dir="1">+</button>
+      <div class="small" id="freqVal">19000</div>
+    </div>
+
+    <div class="ctrl with-adj">
+      <label for="burstMs">Burst duration (ms)</label>
+      <button class="adj-btn" data-slider="burstMs" data-dir="-1">−</button>
+      <input id="burstMs" type="range" min="1" max="40" step="1" value="6">
+      <button class="adj-btn" data-slider="burstMs" data-dir="1">+</button>
+      <div class="small" id="burstMsVal">6</div>
+    </div>
+
+    <div class="ctrl with-adj">
+      <label for="listenMs">Listen after (ms)</label>
+      <button class="adj-btn" data-slider="listenMs" data-dir="-1">−</button>
+      <input id="listenMs" type="range" min="5" max="250" step="1" value="50">
+      <button class="adj-btn" data-slider="listenMs" data-dir="1">+</button>
+      <div class="small" id="listenMsVal">50</div>
+    </div>
+
+    <div class="ctrl">
+      <label for="channel">Output channel</label>
+      <select id="channel">
+        <option value="L">Left</option>
+        <option value="R">Right</option>
+      </select>
+      <div></div>
+    </div>
+
+    <div class="ctrl with-adj">
+      <label for="amp">Amplitude (0..1)</label>
+      <button class="adj-btn" data-slider="amp" data-dir="-1">−</button>
+      <input id="amp" type="range" min="0.01" max="1" step="0.01" value="0.18">
+      <button class="adj-btn" data-slider="amp" data-dir="1">+</button>
+      <div class="small" id="ampVal">0.18</div>
+    </div>
+
+    <div class="ctrl with-adj">
+      <label for="frame">Frame size (samples)</label>
+      <button class="adj-btn" data-slider="frame" data-dir="-1">−</button>
+      <input id="frame" type="range" min="128" max="4096" step="128" value="512">
+      <button class="adj-btn" data-slider="frame" data-dir="1">+</button>
+      <div class="small" id="frameVal">512</div>
+    </div>
+
+    <div class="ctrl with-adj">
+      <label for="hop">Hop (samples)</label>
+      <button class="adj-btn" data-slider="hop" data-dir="-1">−</button>
+      <input id="hop" type="range" min="32" max="2048" step="32" value="128">
+      <button class="adj-btn" data-slider="hop" data-dir="1">+</button>
+      <div class="small" id="hopVal">128</div>
     </div>
 
     <p class="warn">
       ⚠️ 19–20 kHz is often filtered by speakers/microphones and "enhancements" (AEC/NS/AGC) on many devices. For testing, a PC + external audio interface often works better.
       Don't crank up the volume: "can't hear it" ≠ "safe".
     </p>
+  </div>
 
+  <div id="infoPanel" class="infoPanel">
     <div class="muted" id="status">Status: idle</div>
+    <div class="sep"></div>
     <div class="kpi">
       <div><b>sampleRate:</b> <span id="sr">—</span></div>
       <div><b>heading:</b> <span id="heading">—</span></div>
       <div><b>angle bucket:</b> <span id="bucket">—</span></div>
       <div><b>notes:</b> <span id="notes">—</span></div>
     </div>
+    <div class="sep"></div>
+    <span id="wakeLockStatus" class="wake-lock-status unsupported">Wake Lock: checking...</span>
   </div>
+</section>
 
+<section class="canvas-section">
   <h3>Polar Sonogram</h3>
   <canvas id="canvas" width="520" height="520"></canvas>
   <p class="muted">
     Polar view: angle = heading (0° at top, clockwise), radius = time-of-flight (center = close, edge = far). 
     Brighter = more energy at 19 kHz. Green line = current device heading.
   </p>
+</section>
 
 <script>
 (() => {
@@ -128,10 +307,114 @@
   function setStatus(s) { statusEl.textContent = "Status: " + s; }
   function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
 
+  // --- Slider value formatting
+  function fmt(v, decimals = 0) {
+    v = Number(v);
+    if (decimals === 0) return String(Math.round(v));
+    return v.toFixed(decimals);
+  }
+
+  // --- +/- Adjustment buttons (with hold-to-repeat)
+  let adjRepeatInterval = null;
+  const ADJ_REPEAT_DELAY = 150;
+
+  function adjustSlider(btn) {
+    const sliderId = btn.dataset.slider;
+    const dir = Number(btn.dataset.dir);
+    const slider = document.getElementById(sliderId);
+    if (!slider) return;
+    
+    const step = Number(slider.step) || 1;
+    const min = Number(slider.min);
+    const max = Number(slider.max);
+    let newVal = Number(slider.value) + dir * step;
+    newVal = Math.max(min, Math.min(max, newVal));
+    
+    slider.value = newVal;
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function stopAdjRepeat() {
+    if (adjRepeatInterval) {
+      clearInterval(adjRepeatInterval);
+      adjRepeatInterval = null;
+    }
+  }
+
+  function setupAdjustmentButtons(container) {
+    container.addEventListener('pointerdown', (e) => {
+      const btn = e.target.closest('.adj-btn');
+      if (!btn) return;
+      
+      e.preventDefault();
+      stopAdjRepeat();
+      
+      adjustSlider(btn);
+      adjRepeatInterval = setInterval(() => adjustSlider(btn), ADJ_REPEAT_DELAY);
+    });
+
+    container.addEventListener('pointerup', stopAdjRepeat);
+    container.addEventListener('pointerleave', stopAdjRepeat);
+    container.addEventListener('pointercancel', stopAdjRepeat);
+  }
+
+  document.addEventListener('pointerup', stopAdjRepeat);
+
+  // --- Slider value display updates
+  const sliderConfigs = {
+    freq: { decimals: 0 },
+    burstMs: { decimals: 0 },
+    listenMs: { decimals: 0 },
+    amp: { decimals: 2 },
+    frame: { decimals: 0 },
+    hop: { decimals: 0 }
+  };
+
+  for (const [id, cfg] of Object.entries(sliderConfigs)) {
+    const slider = $(id);
+    const valEl = $(id + 'Val');
+    if (slider && valEl) {
+      slider.addEventListener('input', () => {
+        valEl.textContent = fmt(slider.value, cfg.decimals);
+      });
+    }
+  }
+
+  // --- Settings panel
+  setupAdjustmentButtons($("settingsPanel"));
+
+  // --- Panel toggles
+  const settingsPanel = $("settingsPanel");
+  const infoPanel = $("infoPanel");
+  const settingsBtn = $("settingsBtn");
+  const infoBtn = $("infoBtn");
+
+  settingsBtn.addEventListener('click', () => {
+    const open = !settingsPanel.classList.contains('open');
+    settingsPanel.classList.toggle('open', open);
+    settingsBtn.classList.toggle('active', open);
+    // Close info panel when opening settings
+    if (open) {
+      infoPanel.classList.remove('open');
+      infoBtn.classList.remove('active');
+    }
+  });
+
+  infoBtn.addEventListener('click', () => {
+    const open = !infoPanel.classList.contains('open');
+    infoPanel.classList.toggle('open', open);
+    infoBtn.classList.toggle('active', open);
+    // Close settings panel when opening info
+    if (open) {
+      settingsPanel.classList.remove('open');
+      settingsBtn.classList.remove('active');
+    }
+  });
+
   // --- Polar data storage
-  const ANGLE_BUCKETS = 360; // 1° resolution
-  const RADIUS_BINS = 256;   // range bins
-  let polarData = null;      // [angle][radius] -> 0..1 energy value
+  const ANGLE_BUCKETS = 360;
+  const RADIUS_BINS = 256;
+  let polarData = null;
 
   function resetPolarData() {
     polarData = new Array(ANGLE_BUCKETS);
@@ -191,7 +474,6 @@
     }
   }
 
-  // Re-acquire wake lock on visibility change (required by spec)
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState === 'visible' && running && !wakeLock) {
       await enableWakeLock();
@@ -204,12 +486,11 @@
     const h = canvas.height;
     const cx = w / 2;
     const cy = h / 2;
-    const maxR = Math.min(cx, cy) - 2; // leave 2px margin
+    const maxR = Math.min(cx, cy) - 2;
 
     const imgData = g.createImageData(w, h);
     const data = imgData.data;
 
-    // Draw polar data
     for (let py = 0; py < h; py++) {
       for (let px = 0; px < w; px++) {
         const dx = px - cx;
@@ -219,7 +500,6 @@
         const i = (py * w + px) * 4;
         
         if (r > maxR) {
-          // Outside the circle - dark background
           data[i] = 20;
           data[i + 1] = 20;
           data[i + 2] = 25;
@@ -227,16 +507,12 @@
           continue;
         }
 
-        // Convert to polar coordinates
-        // atan2(dx, -dy) gives 0° at top, positive clockwise
         let angleDeg = Math.atan2(dx, -dy) * 180 / Math.PI;
         if (angleDeg < 0) angleDeg += 360;
         
-        // Map radius to bin index (center = 0, edge = RADIUS_BINS-1)
         const radiusBin = Math.floor((r / maxR) * (RADIUS_BINS - 1));
         const angleBucket = Math.floor(angleDeg) % ANGLE_BUCKETS;
         
-        // Get value from polar data
         const v = polarData[angleBucket][radiusBin];
         const c = Math.floor(clamp(v, 0, 1) * 255);
         
@@ -249,18 +525,15 @@
 
     g.putImageData(imgData, 0, 0);
 
-    // Draw crosshairs / reference circles
     g.strokeStyle = 'rgba(80, 80, 90, 0.5)';
     g.lineWidth = 1;
     
-    // Concentric circles at 25%, 50%, 75%
     for (const frac of [0.25, 0.5, 0.75]) {
       g.beginPath();
       g.arc(cx, cy, maxR * frac, 0, Math.PI * 2);
       g.stroke();
     }
 
-    // Cardinal direction lines
     g.beginPath();
     g.moveTo(cx, cy - maxR);
     g.lineTo(cx, cy + maxR);
@@ -268,13 +541,7 @@
     g.lineTo(cx + maxR, cy);
     g.stroke();
 
-    // Draw current heading line (green)
     if (typeof currentHeadingDeg === 'number') {
-      const headingRad = (currentHeadingDeg - 90) * Math.PI / 180;
-      const hx = cx + Math.cos(headingRad + Math.PI / 2) * maxR;
-      const hy = cy - Math.sin(headingRad + Math.PI / 2) * maxR;
-      
-      // Correct calculation: 0° at top, clockwise
       const rad = (currentHeadingDeg * Math.PI) / 180;
       const lineX = cx + Math.sin(rad) * maxR;
       const lineY = cy - Math.cos(rad) * maxR;
@@ -286,13 +553,11 @@
       g.lineTo(lineX, lineY);
       g.stroke();
 
-      // Small circle at tip
       g.fillStyle = '#00ff00';
       g.beginPath();
       g.arc(lineX, lineY, 4, 0, Math.PI * 2);
       g.fill();
 
-      // Label
       g.fillStyle = '#00ff00';
       g.font = 'bold 12px system-ui';
       const labelX = cx + Math.sin(rad) * (maxR + 15);
@@ -302,7 +567,6 @@
       g.fillText(currentHeadingDeg.toFixed(0) + '°', labelX, labelY);
     }
 
-    // Center dot
     g.fillStyle = '#666';
     g.beginPath();
     g.arc(cx, cy, 3, 0, Math.PI * 2);
@@ -317,7 +581,6 @@
   function updatePolarDataAtAngle(angleDeg, bins) {
     const bucket = Math.floor(normalizeDeg(angleDeg)) % ANGLE_BUCKETS;
     
-    // Map bins to RADIUS_BINS
     for (let r = 0; r < RADIUS_BINS; r++) {
       const srcIdx = Math.floor((r / RADIUS_BINS) * bins.length);
       polarData[bucket][r] = bins[srcIdx] || 0;
@@ -553,25 +816,19 @@
       const bucket = Math.floor(normalizeDeg(deg));
       bucketEl.textContent = bucket + "° / " + ANGLE_BUCKETS;
 
-      // 1) play burst
       const burstSec = playBurstOneChannel(burst, amp, channel);
 
-      // 2) record burst + listen
       const recSec = burstSec + (listenMs / 1000);
       const recorded = await recordWindow(recSec);
 
-      // 3) take tail AFTER most of the emitted burst
       const skip = Math.floor(burstSec * sr * 0.9);
       const tail = recorded.subarray(skip);
 
-      // 4) energy envelope at freq -> bins
       const bins = energyEnvelopeBins(tail, sr, freq, frameSize, hopSize, RADIUS_BINS);
 
-      // 5) update polar data and redraw
       updatePolarDataAtAngle(deg, bins);
       drawPolarSonogram(deg);
 
-      // yield
       await new Promise(r => setTimeout(r, 0));
     }
 
@@ -579,30 +836,44 @@
   }
 
   // --- UI wiring
-  $("btnStart").onclick = async () => {
+  const toggleBtn = $("toggleBtn");
+
+  async function startScan() {
     try {
-      $("btnStart").disabled = true;
-      $("btnStop").disabled = false;
+      toggleBtn.disabled = true;
 
       await enableSensors();
       await enableWakeLock();
       await ensureAudio();
       if (audioCtx.state !== "running") await audioCtx.resume();
 
+      toggleBtn.disabled = false;
+      toggleBtn.textContent = "⏹ Stop";
+      toggleBtn.classList.add("running");
+
       scanLoop();
     } catch (e) {
       console.error(e);
       setStatus("error: " + (e?.message || e));
-      $("btnStart").disabled = false;
-      $("btnStop").disabled = true;
+      toggleBtn.disabled = false;
+      toggleBtn.textContent = "▶ Start";
+      toggleBtn.classList.remove("running");
     }
-  };
+  }
 
-  $("btnStop").onclick = async () => {
+  async function stopScan() {
     running = false;
     await releaseWakeLock();
-    $("btnStop").disabled = true;
-    $("btnStart").disabled = false;
+    toggleBtn.textContent = "▶ Start";
+    toggleBtn.classList.remove("running");
+  }
+
+  toggleBtn.onclick = async () => {
+    if (running) {
+      await stopScan();
+    } else {
+      await startScan();
+    }
   };
 
   $("btnClear").onclick = () => resetImage();
@@ -621,7 +892,6 @@
   headingEl.textContent = "—";
   bucketEl.textContent = "—";
   
-  // Check Wake Lock support on load
   if ('wakeLock' in navigator) {
     updateWakeLockStatus('inactive');
   } else {

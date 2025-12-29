@@ -16,9 +16,10 @@ This is a **single-page web prototype** that emits short **19 kHz tone bursts** 
 The app is intentionally kept as a **single HTML file** with embedded JavaScript. It has four main subsystems:
 
 1. **UI + Control Layer**
-   - Reads user parameters (frequency, burst length, listen time, channel, amplitude, analysis window sizes).
-   - Provides start/stop/clear/export controls.
-   - Shows basic status and sensor readings (sample rate, heading).
+   - Sticky top bar with main control buttons (Start/Stop toggle, Clear, Export PNG).
+   - Collapsible settings panel with slider-based parameters (frequency, burst length, listen time, channel, amplitude, analysis window sizes).
+   - Each slider has +/- buttons for fine adjustment with hold-to-repeat behavior.
+   - Collapsible info panel showing status and sensor readings (sample rate, heading).
    - Displays Wake Lock status indicator.
 
 2. **Audio I/O Layer (Web Audio API)**
@@ -162,27 +163,36 @@ This is:
 
 ## UI controls
 
-- **Start**
-  - Automatically enables device orientation sensors (if supported)
-  - Activates Wake Lock to prevent screen sleep
-  - Initializes AudioContext and microphone stream
-  - Starts the scan loop
-- **Stop**
-  - Stops the scan loop
-  - Releases Wake Lock
+### Top bar buttons
+
+- **Start/Stop** (toggle button)
+  - Green "▶ Start" when stopped, orange "⏹ Stop" when running
+  - Start: enables sensors, activates Wake Lock, initializes audio, starts scan loop
+  - Stop: stops scan loop, releases Wake Lock
 - **Clear**
   - Clears the polar sonogram data and redraws empty display
 - **Export PNG**
   - Downloads the current canvas as a PNG
+- **⚙️ Settings** (toggle)
+  - Opens/closes the collapsible settings panel
+- **📊 Info** (toggle)
+  - Opens/closes the system info panel (status, sample rate, heading, wake lock)
 
-Parameters:
-- `Frequency (Hz)`: tone frequency (default 19000)
-- `Burst duration (ms)`: duration of emitted tone burst
-- `Listen after (ms)`: how long to keep recording after emission
-- `Channel`: Left or Right speaker output
-- `Amplitude`: output volume scalar (use low values)
-- `Frame size (samples)`: analysis window size for Goertzel
-- `Hop (samples)`: step between frames (overlap)
+### Settings panel (collapsible)
+
+All numeric parameters use sliders with +/- fine adjustment buttons:
+
+| Parameter | Range | Default | Description |
+|-----------|-------|---------|-------------|
+| Frequency (Hz) | 16000–20000 | 19000 | Tone frequency |
+| Burst duration (ms) | 1–40 | 6 | Duration of emitted tone burst |
+| Listen after (ms) | 5–250 | 50 | How long to keep recording after emission |
+| Output channel | L/R | Left | Left or Right speaker output |
+| Amplitude | 0.01–1 | 0.18 | Output volume scalar (use low values) |
+| Frame size (samples) | 128–4096 | 512 | Analysis window size for Goertzel |
+| Hop (samples) | 32–2048 | 128 | Step between frames (overlap) |
+
+The +/- buttons support hold-to-repeat for continuous adjustment.
 
 ---
 
