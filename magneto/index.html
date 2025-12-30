@@ -58,8 +58,9 @@
       transition: max-height 0.3s ease, padding 0.3s ease;
     }
     #debugPanel.open {
-      max-height: 200px;
+      max-height: 300px;
       padding: 10px 12px;
+      overflow-y: auto;
     }
     #debugToggle {
       font-size: 11px;
@@ -82,6 +83,28 @@
     .debug-value.ok { color: #2ecc71; }
     .debug-value.warn { color: #e67e22; }
     .debug-value.error { color: #e74c3c; }
+    
+    .debug-hint {
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: rgba(231, 76, 60, 0.15);
+      border: 1px solid rgba(231, 76, 60, 0.3);
+      border-radius: 8px;
+      font-size: 10px;
+      line-height: 1.4;
+      display: none;
+    }
+    .debug-hint.visible { display: block; }
+    .debug-hint code {
+      background: rgba(255,255,255,0.1);
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+    .debug-hint a {
+      color: #8ab4ff;
+      text-decoration: underline;
+    }
     
     #panel {
       position:absolute; left:12px; right:12px; bottom:12px; z-index:10;
@@ -128,6 +151,14 @@
         <span class="debug-label">User Agent:</span>
         <span id="debugUA" class="debug-value" style="font-size:9px; word-break:break-all;">—</span>
       </div>
+      <div id="debugHint" class="debug-hint">
+        <strong>How to enable Magnetometer on Android Chrome:</strong><br>
+        1. Open <code>chrome://flags</code> in Chrome<br>
+        2. Search for <code>Generic Sensor Extra Classes</code><br>
+        3. Set to <strong>Enabled</strong><br>
+        4. Tap "Relaunch" to restart Chrome<br>
+        5. Return to this page and try again
+      </div>
     </div>
 
     <div id="panel">
@@ -170,6 +201,7 @@
   const debugSensorEl = document.getElementById('debugSensor');
   const debugErrorEl = document.getElementById('debugError');
   const debugUAEl = document.getElementById('debugUA');
+  const debugHintEl = document.getElementById('debugHint');
 
   const thrEl = document.getElementById('thr');
   const thrValEl = document.getElementById('thrVal');
@@ -205,6 +237,15 @@
     const available = 'Magnetometer' in window;
     updateDebug('api', available ? '✓ Magnetometer available' : '✗ Magnetometer not available', 
                 available ? 'ok' : 'error');
+    
+    // Show/hide hint based on availability and browser
+    const isAndroidChrome = /Android.*Chrome/i.test(navigator.userAgent);
+    if (!available && isAndroidChrome) {
+      debugHintEl.classList.add('visible');
+    } else {
+      debugHintEl.classList.remove('visible');
+    }
+    
     return available;
   }
 

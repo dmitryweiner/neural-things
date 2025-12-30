@@ -207,6 +207,20 @@ Magnetometer events are event-driven, not polled.
 
 If the magnetometer shows as unavailable (`mag: no`), check the Debug panel for details.
 
+#### API shows "not available"
+
+The Generic Sensor API for magnetometer **requires an experimental flag** in Chrome on Android:
+
+1. Open `chrome://flags` in Chrome
+2. Search for **Generic Sensor Extra Classes**
+3. Set to **Enabled**
+4. Tap "Relaunch" to restart Chrome
+5. Return to this page and try again
+
+The Debug panel will show this instruction automatically when it detects Android Chrome without the API.
+
+#### API available but sensor fails
+
 **Common causes:**
 
 1. **SecurityError**: HTTPS is required. The Generic Sensor API only works on secure origins.
