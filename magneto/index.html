@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Mag-Heat AR (Camera + Magnetometer)</title>
+  <style>
+    html, body { margin:0; height:100%; background:#000; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    #wrap { position:relative; width:100%; height:100%; overflow:hidden; background:#000; }
+    video, canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+    #hud {
+      position:absolute; left:0; right:0; top:0;
+      padding:10px 12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      background: linear-gradient(to bottom, rgba(0,0,0,.75), rgba(0,0,0,0));
+      color:#fff; z-index:10;
+    }
+    #hud button {
+      appearance:none; border:1px solid rgba(255,255,255,.25);
+      background: rgba(20,20,20,.6); color:#fff; padding:10px 12px; border-radius:12px;
+      font-weight:600;
+    }
+    #hud button:active { transform: translateY(1px); }
+    #hud .pill {
+      padding:8px 10px; border-radius:999px; background:rgba(20,20,20,.55);
+      border:1px solid rgba(255,255,255,.2); font-size:12px;
+    }
+    #hud .warn { background: rgba(160, 80, 0, .55); border-color: rgba(255, 200, 120, .35); }
+    #hud .ok   { background: rgba(0, 120, 60, .45); border-color: rgba(160,255,200,.25); }
+    #panel {
+      position:absolute; left:12px; right:12px; bottom:12px; z-index:10;
+      background: rgba(10,10,10,.5); border:1px solid rgba(255,255,255,.15);
+      border-radius:16px; padding:10px 12px; color:#fff;
+      display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+      backdrop-filter: blur(6px);
+    }
+    label { display:flex; gap:8px; align-items:center; font-size:12px; opacity:.95; }
+    input[type="range"] { width: 180px; }
+    #log { font-size:12px; opacity:.9; }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="heat"></canvas>
+
+    <div id="hud">
+      <button id="startBtn">Start</button>
+      <button id="stopBtn" disabled>Stop</button>
+      <span id="status" class="pill warn">not running</span>
+      <span id="caps" class="pill">camera: ? | mag: ? | orient: ?</span>
+    </div>
+
+    <div id="panel">
+      <label>Threshold
+        <input id="thr" type="range" min="0.5" max="30" step="0.1" value="6.0" />
+        <span id="thrVal">6.0</span>
+      </label>
+      <label>Gain
+        <input id="gain" type="range" min="0.2" max="6" step="0.1" value="1.6" />
+        <span id="gainVal">1.6</span>
+      </label>
+      <label>Decay
+        <input id="decay" type="range" min="0.85" max="0.995" step="0.001" value="0.965" />
+        <span id="decayVal">0.965</span>
+      </label>
+      <label>Blob size
+        <input id="blob" type="range" min="30" max="240" step="1" value="120" />
+        <span id="blobVal">120</span>
+      </label>
+      <span id="log"></span>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('heat');
+  const ctx = canvas.getContext('2d', { alpha: true });
+
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn  = document.getElementById('stopBtn');
+  const statusEl = document.getElementById('status');
+  const capsEl   = document.getElementById('caps');
+  const logEl    = document.getElementById('log');
+
+  const thrEl = document.getElementById('thr');
+  const thrValEl = document.getElementById('thrVal');
+  const gainEl = document.getElementById('gain');
+  const gainValEl = document.getElementById('gainVal');
+  const decayEl = document.getElementById('decay');
+  const decayValEl = document.getElementById('decayVal');
+  const blobEl = document.getElementById('blob');
+  const blobValEl = document.getElementById('blobVal');
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const now = () => performance.now();
+
+  // Resize canvas to match CSS pixels (devicePixelRatio aware)
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.round(rect.width  * dpr));
+    canvas.height= Math.max(1, Math.round(rect.height * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in CSS px
+  }
+  window.addEventListener('resize', resize, { passive: true });
+  resize();
+
+  // ---------------- Camera ----------------
+  let camStream = null;
+  async function startCamera() {
+    const constraints = {
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1280 },
+        height:{ ideal: 720 }
+      },
+      audio: false
+    };
+    camStream = await navigator.mediaDevices.getUserMedia(constraints);
+    video.srcObject = camStream;
+    await video.play();
+    return true;
+  }
+  function stopCamera() {
+    if (camStream) {
+      camStream.getTracks().forEach(t => t.stop());
+      camStream = null;
+    }
+    video.srcObject = null;
+  }
+
+  // ---------------- Orientation ----------------
+  let hasOrient = false;
+  let yaw = 0, pitch = 0, roll = 0; // degrees
+  let orientHandler = null;
+
+  async function requestMotionPermissionIfNeeded() {
+    // iOS Safari requires explicit permission for DeviceOrientation
+    const DOE = window.DeviceOrientationEvent;
+    if (DOE && typeof DOE.requestPermission === 'function') {
+      const res = await DOE.requestPermission();
+      if (res !== 'granted') throw new Error('DeviceOrientation permission denied');
+    }
+  }
+
+  function startOrientation() {
+    // Use deviceorientation (not absolute-accurate, but good enough to place blobs by view direction)
+    orientHandler = (e) => {
+      // alpha: z (0..360), beta: x (-180..180), gamma: y (-90..90)
+      if (typeof e.alpha === 'number') {
+        yaw = e.alpha;     // 0..360
+        pitch = e.beta;    // -180..180
+        roll = e.gamma;    // -90..90
+        hasOrient = true;
+      }
+    };
+    window.addEventListener('deviceorientation', orientHandler, true);
+  }
+  function stopOrientation() {
+    if (orientHandler) window.removeEventListener('deviceorientation', orientHandler, true);
+    orientHandler = null;
+    hasOrient = false;
+  }
+
+  // Map yaw/pitch to screen space (rough “where phone is pointing”)
+  function orientToScreen() {
+    // pitch -90..90 → y
+    const y = clamp((pitch + 90) / 180, 0, 1);
+    // yaw 0..360 → x, but keep continuous-ish by wrapping to 0..1
+    const x = ((yaw % 360) + 360) % 360 / 360;
+    return { x, y };
+  }
+
+  // ---------------- Magnetometer ----------------
+  let mag = null;
+  let hasMag = false;
+
+  // We compute d|B|/dt (µT per second), then show only sharp changes.
+  let lastMagT = 0;
+  let lastB = null;     // magnitude
+  let lastBX = null, lastBY = null, lastBZ = null;
+  let ema_dB = 0;       // smooth derivative for display
+  let spikes = 0;
+
+  function startMagnetometer() {
+    if (!('Magnetometer' in window)) {
+      throw new Error('Magnetometer API not available in this browser');
+    }
+    // frequency is advisory; browser may clamp
+    mag = new Magnetometer({ frequency: 60 });
+    mag.addEventListener('reading', () => {
+      const t = now();
+      const dt = lastMagT ? (t - lastMagT) / 1000 : 0;
+      lastMagT = t;
+
+      const x = mag.x, y = mag.y, z = mag.z; // microtesla
+      if (![x,y,z].every(Number.isFinite)) return;
+
+      const B = Math.hypot(x, y, z);
+      hasMag = true;
+
+      if (lastB !== null && dt > 0.001) {
+        const dBdt = Math.abs(B - lastB) / dt; // µT/s
+        ema_dB = ema_dB * 0.85 + dBdt * 0.15;
+
+        const threshold = parseFloat(thrEl.value);
+        const gain = parseFloat(gainEl.value);
+
+        if (dBdt >= threshold) {
+          spikes++;
+          const intensity = clamp((dBdt - threshold) / threshold, 0, 6) * gain;
+          const { x:ux, y:uy } = hasOrient ? orientToScreen() : { x:0.5, y:0.5 };
+          addBlob(ux, uy, intensity, dBdt);
+        }
+      }
+
+      lastB = B; lastBX=x; lastBY=y; lastBZ=z;
+    });
+    mag.addEventListener('error', (e) => {
+      console.error(e.error || e);
+      setStatus(`mag error: ${(e.error && e.error.name) || 'unknown'}`, true);
+    });
+    mag.start();
+  }
+
+  function stopMagnetometer() {
+    if (mag) {
+      try { mag.stop(); } catch {}
+      mag = null;
+    }
+    hasMag = false;
+    lastMagT = 0;
+    lastB = null;
+  }
+
+  // ---------------- Heatmap rendering ----------------
+  let raf = 0;
+
+  function setStatus(text, warn = false) {
+    statusEl.textContent = text;
+    statusEl.classList.toggle('warn', warn);
+    statusEl.classList.toggle('ok', !warn);
+  }
+
+  function drawDecay() {
+    const decay = parseFloat(decayEl.value);
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+
+    // Fade previous heatmap (multiplicative-ish)
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = `rgba(0,0,0,${1 - decay})`;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  }
+
+  function intensityToColor(intensity) {
+    // intensity ~ 0..(a few). Map to blue->cyan->yellow->red via hue.
+    // Hue: 210 (blue) -> 0 (red)
+    const t = clamp(intensity / 5, 0, 1);
+    const hue = 210 * (1 - t);
+    const alpha = clamp(0.12 + t * 0.55, 0.12, 0.75);
+    return { hue, alpha };
+  }
+
+  function addBlob(nx, ny, intensity, dBdt) {
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    const px = nx * w;
+    const py = ny * h;
+
+    const size = parseFloat(blobEl.value); // px
+    const { hue, alpha } = intensityToColor(intensity);
+
+    // Additive overlay
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+
+    const g = ctx.createRadialGradient(px, py, 0, px, py, size);
+    g.addColorStop(0.00, `hsla(${hue}, 100%, 60%, ${alpha})`);
+    g.addColorStop(0.25, `hsla(${hue}, 100%, 55%, ${alpha * 0.65})`);
+    g.addColorStop(0.70, `hsla(${hue}, 100%, 45%, ${alpha * 0.22})`);
+    g.addColorStop(1.00, `hsla(${hue}, 100%, 40%, 0)`);
+
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(px, py, size, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function loop() {
+    drawDecay();
+
+    // HUD info
+    const camOk = !!camStream;
+    const magOk = hasMag;
+    const oriOk = hasOrient;
+    capsEl.textContent = `camera: ${camOk ? 'ok' : 'no'} | mag: ${magOk ? 'ok' : 'no'} | orient: ${oriOk ? 'ok' : 'no'}`;
+
+    // small live stats
+    const Btxt = (lastB == null) ? '—' : `${lastB.toFixed(1)}µT`;
+    const dBtxt = `${ema_dB.toFixed(1)}µT/s`;
+    logEl.textContent = `|B|: ${Btxt}  Δ: ${dBtxt}  spikes: ${spikes}`;
+
+    raf = requestAnimationFrame(loop);
+  }
+
+  // ---------------- UI ----------------
+  function bindSliders() {
+    const sync = () => {
+      thrValEl.textContent = parseFloat(thrEl.value).toFixed(1);
+      gainValEl.textContent = parseFloat(gainEl.value).toFixed(1);
+      decayValEl.textContent = parseFloat(decayEl.value).toFixed(3);
+      blobValEl.textContent = parseInt(blobEl.value, 10);
+    };
+    [thrEl, gainEl, decayEl, blobEl].forEach(el => el.addEventListener('input', sync, { passive:true }));
+    sync();
+  }
+  bindSliders();
+
+  let running = false;
+
+  async function start() {
+    if (running) return;
+    spikes = 0;
+    setStatus('starting…', true);
+
+    resize();
+    ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+    try {
+      // Camera permission
+      await startCamera();
+
+      // Orientation permission (mainly for iOS)
+      try {
+        await requestMotionPermissionIfNeeded();
+        startOrientation();
+      } catch (e) {
+        console.warn('Orientation not available/denied:', e);
+      }
+
+      // Magnetometer
+      try {
+        startMagnetometer();
+      } catch (e) {
+        console.error(e);
+        setStatus(`magnetometer unavailable`, true);
+        // Keep camera running even if mag is missing
+      }
+
+      running = true;
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      setStatus('running', false);
+      raf = requestAnimationFrame(loop);
+    } catch (e) {
+      console.error(e);
+      setStatus(`error: ${e.message || e}`, true);
+      stop();
+    }
+  }
+
+  function stop() {
+    if (!running) {
+      // Still stop any partial things
+      stopMagnetometer();
+      stopOrientation();
+      stopCamera();
+      cancelAnimationFrame(raf);
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      setStatus('stopped', true);
+      return;
+    }
+    running = false;
+    cancelAnimationFrame(raf);
+    stopMagnetometer();
+    stopOrientation();
+    stopCamera();
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    setStatus('stopped', true);
+  }
+
+  startBtn.addEventListener('click', start);
+  stopBtn.addEventListener('click', stop);
+
+  // Helpful note in console about support
+  console.log(
+    'Notes:\n' +
+    '- Magnetometer API support varies by browser/OS.\n' +
+    '- If magnetometer is unavailable, you will only see the camera.\n' +
+    '- iOS may require explicit permission for motion/orientation.'
+  );
+})();
+</script>
+</body>
+</html>
