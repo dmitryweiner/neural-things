@@ -3,7 +3,7 @@
 A single-page experimental web app that visualizes **sharp changes in the magnetic field** as a **semi-transparent heatmap overlay** on top of the live **camera feed**.
 
 The app is intentionally minimal and browser-only: no build step, no backend, no frameworks.  
-It’s meant as a **sensor-fusion playground** rather than a polished product.
+It's meant as a **sensor-fusion playground** rather than a polished product.
 
 ---
 
@@ -15,7 +15,7 @@ It’s meant as a **sensor-fusion playground** rather than a polished product.
 - Highlights **rapid magnetic field changes** (not absolute field strength)
 - Renders them as **decaying, additive heat blobs** over the camera image
 
-Think of it as a *“magnetic anomaly viewer”*, not a compass.
+Think of it as a *"magnetic anomaly viewer"*, not a compass.
 
 ---
 
@@ -58,6 +58,11 @@ The app visualizes **where and when** those changes happen.
 - Used only for **approximate direction mapping**
 - On iOS requires explicit permission (`DeviceOrientationEvent.requestPermission()`)
 
+#### Permissions API
+- Used to query magnetometer permission status before starting
+- Shows permission state in the debug panel
+- Handles `granted`, `denied`, and `prompt` states
+
 ---
 
 ### Rendering
@@ -83,6 +88,7 @@ init
 ├── camera
 ├── orientation
 ├── magnetometer
+├── debug panel
 ├── heatmap renderer
 ├── UI / controls
 └── main loop
@@ -128,7 +134,19 @@ dB/dt = | |B(t)| - |B(t-1)| | / Δt
 
 Only rapid changes produce heat.
 
-#### 4. Heatmap renderer
+#### 4. Debug panel
+
+Collapsible panel showing diagnostic information:
+
+- **API**: Whether `Magnetometer` is available in `window`
+- **Permission**: Current permission status (`granted` / `denied` / `prompt`)
+- **Sensor**: Sensor state (`not started` / `initializing` / `active` / `error`)
+- **Last error**: Detailed error message if something failed
+- **User Agent**: Browser identification string
+
+Click the "Debug" button in the HUD to toggle the panel.
+
+#### 5. Heatmap renderer
 Each magnetic spike creates a blob:
 
 position: derived from orientation
@@ -147,16 +165,18 @@ fade over time via decay pass
 
 accumulate to show hotspots
 
-#### 5. UI / Controls
+#### 6. UI / Controls
 Simple in-page controls:
 
-Threshold — minimum dB/dt to trigger a blob
+**Toggle button** (▶ Start / ⏹ Stop):
+- Green when stopped (ready to start)
+- Orange when running (click to stop)
 
-Gain — amplifies visual intensity
-
-Decay — how fast heat fades
-
-Blob size — radius in pixels
+**Sliders:**
+- Threshold — minimum dB/dt to trigger a blob
+- Gain — amplifies visual intensity
+- Decay — how fast heat fades
+- Blob size — radius in pixels
 
 HUD indicators show:
 
@@ -168,7 +188,7 @@ orientation availability
 
 live field magnitude and derivative
 
-#### 6. Main loop
+#### 7. Main loop
 Driven by requestAnimationFrame:
 
 applies decay
@@ -178,6 +198,48 @@ updates HUD
 keeps rendering continuous
 
 Magnetometer events are event-driven, not polled.
+
+---
+
+## Troubleshooting
+
+### `mag: no` on Android Chrome
+
+If the magnetometer shows as unavailable (`mag: no`), check the Debug panel for details.
+
+**Common causes:**
+
+1. **SecurityError**: HTTPS is required. The Generic Sensor API only works on secure origins.
+
+2. **NotAllowedError**: Permission was denied. Check:
+   - Chrome site settings → Sensors
+   - Android system settings → App permissions → Body sensors
+   
+3. **NotReadableError**: Hardware sensor not available or not accessible.
+
+4. **Permission blocked by policy**: Some enterprise/managed devices block sensor access.
+
+**Steps to diagnose:**
+
+1. Open the Debug panel (click "Debug" button)
+2. Check "API" — should show "✓ Magnetometer available"
+3. Check "Permission" — shows browser permission status
+4. Check "Sensor" and "Last error" for specific failure details
+
+**Note:** Even if `Magnetometer` is in `window`, the browser may block actual sensor access based on permissions policy or site settings.
+
+### iOS Safari
+
+- Magnetometer API is **not supported** on iOS Safari
+- Device orientation requires explicit permission (handled automatically)
+- App will work in camera-only mode
+
+### Desktop browsers
+
+- Most desktop browsers don't have magnetometer hardware
+- App will show camera feed but no magnetic visualization
+
+---
 
 ## Important limitations
 
@@ -213,7 +275,7 @@ heatmap stays inactive
 
 Things this architecture is designed to grow into:
 
-Recording short magnetic “fingerprints”
+Recording short magnetic "fingerprints"
 
 Comparing fingerprints with ML in-browser
 
@@ -224,4 +286,3 @@ Temporal heatmaps (waterfall view)
 Sensor fusion with audio or accelerometer
 
 WebGPU-based inference
-

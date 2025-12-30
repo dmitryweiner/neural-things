@@ -20,12 +20,69 @@
       font-weight:600;
     }
     #hud button:active { transform: translateY(1px); }
+    
+    /* Toggle button styles */
+    #toggleBtn {
+      background: #27ae60;
+      border-color: rgba(39, 174, 96, 0.5);
+      box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+    }
+    #toggleBtn:hover:not(:disabled) {
+      background: #2ecc71;
+    }
+    #toggleBtn.running {
+      background: #e67e22;
+      border-color: rgba(230, 126, 34, 0.5);
+      box-shadow: 0 2px 8px rgba(230, 126, 34, 0.3);
+    }
+    #toggleBtn.running:hover {
+      background: #f39c12;
+    }
+    
     #hud .pill {
       padding:8px 10px; border-radius:999px; background:rgba(20,20,20,.55);
       border:1px solid rgba(255,255,255,.2); font-size:12px;
     }
     #hud .warn { background: rgba(160, 80, 0, .55); border-color: rgba(255, 200, 120, .35); }
     #hud .ok   { background: rgba(0, 120, 60, .45); border-color: rgba(160,255,200,.25); }
+    
+    /* Debug panel */
+    #debugPanel {
+      position:absolute; left:12px; right:12px; top:60px; z-index:10;
+      background: rgba(10,10,10,.7); border:1px solid rgba(255,255,255,.15);
+      border-radius:12px; padding:0; color:#fff;
+      backdrop-filter: blur(6px);
+      font-size:11px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+    }
+    #debugPanel.open {
+      max-height: 200px;
+      padding: 10px 12px;
+    }
+    #debugToggle {
+      font-size: 11px;
+      padding: 6px 10px;
+    }
+    .debug-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 4px;
+      align-items: center;
+    }
+    .debug-row:last-child { margin-bottom: 0; }
+    .debug-label {
+      color: #8ab4ff;
+      min-width: 80px;
+    }
+    .debug-value {
+      color: #fff;
+    }
+    .debug-value.ok { color: #2ecc71; }
+    .debug-value.warn { color: #e67e22; }
+    .debug-value.error { color: #e74c3c; }
+    
     #panel {
       position:absolute; left:12px; right:12px; bottom:12px; z-index:10;
       background: rgba(10,10,10,.5); border:1px solid rgba(255,255,255,.15);
@@ -44,10 +101,33 @@
     <canvas id="heat"></canvas>
 
     <div id="hud">
-      <button id="startBtn">Start</button>
-      <button id="stopBtn" disabled>Stop</button>
+      <button id="toggleBtn">▶ Start</button>
+      <button id="debugToggle">Debug</button>
       <span id="status" class="pill warn">not running</span>
       <span id="caps" class="pill">camera: ? | mag: ? | orient: ?</span>
+    </div>
+
+    <div id="debugPanel">
+      <div class="debug-row">
+        <span class="debug-label">API:</span>
+        <span id="debugApi" class="debug-value">checking...</span>
+      </div>
+      <div class="debug-row">
+        <span class="debug-label">Permission:</span>
+        <span id="debugPerm" class="debug-value">—</span>
+      </div>
+      <div class="debug-row">
+        <span class="debug-label">Sensor:</span>
+        <span id="debugSensor" class="debug-value">not started</span>
+      </div>
+      <div class="debug-row">
+        <span class="debug-label">Last error:</span>
+        <span id="debugError" class="debug-value">—</span>
+      </div>
+      <div class="debug-row">
+        <span class="debug-label">User Agent:</span>
+        <span id="debugUA" class="debug-value" style="font-size:9px; word-break:break-all;">—</span>
+      </div>
     </div>
 
     <div id="panel">
@@ -77,11 +157,19 @@
   const canvas = document.getElementById('heat');
   const ctx = canvas.getContext('2d', { alpha: true });
 
-  const startBtn = document.getElementById('startBtn');
-  const stopBtn  = document.getElementById('stopBtn');
+  const toggleBtn = document.getElementById('toggleBtn');
+  const debugToggle = document.getElementById('debugToggle');
+  const debugPanel = document.getElementById('debugPanel');
   const statusEl = document.getElementById('status');
   const capsEl   = document.getElementById('caps');
   const logEl    = document.getElementById('log');
+
+  // Debug panel elements
+  const debugApiEl = document.getElementById('debugApi');
+  const debugPermEl = document.getElementById('debugPerm');
+  const debugSensorEl = document.getElementById('debugSensor');
+  const debugErrorEl = document.getElementById('debugError');
+  const debugUAEl = document.getElementById('debugUA');
 
   const thrEl = document.getElementById('thr');
   const thrValEl = document.getElementById('thrVal');
@@ -94,6 +182,73 @@
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const now = () => performance.now();
+
+  // ---------------- Debug Panel ----------------
+  let lastMagError = null;
+
+  function updateDebug(field, value, status = '') {
+    const el = {
+      api: debugApiEl,
+      perm: debugPermEl,
+      sensor: debugSensorEl,
+      error: debugErrorEl
+    }[field];
+    if (!el) return;
+    
+    el.textContent = value;
+    el.className = 'debug-value';
+    if (status) el.classList.add(status);
+  }
+
+  // Check API availability on load
+  function checkMagnetometerAPI() {
+    const available = 'Magnetometer' in window;
+    updateDebug('api', available ? '✓ Magnetometer available' : '✗ Magnetometer not available', 
+                available ? 'ok' : 'error');
+    return available;
+  }
+
+  // Check permission status
+  async function checkMagnetometerPermission() {
+    if (!navigator.permissions) {
+      updateDebug('perm', 'Permissions API not available', 'warn');
+      return 'unknown';
+    }
+    
+    try {
+      const result = await navigator.permissions.query({ name: 'magnetometer' });
+      const statusMap = {
+        'granted': { text: '✓ granted', cls: 'ok' },
+        'denied': { text: '✗ denied', cls: 'error' },
+        'prompt': { text: '⚠ prompt (will ask)', cls: 'warn' }
+      };
+      const info = statusMap[result.state] || { text: result.state, cls: '' };
+      updateDebug('perm', info.text, info.cls);
+      
+      // Listen for permission changes
+      result.addEventListener('change', () => {
+        const newInfo = statusMap[result.state] || { text: result.state, cls: '' };
+        updateDebug('perm', newInfo.text, newInfo.cls);
+      });
+      
+      return result.state;
+    } catch (e) {
+      // Some browsers don't support querying magnetometer permission
+      updateDebug('perm', `Query failed: ${e.message}`, 'warn');
+      return 'unknown';
+    }
+  }
+
+  // Initialize debug panel
+  debugUAEl.textContent = navigator.userAgent;
+  checkMagnetometerAPI();
+  checkMagnetometerPermission();
+
+  // Debug panel toggle
+  debugToggle.addEventListener('click', () => {
+    debugPanel.classList.toggle('open');
+    debugToggle.textContent = debugPanel.classList.contains('open') ? 'Debug ▲' : 'Debug';
+  });
 
   // Resize canvas to match CSS pixels (devicePixelRatio aware)
   function resize() {
@@ -163,7 +318,7 @@
     hasOrient = false;
   }
 
-  // Map yaw/pitch to screen space (rough “where phone is pointing”)
+  // Map yaw/pitch to screen space (rough "where phone is pointing")
   function orientToScreen() {
     // pitch -90..90 → y
     const y = clamp((pitch + 90) / 180, 0, 1);
@@ -183,45 +338,122 @@
   let ema_dB = 0;       // smooth derivative for display
   let spikes = 0;
 
-  function startMagnetometer() {
+  async function startMagnetometer() {
+    updateDebug('sensor', 'initializing...', 'warn');
+    updateDebug('error', '—', '');
+    
+    // 1. Check API availability
     if (!('Magnetometer' in window)) {
-      throw new Error('Magnetometer API not available in this browser');
+      const err = 'Magnetometer API not available in this browser';
+      updateDebug('sensor', 'API unavailable', 'error');
+      updateDebug('error', err, 'error');
+      throw new Error(err);
     }
-    // frequency is advisory; browser may clamp
-    mag = new Magnetometer({ frequency: 60 });
-    mag.addEventListener('reading', () => {
-      const t = now();
-      const dt = lastMagT ? (t - lastMagT) / 1000 : 0;
-      lastMagT = t;
 
-      const x = mag.x, y = mag.y, z = mag.z; // microtesla
-      if (![x,y,z].every(Number.isFinite)) return;
-
-      const B = Math.hypot(x, y, z);
-      hasMag = true;
-
-      if (lastB !== null && dt > 0.001) {
-        const dBdt = Math.abs(B - lastB) / dt; // µT/s
-        ema_dB = ema_dB * 0.85 + dBdt * 0.15;
-
-        const threshold = parseFloat(thrEl.value);
-        const gain = parseFloat(gainEl.value);
-
-        if (dBdt >= threshold) {
-          spikes++;
-          const intensity = clamp((dBdt - threshold) / threshold, 0, 6) * gain;
-          const { x:ux, y:uy } = hasOrient ? orientToScreen() : { x:0.5, y:0.5 };
-          addBlob(ux, uy, intensity, dBdt);
+    // 2. Check/request permission via Permissions API
+    try {
+      if (navigator.permissions) {
+        const permResult = await navigator.permissions.query({ name: 'magnetometer' });
+        updateDebug('perm', permResult.state, permResult.state === 'granted' ? 'ok' : 'warn');
+        
+        if (permResult.state === 'denied') {
+          const err = 'Magnetometer permission denied by user/browser';
+          updateDebug('sensor', 'permission denied', 'error');
+          updateDebug('error', err, 'error');
+          throw new Error(err);
         }
       }
+    } catch (e) {
+      // Permissions API might not support magnetometer query - continue anyway
+      console.warn('Permission query failed:', e);
+      updateDebug('perm', `query error: ${e.message}`, 'warn');
+    }
 
-      lastB = B; lastBX=x; lastBY=y; lastBZ=z;
-    });
-    mag.addEventListener('error', (e) => {
-      console.error(e.error || e);
-      setStatus(`mag error: ${(e.error && e.error.name) || 'unknown'}`, true);
-    });
-    mag.start();
+    // 3. Create and start sensor
+    try {
+      updateDebug('sensor', 'creating sensor...', 'warn');
+      
+      // frequency is advisory; browser may clamp
+      mag = new Magnetometer({ frequency: 60 });
+      
+      mag.addEventListener('reading', () => {
+        const t = now();
+        const dt = lastMagT ? (t - lastMagT) / 1000 : 0;
+        lastMagT = t;
+
+        const x = mag.x, y = mag.y, z = mag.z; // microtesla
+        if (![x,y,z].every(Number.isFinite)) return;
+
+        const B = Math.hypot(x, y, z);
+        
+        if (!hasMag) {
+          hasMag = true;
+          updateDebug('sensor', '✓ active (receiving data)', 'ok');
+        }
+
+        if (lastB !== null && dt > 0.001) {
+          const dBdt = Math.abs(B - lastB) / dt; // µT/s
+          ema_dB = ema_dB * 0.85 + dBdt * 0.15;
+
+          const threshold = parseFloat(thrEl.value);
+          const gain = parseFloat(gainEl.value);
+
+          if (dBdt >= threshold) {
+            spikes++;
+            const intensity = clamp((dBdt - threshold) / threshold, 0, 6) * gain;
+            const { x:ux, y:uy } = hasOrient ? orientToScreen() : { x:0.5, y:0.5 };
+            addBlob(ux, uy, intensity, dBdt);
+          }
+        }
+
+        lastB = B; lastBX=x; lastBY=y; lastBZ=z;
+      });
+      
+      mag.addEventListener('error', (e) => {
+        const error = e.error || e;
+        const errorName = error.name || 'Unknown';
+        const errorMsg = error.message || String(error);
+        
+        console.error('Magnetometer error:', error);
+        lastMagError = `${errorName}: ${errorMsg}`;
+        
+        updateDebug('sensor', `error: ${errorName}`, 'error');
+        updateDebug('error', lastMagError, 'error');
+        
+        setStatus(`mag error: ${errorName}`, true);
+        hasMag = false;
+      });
+      
+      mag.addEventListener('activate', () => {
+        console.log('Magnetometer activated');
+        updateDebug('sensor', 'activated, waiting for data...', 'warn');
+      });
+
+      updateDebug('sensor', 'starting...', 'warn');
+      mag.start();
+      
+      // If we get here without throwing, sensor.start() was called
+      // Actual data will update status via 'reading' event
+      
+    } catch (e) {
+      const errorName = e.name || 'Error';
+      const errorMsg = e.message || String(e);
+      lastMagError = `${errorName}: ${errorMsg}`;
+      
+      updateDebug('sensor', `failed: ${errorName}`, 'error');
+      updateDebug('error', lastMagError, 'error');
+      
+      // Provide helpful hints based on error type
+      if (errorName === 'SecurityError') {
+        updateDebug('error', `${lastMagError} (HTTPS required, or blocked by permissions policy)`, 'error');
+      } else if (errorName === 'NotAllowedError') {
+        updateDebug('error', `${lastMagError} (Permission denied - check site settings)`, 'error');
+      } else if (errorName === 'NotReadableError') {
+        updateDebug('error', `${lastMagError} (Sensor hardware not available)`, 'error');
+      }
+      
+      throw e;
+    }
   }
 
   function stopMagnetometer() {
@@ -232,6 +464,7 @@
     hasMag = false;
     lastMagT = 0;
     lastB = null;
+    updateDebug('sensor', 'stopped', '');
   }
 
   // ---------------- Heatmap rendering ----------------
@@ -328,6 +561,8 @@
     if (running) return;
     spikes = 0;
     setStatus('starting…', true);
+    updateDebug('sensor', 'not started', '');
+    updateDebug('error', '—', '');
 
     resize();
     ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
@@ -346,16 +581,16 @@
 
       // Magnetometer
       try {
-        startMagnetometer();
+        await startMagnetometer();
       } catch (e) {
-        console.error(e);
+        console.error('Magnetometer start failed:', e);
         setStatus(`magnetometer unavailable`, true);
         // Keep camera running even if mag is missing
       }
 
       running = true;
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
+      toggleBtn.textContent = '⏹ Stop';
+      toggleBtn.classList.add('running');
       setStatus('running', false);
       raf = requestAnimationFrame(loop);
     } catch (e) {
@@ -372,8 +607,8 @@
       stopOrientation();
       stopCamera();
       cancelAnimationFrame(raf);
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
+      toggleBtn.textContent = '▶ Start';
+      toggleBtn.classList.remove('running');
       setStatus('stopped', true);
       return;
     }
@@ -382,20 +617,32 @@
     stopMagnetometer();
     stopOrientation();
     stopCamera();
-    startBtn.disabled = false;
-    stopBtn.disabled = true;
+    toggleBtn.textContent = '▶ Start';
+    toggleBtn.classList.remove('running');
     setStatus('stopped', true);
   }
 
-  startBtn.addEventListener('click', start);
-  stopBtn.addEventListener('click', stop);
+  function toggle() {
+    if (running) {
+      stop();
+    } else {
+      start();
+    }
+  }
+
+  toggleBtn.addEventListener('click', toggle);
 
   // Helpful note in console about support
   console.log(
-    'Notes:\n' +
-    '- Magnetometer API support varies by browser/OS.\n' +
-    '- If magnetometer is unavailable, you will only see the camera.\n' +
-    '- iOS may require explicit permission for motion/orientation.'
+    'Mag-Heat AR Debug Info:\n' +
+    '- Magnetometer API: ' + ('Magnetometer' in window ? 'available' : 'NOT available') + '\n' +
+    '- User Agent: ' + navigator.userAgent + '\n' +
+    '- Open the Debug panel in the UI for more details.\n' +
+    '\n' +
+    'Common issues:\n' +
+    '- SecurityError: HTTPS required, or blocked by permissions policy\n' +
+    '- NotAllowedError: User denied permission, or sensor blocked in settings\n' +
+    '- NotReadableError: Hardware sensor not available on this device'
   );
 })();
 </script>
