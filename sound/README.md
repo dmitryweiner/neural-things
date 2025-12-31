@@ -11,10 +11,12 @@ Captures audio from your microphone and displays three synchronized visualizatio
 - **Oscilloscope** — Real-time waveform display with adjustable Y-scale and time window
 - **Spectrum Analyzer** — Frequency spectrum in graph or spectrogram (waterfall) mode
 - **Cepstrum Analyzer** — Cepstral analysis for pitch detection and periodic structure identification
+- **Peak Detection** — Automatic detection and display of peak values on all graphs (amplitude, frequency, quefrency)
+- **Dynamic Axis Labels** — Y-axis labels automatically adjust based on zoom scale
 - **WAV Recording** — Record audio directly to WAV format with one click
 - **Dynamic Settings** — Configure sample rate, channels, and audio processing based on device capabilities
 - **Wake Lock** — Prevents device sleep during audio capture
-- **State Persistence** — Panel collapse states are saved to localStorage
+- **State Persistence** — All visualization settings and panel states are saved to localStorage
 
 ---
 
@@ -122,6 +124,11 @@ Real-time continuous line graph showing:
 - **Spectrum**: Frequency (Hz) on X-axis, amplitude on Y-axis
 - **Cepstrum**: Quefrency on X-axis, cepstral coefficient on Y-axis
 
+**Peak Detection**: In graph mode, each visualization automatically detects and displays the maximum peak:
+- **Oscilloscope**: Shows peak amplitude value (e.g., `Peak: +0.75`)
+- **Spectrum**: Shows frequency of the loudest component (e.g., `440 Hz`)
+- **Cepstrum**: Shows quefrency of the dominant periodic component (e.g., `2.3 ms`)
+
 ### Spectrogram Mode
 
 Waterfall display where:
@@ -151,9 +158,20 @@ Update speeds:
 
 ## State Persistence
 
-Panel collapse states (expanded/collapsed) for all three visualizations are automatically saved to `localStorage` and restored on page reload.
+All visualization settings and panel states are automatically saved to `localStorage` and restored on page reload.
 
 **Storage key**: `sound_analyzer_panels`
+
+**Saved settings**:
+
+| Category | Settings |
+|----------|----------|
+| **Panels** | Collapse state (expanded/collapsed) for each visualization |
+| **Oscilloscope** | Y Scale, Time Window |
+| **Spectrum** | Y Scale, Mode (Graph/Spectrogram), Scale (Linear/Log), Speed |
+| **Cepstrum** | Y Scale, Mode (Graph/Spectrogram), Scale (Linear/Log), Speed |
+
+Settings are saved immediately when changed and restored on page load.
 
 ---
 
@@ -222,6 +240,13 @@ For a signal with fundamental frequency f₀, expect a peak at quefrency = 1/f�
 ---
 
 ## Changelog
+
+### 2025-12-31 (v1.1)
+
+- Increased font size on graph labels (2x larger for better readability)
+- Dynamic Y-axis labels that update based on zoom scale
+- Peak detection with labels for all graphs (Oscilloscope: amplitude, Spectrum: frequency Hz, Cepstrum: quefrency ms)
+- Extended state persistence to save all visualization settings (not just panel collapse states)
 
 ### 2025-12-31 (v1.0)
 

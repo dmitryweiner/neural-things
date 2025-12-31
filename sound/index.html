@@ -989,11 +989,11 @@
     const samplesToShow = Math.min(timeWindow, timeBuf.length);
     const sampleRate = audioCtx ? audioCtx.sampleRate : 48000;
     
-    // Margin for labels
-    const marginLeft = 35;
-    const marginBottom = 20;
-    const marginTop = 5;
-    const marginRight = 5;
+    // Margin for labels (increased for larger font)
+    const marginLeft = 70;
+    const marginBottom = 35;
+    const marginTop = 10;
+    const marginRight = 10;
     const plotW = w - marginLeft - marginRight;
     const plotH = h - marginBottom - marginTop;
 
@@ -1007,7 +1007,7 @@
     // Grid and labels
     ctx.strokeStyle = 'rgba(18, 32, 51, 0.7)';
     ctx.lineWidth = 1;
-    ctx.font = '10px system-ui';
+    ctx.font = '20px system-ui';
     ctx.fillStyle = '#7a8fa6';
 
     // Time grid lines (X axis)
@@ -1021,7 +1021,7 @@
     }
     ctx.stroke();
 
-    // Amplitude grid lines (Y axis)
+    // Amplitude grid lines (Y axis) - adjusted for yScale
     ctx.beginPath();
     const ampMarks = [-1, -0.5, 0, 0.5, 1];
     for (const amp of ampMarks) {
@@ -1029,7 +1029,9 @@
       ctx.moveTo(marginLeft, y);
       ctx.lineTo(marginLeft + plotW, y);
       if (amp !== 0) {
-        ctx.fillText((amp > 0 ? '+' : '') + amp.toFixed(1), 5, y + 4);
+        // Show actual visible range based on yScale
+        const displayAmp = amp / yScale;
+        ctx.fillText((displayAmp > 0 ? '+' : '') + displayAmp.toFixed(2), 5, y + 7);
       }
     }
     ctx.stroke();
@@ -1041,20 +1043,46 @@
     ctx.lineTo(marginLeft + plotW, marginTop + plotH / 2);
     ctx.stroke();
 
-    // Waveform
+    // Waveform and peak detection
     const mid = marginTop + plotH / 2;
     ctx.strokeStyle = '#8ab4ff';
     ctx.lineWidth = 2;
     ctx.beginPath();
 
+    let peakVal = 0;
+    let peakIdx = 0;
     for (let i = 0; i < samplesToShow; i++) {
       const v = (timeBuf[i] - 128) / 128;
+      const absV = Math.abs(v);
+      if (absV > Math.abs(peakVal)) {
+        peakVal = v;
+        peakIdx = i;
+      }
       const y = mid - v * (plotH / 2) * 0.9 * yScale;
       const x = marginLeft + (plotW * i) / (samplesToShow - 1);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
+
+    // Display peak value
+    if (Math.abs(peakVal) > 0.01) {
+      const peakX = marginLeft + (plotW * peakIdx) / (samplesToShow - 1);
+      const peakY = mid - peakVal * (plotH / 2) * 0.9 * yScale;
+      
+      // Peak marker
+      ctx.fillStyle = '#ff6b6b';
+      ctx.beginPath();
+      ctx.arc(peakX, peakY, 5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Peak label
+      ctx.font = '16px system-ui';
+      ctx.fillStyle = '#ff6b6b';
+      const peakLabel = `Peak: ${peakVal >= 0 ? '+' : ''}${peakVal.toFixed(2)}`;
+      const labelY = peakVal > 0 ? peakY - 15 : peakY + 25;
+      ctx.fillText(peakLabel, peakX - 30, labelY);
+    }
   }
 
   function drawSpectrum(canvas, ctx, freqBuf) {
@@ -1066,11 +1094,11 @@
     const nyquist = sampleRate / 2;
     const bins = freqBuf.length;
     
-    // Margin for labels
-    const marginLeft = 45;
-    const marginBottom = 20;
-    const marginTop = 5;
-    const marginRight = 5;
+    // Margin for labels (increased for larger font)
+    const marginLeft = 70;
+    const marginBottom = 35;
+    const marginTop = 10;
+    const marginRight = 10;
     const plotW = w - marginLeft - marginRight;
     const plotH = h - marginBottom - marginTop;
 
@@ -1086,7 +1114,7 @@
       // Grid and labels
       ctx.strokeStyle = 'rgba(18, 32, 51, 0.7)';
       ctx.lineWidth = 1;
-      ctx.font = '10px system-ui';
+      ctx.font = '20px system-ui';
       ctx.fillStyle = '#7a8fa6';
 
       // Frequency grid lines (X axis)
@@ -1108,14 +1136,16 @@
       }
       ctx.stroke();
 
-      // Amplitude grid lines (Y axis)
+      // Amplitude grid lines (Y axis) - adjusted for yScale
       ctx.beginPath();
       const ampMarks = [0, 25, 50, 75, 100];
       for (const amp of ampMarks) {
         const y = marginTop + plotH - (amp / 100) * plotH;
         ctx.moveTo(marginLeft, y);
         ctx.lineTo(marginLeft + plotW, y);
-        ctx.fillText(amp + '%', 5, y + 4);
+        // Show actual visible range based on yScale
+        const displayAmp = Math.round(amp / yScale);
+        ctx.fillText(displayAmp + '%', 5, y + 7);
       }
       ctx.stroke();
 
@@ -1123,10 +1153,15 @@
       ctx.fillStyle = '#9fb6d3';
       ctx.fillText('Hz', w - 20, h - 5);
 
-      // Spectrum line
+      // Spectrum line with peak detection
       ctx.strokeStyle = '#27ae60';
       ctx.lineWidth = 2;
       ctx.beginPath();
+
+      let peakFreq = 0;
+      let peakValue = 0;
+      let peakX = 0;
+      let peakY = 0;
 
       for (let i = 0; i < bins; i++) {
         const freq = (i / bins) * nyquist;
@@ -1142,10 +1177,36 @@
         const value = freqBuf[i] / 255;
         const y = marginTop + plotH - value * plotH * yScale;
         
+        // Track peak
+        if (value > peakValue) {
+          peakValue = value;
+          peakFreq = freq;
+          peakX = x;
+          peakY = y;
+        }
+        
         if (i === 0 || freq <= minFreq) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
       ctx.stroke();
+
+      // Display peak frequency
+      if (peakValue > 0.05) {
+        // Peak marker
+        ctx.fillStyle = '#ff6b6b';
+        ctx.beginPath();
+        ctx.arc(peakX, peakY, 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Peak label
+        ctx.font = '16px system-ui';
+        ctx.fillStyle = '#ff6b6b';
+        const freqLabel = peakFreq >= 1000 
+          ? `${(peakFreq / 1000).toFixed(1)}k Hz` 
+          : `${Math.round(peakFreq)} Hz`;
+        const labelX = Math.min(peakX - 20, w - marginRight - 80);
+        ctx.fillText(freqLabel, labelX, peakY - 15);
+      }
 
     } else {
       // Spectrogram mode
@@ -1189,7 +1250,7 @@
       ctx.fillRect(0, 0, marginLeft, h);
       ctx.fillRect(0, h - marginBottom, w, marginBottom);
 
-      ctx.font = '10px system-ui';
+      ctx.font = '20px system-ui';
       ctx.fillStyle = '#7a8fa6';
 
       // Frequency labels (Y axis for spectrogram)
@@ -1238,11 +1299,11 @@
     // Convert quefrency to time (ms) - quefrency index * (1000 / sampleRate)
     const maxQuefrencyMs = (halfLen / sampleRate) * 1000;
     
-    // Margin for labels
-    const marginLeft = 45;
-    const marginBottom = 20;
-    const marginTop = 5;
-    const marginRight = 5;
+    // Margin for labels (increased for larger font)
+    const marginLeft = 70;
+    const marginBottom = 35;
+    const marginTop = 10;
+    const marginRight = 10;
     const plotW = w - marginLeft - marginRight;
     const plotH = h - marginBottom - marginTop;
 
@@ -1261,7 +1322,7 @@
       // Grid and labels
       ctx.strokeStyle = 'rgba(18, 32, 51, 0.7)';
       ctx.lineWidth = 1;
-      ctx.font = '10px system-ui';
+      ctx.font = '20px system-ui';
       ctx.fillStyle = '#7a8fa6';
 
       // Quefrency grid lines (X axis) - in ms
@@ -1283,12 +1344,18 @@
       }
       ctx.stroke();
 
-      // Amplitude grid lines (Y axis)
+      // Amplitude grid lines (Y axis) - adjusted for yScale
       ctx.beginPath();
+      const cepAmpMarks = [1, 0.5, 0, -0.5, -1];
       for (let i = 0; i <= 4; i++) {
         const y = marginTop + (i / 4) * plotH;
         ctx.moveTo(marginLeft, y);
         ctx.lineTo(marginLeft + plotW, y);
+        // Show actual visible range based on yScale
+        const displayAmp = cepAmpMarks[i] / yScale;
+        if (cepAmpMarks[i] !== 0) {
+          ctx.fillText((displayAmp > 0 ? '+' : '') + displayAmp.toFixed(2), 5, y + 7);
+        }
       }
       ctx.stroke();
 
@@ -1299,10 +1366,18 @@
       ctx.lineTo(marginLeft + plotW, marginTop + plotH / 2);
       ctx.stroke();
 
-      // Cepstrum line
+      // Cepstrum line with peak detection
       ctx.strokeStyle = '#e67e22';
       ctx.lineWidth = 2;
       ctx.beginPath();
+
+      let peakQuefrencyIdx = 1;
+      let peakCepValue = 0;
+      let peakX = 0;
+      let peakY = 0;
+
+      // Skip very low quefrencies to avoid DC component
+      const minQuefrencyIdx = Math.max(1, Math.floor(0.5 * sampleRate / 1000)); // Start from 0.5ms
 
       for (let i = 1; i < halfLen; i++) {
         let x;
@@ -1315,10 +1390,37 @@
         const value = cepstrum[i] / maxVal;
         const y = marginTop + plotH / 2 - value * (plotH / 2) * yScale * 0.8;
         
+        // Track peak (skip very low quefrencies)
+        if (i >= minQuefrencyIdx && Math.abs(value) > Math.abs(peakCepValue)) {
+          peakCepValue = value;
+          peakQuefrencyIdx = i;
+          peakX = x;
+          peakY = y;
+        }
+        
         if (i === 1) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
       ctx.stroke();
+
+      // Display peak quefrency (in ms)
+      if (Math.abs(peakCepValue) > 0.1) {
+        const peakQuefrencyMs = (peakQuefrencyIdx / sampleRate) * 1000;
+        
+        // Peak marker
+        ctx.fillStyle = '#ff6b6b';
+        ctx.beginPath();
+        ctx.arc(peakX, peakY, 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Peak label
+        ctx.font = '16px system-ui';
+        ctx.fillStyle = '#ff6b6b';
+        const quefrencyLabel = `${peakQuefrencyMs.toFixed(1)} ms`;
+        const labelY = peakCepValue > 0 ? peakY - 15 : peakY + 25;
+        const labelX = Math.min(peakX - 20, w - marginRight - 60);
+        ctx.fillText(quefrencyLabel, labelX, labelY);
+      }
 
     } else {
       // Spectrogram mode for cepstrum
@@ -1362,7 +1464,7 @@
       ctx.fillRect(0, 0, marginLeft, h);
       ctx.fillRect(0, h - marginBottom, w, marginBottom);
 
-      ctx.font = '10px system-ui';
+      ctx.font = '20px system-ui';
       ctx.fillStyle = '#7a8fa6';
 
       // Quefrency labels (Y axis for spectrogram) - in ms
@@ -1397,9 +1499,23 @@
   // ========== Panel State Persistence ==========
   function savePanelState() {
     const state = {
+      // Panel collapse states
       oscilloscope: !$('#oscilloscopeBody').classList.contains('collapsed'),
       spectrum: !$('#spectrumBody').classList.contains('collapsed'),
-      cepstrum: !$('#cepstrumBody').classList.contains('collapsed')
+      cepstrum: !$('#cepstrumBody').classList.contains('collapsed'),
+      // Visualization settings
+      settings: {
+        oscYScale: parseFloat($('#oscYScale').value),
+        oscTimeWindow: parseInt($('#oscTimeWindow').value),
+        specYScale: parseFloat($('#specYScale').value),
+        spectrumMode: spectrumMode,
+        spectrumScale: spectrumScale,
+        spectrumSpeed: spectrumSpeed,
+        cepYScale: parseFloat($('#cepYScale').value),
+        cepstrumMode: cepstrumMode,
+        cepstrumScale: cepstrumScale,
+        cepstrumSpeed: cepstrumSpeed
+      }
     };
     localStorage.setItem(PANEL_STATE_KEY, JSON.stringify(state));
   }
@@ -1410,6 +1526,7 @@
       if (saved) {
         const state = JSON.parse(saved);
         
+        // Restore panel collapse states
         if (state.oscilloscope === false) {
           $('#oscilloscopeBody').classList.add('collapsed');
           $('#oscilloscopeCollapseBtn').textContent = '▶';
@@ -1421,6 +1538,61 @@
         if (state.cepstrum === false) {
           $('#cepstrumBody').classList.add('collapsed');
           $('#cepstrumCollapseBtn').textContent = '▶';
+        }
+        
+        // Restore visualization settings
+        if (state.settings) {
+          // Oscilloscope settings
+          if (state.settings.oscYScale !== undefined) {
+            $('#oscYScale').value = state.settings.oscYScale;
+            $('#oscYScaleVal').textContent = state.settings.oscYScale.toFixed(1) + 'x';
+          }
+          if (state.settings.oscTimeWindow !== undefined) {
+            $('#oscTimeWindow').value = state.settings.oscTimeWindow;
+            $('#oscTimeWindowVal').textContent = state.settings.oscTimeWindow;
+          }
+          
+          // Spectrum settings
+          if (state.settings.specYScale !== undefined) {
+            $('#specYScale').value = state.settings.specYScale;
+            $('#specYScaleVal').textContent = state.settings.specYScale.toFixed(1) + 'x';
+          }
+          if (state.settings.spectrumMode !== undefined) {
+            spectrumMode = state.settings.spectrumMode;
+            $('#spectrumModeBtn').textContent = spectrumMode === 'graph' ? 'Graph' : 'Spectro';
+            $('#specSpeedCtrl').style.display = spectrumMode === 'graph' ? 'none' : 'grid';
+          }
+          if (state.settings.spectrumScale !== undefined) {
+            spectrumScale = state.settings.spectrumScale;
+            $('#spectrumScaleBtn').textContent = spectrumScale === 'log' ? 'Log' : 'Lin';
+          }
+          if (state.settings.spectrumSpeed !== undefined) {
+            spectrumSpeed = state.settings.spectrumSpeed;
+            $$('#specSpeedCtrl .speedBtn').forEach(btn => btn.classList.remove('active'));
+            const speedBtn = $(`#specSpeed${spectrumSpeed.charAt(0).toUpperCase() + spectrumSpeed.slice(1)}`);
+            if (speedBtn) speedBtn.classList.add('active');
+          }
+          
+          // Cepstrum settings
+          if (state.settings.cepYScale !== undefined) {
+            $('#cepYScale').value = state.settings.cepYScale;
+            $('#cepYScaleVal').textContent = state.settings.cepYScale.toFixed(1) + 'x';
+          }
+          if (state.settings.cepstrumMode !== undefined) {
+            cepstrumMode = state.settings.cepstrumMode;
+            $('#cepstrumModeBtn').textContent = cepstrumMode === 'graph' ? 'Graph' : 'Spectro';
+            $('#cepSpeedCtrl').style.display = cepstrumMode === 'graph' ? 'none' : 'grid';
+          }
+          if (state.settings.cepstrumScale !== undefined) {
+            cepstrumScale = state.settings.cepstrumScale;
+            $('#cepstrumScaleBtn').textContent = cepstrumScale === 'log' ? 'Log' : 'Lin';
+          }
+          if (state.settings.cepstrumSpeed !== undefined) {
+            cepstrumSpeed = state.settings.cepstrumSpeed;
+            $$('#cepSpeedCtrl .speedBtn').forEach(btn => btn.classList.remove('active'));
+            const speedBtn = $(`#cepSpeed${cepstrumSpeed.charAt(0).toUpperCase() + cepstrumSpeed.slice(1)}`);
+            if (speedBtn) speedBtn.classList.add('active');
+          }
         }
       }
     } catch (e) {
@@ -1486,6 +1658,7 @@
       $('#spectrumModeBtn').textContent = 'Graph';
       $('#specSpeedCtrl').style.display = 'none';
     }
+    savePanelState();
   });
 
   // Spectrum scale toggle (single button)
@@ -1500,6 +1673,7 @@
     // Reset spectrogram on scale change
     specSpectroCanvas = null;
     specSpectroCtx = null;
+    savePanelState();
   });
 
   // Cepstrum mode toggle (single button)
@@ -1516,6 +1690,7 @@
       $('#cepstrumModeBtn').textContent = 'Graph';
       $('#cepSpeedCtrl').style.display = 'none';
     }
+    savePanelState();
   });
 
   // Cepstrum scale toggle (single button)
@@ -1530,6 +1705,7 @@
     // Reset spectrogram on scale change
     cepSpectroCanvas = null;
     cepSpectroCtx = null;
+    savePanelState();
   });
 
   // Spectrum speed buttons
@@ -1538,6 +1714,7 @@
       spectrumSpeed = speed.toLowerCase();
       $$('#specSpeedCtrl .speedBtn').forEach(btn => btn.classList.remove('active'));
       $(`#specSpeed${speed}`).classList.add('active');
+      savePanelState();
     });
   });
 
@@ -1547,24 +1724,29 @@
       cepstrumSpeed = speed.toLowerCase();
       $$('#cepSpeedCtrl .speedBtn').forEach(btn => btn.classList.remove('active'));
       $(`#cepSpeed${speed}`).classList.add('active');
+      savePanelState();
     });
   });
 
-  // Slider value displays
+  // Slider value displays (with state persistence)
   $('#oscYScale').addEventListener('input', (e) => {
     $('#oscYScaleVal').textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+    savePanelState();
   });
 
   $('#oscTimeWindow').addEventListener('input', (e) => {
     $('#oscTimeWindowVal').textContent = e.target.value;
+    savePanelState();
   });
 
   $('#specYScale').addEventListener('input', (e) => {
     $('#specYScaleVal').textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+    savePanelState();
   });
 
   $('#cepYScale').addEventListener('input', (e) => {
     $('#cepYScaleVal').textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+    savePanelState();
   });
 
   // ========== Initialization ==========
