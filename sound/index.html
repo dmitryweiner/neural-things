@@ -260,6 +260,20 @@
       border-color: #3d5a80;
     }
 
+    /* Speed button group */
+    .speedBtnGroup {
+      display: flex;
+      gap: 4px;
+    }
+    .speedBtn {
+      font-size: 10px;
+      padding: 4px 8px;
+    }
+    .speedBtn.active {
+      background: #1d3557;
+      border-color: #3d5a80;
+    }
+
     /* Footer */
     .site-footer {
       margin-top: 40px;
@@ -404,8 +418,8 @@
         <span>📊 Spectrum</span>
       </h2>
       <div class="vizControls">
-        <button class="collapseBtn modeBtn active" id="spectrumGraphBtn">Graph</button>
-        <button class="collapseBtn modeBtn" id="spectrumSpectroBtn">Spectrogram</button>
+        <button class="collapseBtn modeBtn" id="spectrumModeBtn">Graph</button>
+        <button class="collapseBtn modeBtn" id="spectrumScaleBtn">Log</button>
         <button class="collapseBtn" id="spectrumCollapseBtn">▼</button>
       </div>
     </div>
@@ -418,21 +432,13 @@
         <input type="range" id="specYScale" min="0.5" max="3" step="0.1" value="1">
         <div class="small" id="specYScaleVal">1.0x</div>
       </div>
-      <div class="ctrl" id="specFreqScaleCtrl">
-        <label for="specFreqScale">Frequency Scale</label>
-        <select id="specFreqScale">
-          <option value="linear">Linear</option>
-          <option value="log" selected>Logarithmic</option>
-        </select>
-        <div></div>
-      </div>
       <div class="ctrl spectroCtrl" id="specSpeedCtrl" style="display: none;">
-        <label for="specSpeed">Update Speed</label>
-        <select id="specSpeed">
-          <option value="slow">Slow (15 fps)</option>
-          <option value="medium" selected>Medium (30 fps)</option>
-          <option value="fast">Fast (60 fps)</option>
-        </select>
+        <label>Update Speed</label>
+        <div class="speedBtnGroup">
+          <button class="collapseBtn speedBtn" data-speed="slow" id="specSpeedSlow">Slow</button>
+          <button class="collapseBtn speedBtn active" data-speed="medium" id="specSpeedMedium">Medium</button>
+          <button class="collapseBtn speedBtn" data-speed="fast" id="specSpeedFast">Fast</button>
+        </div>
         <div></div>
       </div>
     </div>
@@ -445,8 +451,8 @@
         <span>🔬 Cepstrum</span>
       </h2>
       <div class="vizControls">
-        <button class="collapseBtn modeBtn active" id="cepstrumGraphBtn">Graph</button>
-        <button class="collapseBtn modeBtn" id="cepstrumSpectroBtn">Spectrogram</button>
+        <button class="collapseBtn modeBtn" id="cepstrumModeBtn">Graph</button>
+        <button class="collapseBtn modeBtn" id="cepstrumScaleBtn">Lin</button>
         <button class="collapseBtn" id="cepstrumCollapseBtn">▼</button>
       </div>
     </div>
@@ -459,21 +465,13 @@
         <input type="range" id="cepYScale" min="0.5" max="5" step="0.1" value="1">
         <div class="small" id="cepYScaleVal">1.0x</div>
       </div>
-      <div class="ctrl" id="cepQuefrencyScaleCtrl">
-        <label for="cepQuefrencyScale">Quefrency Scale</label>
-        <select id="cepQuefrencyScale">
-          <option value="linear" selected>Linear</option>
-          <option value="log">Logarithmic</option>
-        </select>
-        <div></div>
-      </div>
       <div class="ctrl spectroCtrl" id="cepSpeedCtrl" style="display: none;">
-        <label for="cepSpeed">Update Speed</label>
-        <select id="cepSpeed">
-          <option value="slow">Slow (15 fps)</option>
-          <option value="medium" selected>Medium (30 fps)</option>
-          <option value="fast">Fast (60 fps)</option>
-        </select>
+        <label>Update Speed</label>
+        <div class="speedBtnGroup">
+          <button class="collapseBtn speedBtn" data-speed="slow" id="cepSpeedSlow">Slow</button>
+          <button class="collapseBtn speedBtn active" data-speed="medium" id="cepSpeedMedium">Medium</button>
+          <button class="collapseBtn speedBtn" data-speed="fast" id="cepSpeedFast">Fast</button>
+        </div>
         <div></div>
       </div>
     </div>
@@ -552,6 +550,10 @@
   // Visualization modes
   let spectrumMode = 'graph'; // 'graph' or 'spectrogram'
   let cepstrumMode = 'graph';
+  let spectrumScale = 'log'; // 'linear' or 'log'
+  let cepstrumScale = 'linear'; // 'linear' or 'log'
+  let spectrumSpeed = 'medium'; // 'slow', 'medium', 'fast'
+  let cepstrumSpeed = 'medium';
 
   // Spectrogram state
   let specSpectroCanvas = null;
@@ -985,37 +987,70 @@
     const yScale = parseFloat($('#oscYScale').value);
     const timeWindow = parseInt($('#oscTimeWindow').value);
     const samplesToShow = Math.min(timeWindow, timeBuf.length);
+    const sampleRate = audioCtx ? audioCtx.sampleRate : 48000;
+    
+    // Margin for labels
+    const marginLeft = 35;
+    const marginBottom = 20;
+    const marginTop = 5;
+    const marginRight = 5;
+    const plotW = w - marginLeft - marginRight;
+    const plotH = h - marginBottom - marginTop;
 
     // Clear
     ctx.fillStyle = '#060a0f';
     ctx.fillRect(0, 0, w, h);
 
-    // Grid
+    // Time range in ms
+    const timeRangeMs = (samplesToShow / sampleRate) * 1000;
+
+    // Grid and labels
     ctx.strokeStyle = 'rgba(18, 32, 51, 0.7)';
     ctx.lineWidth = 1;
+    ctx.font = '10px system-ui';
+    ctx.fillStyle = '#7a8fa6';
+
+    // Time grid lines (X axis)
     ctx.beginPath();
-    for (let i = 1; i < 10; i++) {
-      const x = (w * i) / 10;
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-    }
-    for (let i = 1; i < 5; i++) {
-      const y = (h * i) / 5;
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
+    const timeStep = timeRangeMs > 50 ? 10 : (timeRangeMs > 20 ? 5 : (timeRangeMs > 10 ? 2 : 1));
+    for (let t = 0; t <= timeRangeMs; t += timeStep) {
+      const x = marginLeft + (t / timeRangeMs) * plotW;
+      ctx.moveTo(x, marginTop);
+      ctx.lineTo(x, marginTop + plotH);
+      ctx.fillText(t.toFixed(0) + 'ms', x - 10, h - 5);
     }
     ctx.stroke();
 
+    // Amplitude grid lines (Y axis)
+    ctx.beginPath();
+    const ampMarks = [-1, -0.5, 0, 0.5, 1];
+    for (const amp of ampMarks) {
+      const y = marginTop + plotH / 2 - (amp * plotH / 2) * 0.9;
+      ctx.moveTo(marginLeft, y);
+      ctx.lineTo(marginLeft + plotW, y);
+      if (amp !== 0) {
+        ctx.fillText((amp > 0 ? '+' : '') + amp.toFixed(1), 5, y + 4);
+      }
+    }
+    ctx.stroke();
+
+    // Center line (zero) - more visible
+    ctx.strokeStyle = 'rgba(138, 180, 255, 0.3)';
+    ctx.beginPath();
+    ctx.moveTo(marginLeft, marginTop + plotH / 2);
+    ctx.lineTo(marginLeft + plotW, marginTop + plotH / 2);
+    ctx.stroke();
+
     // Waveform
-    const mid = h / 2;
+    const mid = marginTop + plotH / 2;
     ctx.strokeStyle = '#8ab4ff';
     ctx.lineWidth = 2;
     ctx.beginPath();
 
     for (let i = 0; i < samplesToShow; i++) {
       const v = (timeBuf[i] - 128) / 128;
-      const y = mid - v * (mid * 0.9) * yScale;
-      const x = (w * i) / (samplesToShow - 1);
+      const y = mid - v * (plotH / 2) * 0.9 * yScale;
+      const x = marginLeft + (plotW * i) / (samplesToShow - 1);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
@@ -1026,59 +1061,95 @@
     const w = canvas.width;
     const h = canvas.height;
     const yScale = parseFloat($('#specYScale').value);
-    const freqScale = $('#specFreqScale').value;
-    const isLog = freqScale === 'log';
+    const isLog = spectrumScale === 'log';
+    const sampleRate = audioCtx ? audioCtx.sampleRate : 48000;
+    const nyquist = sampleRate / 2;
+    const bins = freqBuf.length;
+    
+    // Margin for labels
+    const marginLeft = 45;
+    const marginBottom = 20;
+    const marginTop = 5;
+    const marginRight = 5;
+    const plotW = w - marginLeft - marginRight;
+    const plotH = h - marginBottom - marginTop;
+
+    // Clear
+    ctx.fillStyle = '#060a0f';
+    ctx.fillRect(0, 0, w, h);
+
+    // Frequency range
+    const minFreq = 20;
+    const maxFreq = Math.min(10000, nyquist);
 
     if (spectrumMode === 'graph') {
-      // Clear
-      ctx.fillStyle = '#060a0f';
-      ctx.fillRect(0, 0, w, h);
-
-      // Grid
+      // Grid and labels
       ctx.strokeStyle = 'rgba(18, 32, 51, 0.7)';
       ctx.lineWidth = 1;
+      ctx.font = '10px system-ui';
+      ctx.fillStyle = '#7a8fa6';
+
+      // Frequency grid lines (X axis)
+      const freqMarks = isLog ? [100, 200, 500, 1000, 2000, 5000, 10000] : [0, 2000, 4000, 6000, 8000, 10000];
       ctx.beginPath();
-      for (let i = 1; i < 10; i++) {
-        const x = (w * i) / 10;
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, h);
-      }
-      for (let i = 1; i < 5; i++) {
-        const y = (h * i) / 5;
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
+      for (const freq of freqMarks) {
+        if (freq < minFreq || freq > maxFreq) continue;
+        let x;
+        if (isLog) {
+          x = marginLeft + ((Math.log10(freq) - Math.log10(minFreq)) / (Math.log10(maxFreq) - Math.log10(minFreq))) * plotW;
+        } else {
+          x = marginLeft + ((freq - minFreq) / (maxFreq - minFreq)) * plotW;
+        }
+        ctx.moveTo(x, marginTop);
+        ctx.lineTo(x, marginTop + plotH);
+        // Label
+        const label = freq >= 1000 ? (freq / 1000) + 'k' : freq;
+        ctx.fillText(label, x - 10, h - 5);
       }
       ctx.stroke();
+
+      // Amplitude grid lines (Y axis)
+      ctx.beginPath();
+      const ampMarks = [0, 25, 50, 75, 100];
+      for (const amp of ampMarks) {
+        const y = marginTop + plotH - (amp / 100) * plotH;
+        ctx.moveTo(marginLeft, y);
+        ctx.lineTo(marginLeft + plotW, y);
+        ctx.fillText(amp + '%', 5, y + 4);
+      }
+      ctx.stroke();
+
+      // Axis label
+      ctx.fillStyle = '#9fb6d3';
+      ctx.fillText('Hz', w - 20, h - 5);
 
       // Spectrum line
       ctx.strokeStyle = '#27ae60';
       ctx.lineWidth = 2;
       ctx.beginPath();
 
-      const bins = freqBuf.length;
       for (let i = 0; i < bins; i++) {
+        const freq = (i / bins) * nyquist;
+        if (freq < minFreq || freq > maxFreq) continue;
+        
         let x;
         if (isLog) {
-          const minLog = Math.log10(1);
-          const maxLog = Math.log10(bins);
-          const logVal = Math.log10(i + 1);
-          x = ((logVal - minLog) / (maxLog - minLog)) * w;
+          x = marginLeft + ((Math.log10(freq) - Math.log10(minFreq)) / (Math.log10(maxFreq) - Math.log10(minFreq))) * plotW;
         } else {
-          x = (i / bins) * w;
+          x = marginLeft + ((freq - minFreq) / (maxFreq - minFreq)) * plotW;
         }
 
         const value = freqBuf[i] / 255;
-        const y = h - value * h * yScale;
+        const y = marginTop + plotH - value * plotH * yScale;
         
-        if (i === 0) ctx.moveTo(x, y);
+        if (i === 0 || freq <= minFreq) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
       ctx.stroke();
 
     } else {
       // Spectrogram mode
-      const speed = $('#specSpeed').value;
-      const interval = getSpeedInterval(speed);
+      const interval = getSpeedInterval(spectrumSpeed);
       const now = performance.now();
 
       if (now - lastSpecSpectroTime >= interval) {
@@ -1088,24 +1159,18 @@
         specSpectroCanvas = result.canvas;
         specSpectroCtx = result.ctx;
 
-        // Shift left
+        // Shift left (only in plot area)
         const shiftAmount = 2;
         specSpectroCtx.drawImage(specSpectroCanvas, -shiftAmount, 0);
 
         // Draw new column
-        const bins = freqBuf.length;
-        const sampleRate = audioCtx ? audioCtx.sampleRate : 48000;
-        const nyquist = sampleRate / 2;
-        const minFreq = 20;
-        const maxFreq = Math.min(10000, nyquist);
-
-        for (let y = 0; y < h; y++) {
+        for (let y = marginTop; y < marginTop + plotH; y++) {
           let freq;
+          const normalizedY = (y - marginTop) / plotH;
           if (isLog) {
-            const normalizedY = y / h;
             freq = maxFreq * Math.pow(minFreq / maxFreq, normalizedY);
           } else {
-            freq = maxFreq - (y / h) * (maxFreq - minFreq);
+            freq = maxFreq - normalizedY * (maxFreq - minFreq);
           }
           
           const binIndex = Math.floor((freq / nyquist) * bins);
@@ -1117,10 +1182,33 @@
 
       if (specSpectroCtx) {
         ctx.drawImage(specSpectroCanvas, 0, 0);
-      } else {
-        ctx.fillStyle = '#060a0f';
-        ctx.fillRect(0, 0, w, h);
       }
+
+      // Draw labels overlay
+      ctx.fillStyle = 'rgba(6, 10, 15, 0.8)';
+      ctx.fillRect(0, 0, marginLeft, h);
+      ctx.fillRect(0, h - marginBottom, w, marginBottom);
+
+      ctx.font = '10px system-ui';
+      ctx.fillStyle = '#7a8fa6';
+
+      // Frequency labels (Y axis for spectrogram)
+      const freqMarks = isLog ? [100, 200, 500, 1000, 2000, 5000, 10000] : [0, 2000, 4000, 6000, 8000, 10000];
+      for (const freq of freqMarks) {
+        if (freq < minFreq || freq > maxFreq) continue;
+        let y;
+        if (isLog) {
+          y = marginTop + (Math.log10(maxFreq / freq) / Math.log10(maxFreq / minFreq)) * plotH;
+        } else {
+          y = marginTop + ((maxFreq - freq) / (maxFreq - minFreq)) * plotH;
+        }
+        const label = freq >= 1000 ? (freq / 1000) + 'k' : freq;
+        ctx.fillText(label, 5, y + 4);
+      }
+
+      // Hz label
+      ctx.fillStyle = '#9fb6d3';
+      ctx.fillText('Hz', 5, marginTop + 12);
     }
 
     function getSpeedInterval(speed) {
@@ -1136,66 +1224,96 @@
     const w = canvas.width;
     const h = canvas.height;
     const yScale = parseFloat($('#cepYScale').value);
-    const quefrencyScale = $('#cepQuefrencyScale').value;
-    const isLog = quefrencyScale === 'log';
+    const isLog = cepstrumScale === 'log';
+    const sampleRate = audioCtx ? audioCtx.sampleRate : 48000;
 
     // Calculate cepstrum: IFFT of log magnitude spectrum
-    // freqFloatBuf is already in dB (log scale), so we use it directly
     const logMag = new Float32Array(freqFloatBuf.length);
     for (let i = 0; i < freqFloatBuf.length; i++) {
-      // Convert dB to a more suitable range for IFFT
-      // dB values are typically -100 to 0, normalize to 0-1 range
       logMag[i] = (freqFloatBuf[i] + 100) / 100;
     }
-    
     const cepstrum = ifft(logMag);
+    const halfLen = Math.floor(cepstrum.length / 2);
+
+    // Convert quefrency to time (ms) - quefrency index * (1000 / sampleRate)
+    const maxQuefrencyMs = (halfLen / sampleRate) * 1000;
+    
+    // Margin for labels
+    const marginLeft = 45;
+    const marginBottom = 20;
+    const marginTop = 5;
+    const marginRight = 5;
+    const plotW = w - marginLeft - marginRight;
+    const plotH = h - marginBottom - marginTop;
+
+    // Clear
+    ctx.fillStyle = '#060a0f';
+    ctx.fillRect(0, 0, w, h);
+
+    // Calculate max for normalization
+    let maxVal = 0;
+    for (let i = 1; i < halfLen; i++) {
+      maxVal = Math.max(maxVal, Math.abs(cepstrum[i]));
+    }
+    if (maxVal < 0.001) maxVal = 0.001;
 
     if (cepstrumMode === 'graph') {
-      // Clear
-      ctx.fillStyle = '#060a0f';
-      ctx.fillRect(0, 0, w, h);
-
-      // Grid
+      // Grid and labels
       ctx.strokeStyle = 'rgba(18, 32, 51, 0.7)';
       ctx.lineWidth = 1;
+      ctx.font = '10px system-ui';
+      ctx.fillStyle = '#7a8fa6';
+
+      // Quefrency grid lines (X axis) - in ms
+      const timeMarks = [1, 2, 5, 10, 20];
       ctx.beginPath();
-      for (let i = 1; i < 10; i++) {
-        const x = (w * i) / 10;
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, h);
-      }
-      for (let i = 1; i < 5; i++) {
-        const y = (h * i) / 5;
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
+      for (const timeMs of timeMarks) {
+        if (timeMs > maxQuefrencyMs) continue;
+        const quefrencyIdx = Math.floor((timeMs / 1000) * sampleRate);
+        let x;
+        if (isLog) {
+          x = marginLeft + (Math.log10(quefrencyIdx) / Math.log10(halfLen)) * plotW;
+        } else {
+          x = marginLeft + (quefrencyIdx / halfLen) * plotW;
+        }
+        if (x < marginLeft || x > marginLeft + plotW) continue;
+        ctx.moveTo(x, marginTop);
+        ctx.lineTo(x, marginTop + plotH);
+        ctx.fillText(timeMs + 'ms', x - 10, h - 5);
       }
       ctx.stroke();
 
-      // Cepstrum line (show only first half - positive quefrencies)
+      // Amplitude grid lines (Y axis)
+      ctx.beginPath();
+      for (let i = 0; i <= 4; i++) {
+        const y = marginTop + (i / 4) * plotH;
+        ctx.moveTo(marginLeft, y);
+        ctx.lineTo(marginLeft + plotW, y);
+      }
+      ctx.stroke();
+
+      // Center line (zero)
+      ctx.strokeStyle = 'rgba(138, 180, 255, 0.3)';
+      ctx.beginPath();
+      ctx.moveTo(marginLeft, marginTop + plotH / 2);
+      ctx.lineTo(marginLeft + plotW, marginTop + plotH / 2);
+      ctx.stroke();
+
+      // Cepstrum line
       ctx.strokeStyle = '#e67e22';
       ctx.lineWidth = 2;
       ctx.beginPath();
 
-      const halfLen = Math.floor(cepstrum.length / 2);
-      let maxVal = 0;
-      for (let i = 1; i < halfLen; i++) {
-        maxVal = Math.max(maxVal, Math.abs(cepstrum[i]));
-      }
-      if (maxVal < 0.001) maxVal = 0.001;
-
       for (let i = 1; i < halfLen; i++) {
         let x;
         if (isLog) {
-          const minLog = Math.log10(1);
-          const maxLog = Math.log10(halfLen);
-          const logVal = Math.log10(i);
-          x = ((logVal - minLog) / (maxLog - minLog)) * w;
+          x = marginLeft + (Math.log10(i) / Math.log10(halfLen)) * plotW;
         } else {
-          x = (i / halfLen) * w;
+          x = marginLeft + (i / halfLen) * plotW;
         }
 
         const value = cepstrum[i] / maxVal;
-        const y = h / 2 - value * (h / 2) * yScale * 0.8;
+        const y = marginTop + plotH / 2 - value * (plotH / 2) * yScale * 0.8;
         
         if (i === 1) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
@@ -1204,8 +1322,7 @@
 
     } else {
       // Spectrogram mode for cepstrum
-      const speed = $('#cepSpeed').value;
-      const interval = getSpeedInterval(speed);
+      const interval = getSpeedInterval(cepstrumSpeed);
       const now = performance.now();
 
       if (now - lastCepSpectroTime >= interval) {
@@ -1219,22 +1336,14 @@
         const shiftAmount = 2;
         cepSpectroCtx.drawImage(cepSpectroCanvas, -shiftAmount, 0);
 
-        // Calculate max for normalization
-        const halfLen = Math.floor(cepstrum.length / 2);
-        let maxVal = 0;
-        for (let i = 1; i < halfLen; i++) {
-          maxVal = Math.max(maxVal, Math.abs(cepstrum[i]));
-        }
-        if (maxVal < 0.001) maxVal = 0.001;
-
         // Draw new column
-        for (let y = 0; y < h; y++) {
+        for (let y = marginTop; y < marginTop + plotH; y++) {
           let quefrencyIdx;
+          const normalizedY = (y - marginTop) / plotH;
           if (isLog) {
-            const normalizedY = 1 - (y / h);
-            quefrencyIdx = Math.floor(Math.pow(halfLen, normalizedY));
+            quefrencyIdx = Math.floor(Math.pow(halfLen, 1 - normalizedY));
           } else {
-            quefrencyIdx = Math.floor((1 - y / h) * halfLen);
+            quefrencyIdx = Math.floor((1 - normalizedY) * halfLen);
           }
           
           quefrencyIdx = Math.max(1, Math.min(halfLen - 1, quefrencyIdx));
@@ -1246,10 +1355,34 @@
 
       if (cepSpectroCtx) {
         ctx.drawImage(cepSpectroCanvas, 0, 0);
-      } else {
-        ctx.fillStyle = '#060a0f';
-        ctx.fillRect(0, 0, w, h);
       }
+
+      // Draw labels overlay
+      ctx.fillStyle = 'rgba(6, 10, 15, 0.8)';
+      ctx.fillRect(0, 0, marginLeft, h);
+      ctx.fillRect(0, h - marginBottom, w, marginBottom);
+
+      ctx.font = '10px system-ui';
+      ctx.fillStyle = '#7a8fa6';
+
+      // Quefrency labels (Y axis for spectrogram) - in ms
+      const timeMarks = [1, 2, 5, 10, 20];
+      for (const timeMs of timeMarks) {
+        if (timeMs > maxQuefrencyMs) continue;
+        const quefrencyIdx = Math.floor((timeMs / 1000) * sampleRate);
+        let y;
+        if (isLog) {
+          y = marginTop + plotH - (Math.log10(quefrencyIdx) / Math.log10(halfLen)) * plotH;
+        } else {
+          y = marginTop + plotH - (quefrencyIdx / halfLen) * plotH;
+        }
+        if (y < marginTop || y > marginTop + plotH) continue;
+        ctx.fillText(timeMs + 'ms', 5, y + 4);
+      }
+
+      // Label
+      ctx.fillStyle = '#9fb6d3';
+      ctx.fillText('ms', 5, marginTop + 12);
     }
 
     function getSpeedInterval(speed) {
@@ -1339,40 +1472,82 @@
   setupCollapseBtn('#spectrumCollapseBtn', '#spectrumBody');
   setupCollapseBtn('#cepstrumCollapseBtn', '#cepstrumBody');
 
-  // Spectrum mode toggle
-  $('#spectrumGraphBtn').addEventListener('click', () => {
-    spectrumMode = 'graph';
-    $('#spectrumGraphBtn').classList.add('active');
-    $('#spectrumSpectroBtn').classList.remove('active');
-    $('#specSpeedCtrl').style.display = 'none';
+  // Spectrum mode toggle (single button)
+  $('#spectrumModeBtn').addEventListener('click', () => {
+    if (spectrumMode === 'graph') {
+      spectrumMode = 'spectrogram';
+      $('#spectrumModeBtn').textContent = 'Spectro';
+      $('#specSpeedCtrl').style.display = 'grid';
+      // Reset spectrogram canvas
+      specSpectroCanvas = null;
+      specSpectroCtx = null;
+    } else {
+      spectrumMode = 'graph';
+      $('#spectrumModeBtn').textContent = 'Graph';
+      $('#specSpeedCtrl').style.display = 'none';
+    }
   });
 
-  $('#spectrumSpectroBtn').addEventListener('click', () => {
-    spectrumMode = 'spectrogram';
-    $('#spectrumSpectroBtn').classList.add('active');
-    $('#spectrumGraphBtn').classList.remove('active');
-    $('#specSpeedCtrl').style.display = 'grid';
-    // Reset spectrogram canvas
+  // Spectrum scale toggle (single button)
+  $('#spectrumScaleBtn').addEventListener('click', () => {
+    if (spectrumScale === 'log') {
+      spectrumScale = 'linear';
+      $('#spectrumScaleBtn').textContent = 'Lin';
+    } else {
+      spectrumScale = 'log';
+      $('#spectrumScaleBtn').textContent = 'Log';
+    }
+    // Reset spectrogram on scale change
     specSpectroCanvas = null;
     specSpectroCtx = null;
   });
 
-  // Cepstrum mode toggle
-  $('#cepstrumGraphBtn').addEventListener('click', () => {
-    cepstrumMode = 'graph';
-    $('#cepstrumGraphBtn').classList.add('active');
-    $('#cepstrumSpectroBtn').classList.remove('active');
-    $('#cepSpeedCtrl').style.display = 'none';
+  // Cepstrum mode toggle (single button)
+  $('#cepstrumModeBtn').addEventListener('click', () => {
+    if (cepstrumMode === 'graph') {
+      cepstrumMode = 'spectrogram';
+      $('#cepstrumModeBtn').textContent = 'Spectro';
+      $('#cepSpeedCtrl').style.display = 'grid';
+      // Reset spectrogram canvas
+      cepSpectroCanvas = null;
+      cepSpectroCtx = null;
+    } else {
+      cepstrumMode = 'graph';
+      $('#cepstrumModeBtn').textContent = 'Graph';
+      $('#cepSpeedCtrl').style.display = 'none';
+    }
   });
 
-  $('#cepstrumSpectroBtn').addEventListener('click', () => {
-    cepstrumMode = 'spectrogram';
-    $('#cepstrumSpectroBtn').classList.add('active');
-    $('#cepstrumGraphBtn').classList.remove('active');
-    $('#cepSpeedCtrl').style.display = 'grid';
-    // Reset spectrogram canvas
+  // Cepstrum scale toggle (single button)
+  $('#cepstrumScaleBtn').addEventListener('click', () => {
+    if (cepstrumScale === 'linear') {
+      cepstrumScale = 'log';
+      $('#cepstrumScaleBtn').textContent = 'Log';
+    } else {
+      cepstrumScale = 'linear';
+      $('#cepstrumScaleBtn').textContent = 'Lin';
+    }
+    // Reset spectrogram on scale change
     cepSpectroCanvas = null;
     cepSpectroCtx = null;
+  });
+
+  // Spectrum speed buttons
+  ['Slow', 'Medium', 'Fast'].forEach(speed => {
+    $(`#specSpeed${speed}`).addEventListener('click', () => {
+      spectrumSpeed = speed.toLowerCase();
+      $$('#specSpeedCtrl .speedBtn').forEach(btn => btn.classList.remove('active'));
+      $(`#specSpeed${speed}`).classList.add('active');
+    });
+  });
+
+  // Cepstrum speed buttons
+  ['Slow', 'Medium', 'Fast'].forEach(speed => {
+    $(`#cepSpeed${speed}`).addEventListener('click', () => {
+      cepstrumSpeed = speed.toLowerCase();
+      $$('#cepSpeedCtrl .speedBtn').forEach(btn => btn.classList.remove('active'));
+      $(`#cepSpeed${speed}`).classList.add('active');
+    });
   });
 
   // Slider value displays
