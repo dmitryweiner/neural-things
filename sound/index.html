@@ -1043,46 +1043,20 @@
     ctx.lineTo(marginLeft + plotW, marginTop + plotH / 2);
     ctx.stroke();
 
-    // Waveform and peak detection
+    // Waveform
     const mid = marginTop + plotH / 2;
     ctx.strokeStyle = '#8ab4ff';
     ctx.lineWidth = 2;
     ctx.beginPath();
 
-    let peakVal = 0;
-    let peakIdx = 0;
     for (let i = 0; i < samplesToShow; i++) {
       const v = (timeBuf[i] - 128) / 128;
-      const absV = Math.abs(v);
-      if (absV > Math.abs(peakVal)) {
-        peakVal = v;
-        peakIdx = i;
-      }
       const y = mid - v * (plotH / 2) * 0.9 * yScale;
       const x = marginLeft + (plotW * i) / (samplesToShow - 1);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
-
-    // Display peak value
-    if (Math.abs(peakVal) > 0.01) {
-      const peakX = marginLeft + (plotW * peakIdx) / (samplesToShow - 1);
-      const peakY = mid - peakVal * (plotH / 2) * 0.9 * yScale;
-      
-      // Peak marker
-      ctx.fillStyle = '#ff6b6b';
-      ctx.beginPath();
-      ctx.arc(peakX, peakY, 5, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Peak label
-      ctx.font = '16px system-ui';
-      ctx.fillStyle = '#ff6b6b';
-      const peakLabel = `Peak: ${peakVal >= 0 ? '+' : ''}${peakVal.toFixed(2)}`;
-      const labelY = peakVal > 0 ? peakY - 15 : peakY + 25;
-      ctx.fillText(peakLabel, peakX - 30, labelY);
-    }
   }
 
   function drawSpectrum(canvas, ctx, freqBuf) {
@@ -1633,19 +1607,27 @@
   });
 
   // Panel collapse toggles
-  function setupCollapseBtn(btnId, bodyId) {
+  function setupCollapseBtn(btnId, bodyId, canvasId) {
     $(btnId).addEventListener('click', () => {
       const body = $(bodyId);
       const collapsed = !body.classList.contains('collapsed');
       body.classList.toggle('collapsed', collapsed);
       $(btnId).textContent = collapsed ? '▶' : '▼';
+      
+      // Resize canvas when panel is expanded (needed if opened after audio started)
+      if (!collapsed && canvasId) {
+        requestAnimationFrame(() => {
+          resizeCanvas($(canvasId));
+        });
+      }
+      
       savePanelState();
     });
   }
 
-  setupCollapseBtn('#oscilloscopeCollapseBtn', '#oscilloscopeBody');
-  setupCollapseBtn('#spectrumCollapseBtn', '#spectrumBody');
-  setupCollapseBtn('#cepstrumCollapseBtn', '#cepstrumBody');
+  setupCollapseBtn('#oscilloscopeCollapseBtn', '#oscilloscopeBody', '#oscilloscopeCanvas');
+  setupCollapseBtn('#spectrumCollapseBtn', '#spectrumBody', '#spectrumCanvas');
+  setupCollapseBtn('#cepstrumCollapseBtn', '#cepstrumBody', '#cepstrumCanvas');
 
   // Spectrum mode toggle (single button)
   $('#spectrumModeBtn').addEventListener('click', () => {

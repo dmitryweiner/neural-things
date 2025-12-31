@@ -124,8 +124,7 @@ Real-time continuous line graph showing:
 - **Spectrum**: Frequency (Hz) on X-axis, amplitude on Y-axis
 - **Cepstrum**: Quefrency on X-axis, cepstral coefficient on Y-axis
 
-**Peak Detection**: In graph mode, each visualization automatically detects and displays the maximum peak:
-- **Oscilloscope**: Shows peak amplitude value (e.g., `Peak: +0.75`)
+**Peak Detection**: In graph mode, spectrum and cepstrum automatically detect and display the maximum peak:
 - **Spectrum**: Shows frequency of the loudest component (e.g., `440 Hz`)
 - **Cepstrum**: Shows quefrency of the dominant periodic component (e.g., `2.3 ms`)
 
@@ -248,7 +247,7 @@ For a signal with fundamental frequency fâ‚€, expect a peak at quefrency = 1/fâ‚
 
 - Increased font size on graph labels (2x larger for better readability)
 - Dynamic Y-axis labels that update based on zoom scale
-- Peak detection with labels for all graphs (Oscilloscope: amplitude, Spectrum: frequency Hz, Cepstrum: quefrency ms)
+- Peak detection with labels for Spectrum (frequency Hz) and Cepstrum (quefrency ms)
 - Extended state persistence to save all visualization settings (not just panel collapse states)
 - Y Scale in spectrogram mode now controls frequency/quefrency zoom (range on Y-axis)
 
