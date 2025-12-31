@@ -1209,7 +1209,8 @@
       }
 
     } else {
-      // Spectrogram mode
+      // Spectrogram mode - yScale controls frequency zoom
+      const scaledMaxFreq = Math.min(maxFreq / yScale, nyquist);
       const interval = getSpeedInterval(spectrumSpeed);
       const now = performance.now();
 
@@ -1224,18 +1225,18 @@
         const shiftAmount = 2;
         specSpectroCtx.drawImage(specSpectroCanvas, -shiftAmount, 0);
 
-        // Draw new column
+        // Draw new column with scaled frequency range
         for (let y = marginTop; y < marginTop + plotH; y++) {
           let freq;
           const normalizedY = (y - marginTop) / plotH;
           if (isLog) {
-            freq = maxFreq * Math.pow(minFreq / maxFreq, normalizedY);
+            freq = scaledMaxFreq * Math.pow(minFreq / scaledMaxFreq, normalizedY);
           } else {
-            freq = maxFreq - normalizedY * (maxFreq - minFreq);
+            freq = scaledMaxFreq - normalizedY * (scaledMaxFreq - minFreq);
           }
           
           const binIndex = Math.floor((freq / nyquist) * bins);
-          const value = freqBuf[Math.min(binIndex, bins - 1)] * yScale;
+          const value = freqBuf[Math.min(binIndex, bins - 1)];
           specSpectroCtx.fillStyle = getSpectroColor(value);
           specSpectroCtx.fillRect(w - shiftAmount, y, shiftAmount, 1);
         }
@@ -1253,18 +1254,18 @@
       ctx.font = '20px system-ui';
       ctx.fillStyle = '#7a8fa6';
 
-      // Frequency labels (Y axis for spectrogram)
-      const freqMarks = isLog ? [100, 200, 500, 1000, 2000, 5000, 10000] : [0, 2000, 4000, 6000, 8000, 10000];
+      // Frequency labels (Y axis for spectrogram) - scaled by yScale
+      const freqMarks = isLog ? [100, 200, 500, 1000, 2000, 5000, 10000, 20000] : [0, 2000, 4000, 6000, 8000, 10000, 15000, 20000];
       for (const freq of freqMarks) {
-        if (freq < minFreq || freq > maxFreq) continue;
+        if (freq < minFreq || freq > scaledMaxFreq) continue;
         let y;
         if (isLog) {
-          y = marginTop + (Math.log10(maxFreq / freq) / Math.log10(maxFreq / minFreq)) * plotH;
+          y = marginTop + (Math.log10(scaledMaxFreq / freq) / Math.log10(scaledMaxFreq / minFreq)) * plotH;
         } else {
-          y = marginTop + ((maxFreq - freq) / (maxFreq - minFreq)) * plotH;
+          y = marginTop + ((scaledMaxFreq - freq) / (scaledMaxFreq - minFreq)) * plotH;
         }
         const label = freq >= 1000 ? (freq / 1000) + 'k' : freq;
-        ctx.fillText(label, 5, y + 4);
+        ctx.fillText(label, 5, y + 7);
       }
 
       // Hz label
@@ -1423,7 +1424,9 @@
       }
 
     } else {
-      // Spectrogram mode for cepstrum
+      // Spectrogram mode for cepstrum - yScale controls quefrency zoom
+      const scaledHalfLen = Math.floor(halfLen / yScale);
+      const scaledMaxQuefrencyMs = (scaledHalfLen / sampleRate) * 1000;
       const interval = getSpeedInterval(cepstrumSpeed);
       const now = performance.now();
 
@@ -1438,18 +1441,18 @@
         const shiftAmount = 2;
         cepSpectroCtx.drawImage(cepSpectroCanvas, -shiftAmount, 0);
 
-        // Draw new column
+        // Draw new column with scaled quefrency range
         for (let y = marginTop; y < marginTop + plotH; y++) {
           let quefrencyIdx;
           const normalizedY = (y - marginTop) / plotH;
           if (isLog) {
-            quefrencyIdx = Math.floor(Math.pow(halfLen, 1 - normalizedY));
+            quefrencyIdx = Math.floor(Math.pow(scaledHalfLen, 1 - normalizedY));
           } else {
-            quefrencyIdx = Math.floor((1 - normalizedY) * halfLen);
+            quefrencyIdx = Math.floor((1 - normalizedY) * scaledHalfLen);
           }
           
           quefrencyIdx = Math.max(1, Math.min(halfLen - 1, quefrencyIdx));
-          const value = Math.abs(cepstrum[quefrencyIdx]) / maxVal * 255 * yScale;
+          const value = Math.abs(cepstrum[quefrencyIdx]) / maxVal * 255;
           cepSpectroCtx.fillStyle = getSpectroColor(value);
           cepSpectroCtx.fillRect(w - shiftAmount, y, shiftAmount, 1);
         }
@@ -1467,19 +1470,19 @@
       ctx.font = '20px system-ui';
       ctx.fillStyle = '#7a8fa6';
 
-      // Quefrency labels (Y axis for spectrogram) - in ms
-      const timeMarks = [1, 2, 5, 10, 20];
+      // Quefrency labels (Y axis for spectrogram) - in ms, scaled by yScale
+      const timeMarks = [0.5, 1, 2, 5, 10, 20, 50];
       for (const timeMs of timeMarks) {
-        if (timeMs > maxQuefrencyMs) continue;
+        if (timeMs > scaledMaxQuefrencyMs) continue;
         const quefrencyIdx = Math.floor((timeMs / 1000) * sampleRate);
         let y;
         if (isLog) {
-          y = marginTop + plotH - (Math.log10(quefrencyIdx) / Math.log10(halfLen)) * plotH;
+          y = marginTop + plotH - (Math.log10(quefrencyIdx) / Math.log10(scaledHalfLen)) * plotH;
         } else {
-          y = marginTop + plotH - (quefrencyIdx / halfLen) * plotH;
+          y = marginTop + plotH - (quefrencyIdx / scaledHalfLen) * plotH;
         }
         if (y < marginTop || y > marginTop + plotH) continue;
-        ctx.fillText(timeMs + 'ms', 5, y + 4);
+        ctx.fillText(timeMs + 'ms', 5, y + 7);
       }
 
       // Label
@@ -1741,11 +1744,21 @@
 
   $('#specYScale').addEventListener('input', (e) => {
     $('#specYScaleVal').textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+    // Reset spectrogram when scale changes (frequency range changes)
+    if (spectrumMode === 'spectrogram') {
+      specSpectroCanvas = null;
+      specSpectroCtx = null;
+    }
     savePanelState();
   });
 
   $('#cepYScale').addEventListener('input', (e) => {
     $('#cepYScaleVal').textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+    // Reset spectrogram when scale changes (quefrency range changes)
+    if (cepstrumMode === 'spectrogram') {
+      cepSpectroCanvas = null;
+      cepSpectroCtx = null;
+    }
     savePanelState();
   });
 

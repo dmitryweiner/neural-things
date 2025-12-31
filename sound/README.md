@@ -135,6 +135,9 @@ Waterfall display where:
 - **X-axis**: Time (scrolling left)
 - **Y-axis**: Frequency (spectrum) or Quefrency (cepstrum)
 - **Color**: Intensity (blue = quiet, red = loud)
+- **Y Scale**: Controls the visible frequency/quefrency range (zoom on Y-axis)
+  - Higher values (2x, 3x) = zoom in, show lower frequencies in more detail
+  - Lower values (0.5x) = zoom out, show wider frequency range
 
 Update speeds:
 - **Slow**: ~15 fps
@@ -247,6 +250,7 @@ For a signal with fundamental frequency fâ‚€, expect a peak at quefrency = 1/fâ‚
 - Dynamic Y-axis labels that update based on zoom scale
 - Peak detection with labels for all graphs (Oscilloscope: amplitude, Spectrum: frequency Hz, Cepstrum: quefrency ms)
 - Extended state persistence to save all visualization settings (not just panel collapse states)
+- Y Scale in spectrogram mode now controls frequency/quefrency zoom (range on Y-axis)
 
 ### 2025-12-31 (v1.0)
 
