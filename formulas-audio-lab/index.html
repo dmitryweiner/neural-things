@@ -31,6 +31,7 @@
         width: 100%;
       }
       .btn-group:last-child { border-bottom: none; padding-bottom: 0; }
+      #presetSelect { max-width: 140px; }
     }
 
     button {
@@ -108,6 +109,10 @@
       background:#0f1b29; color:#e8eef6;
       border:1px solid #1d2a3a; border-radius:10px;
       padding: 8px 10px;
+    }
+    #presetSelect {
+      max-width: 200px;
+      text-overflow: ellipsis;
     }
     .small { font-size: 11px; color:#9fb6d3; }
     .adj-btn {
@@ -210,6 +215,94 @@
     .site-footer a:hover {
       text-decoration: underline;
     }
+
+    /* Help Modal */
+    .help-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s, visibility 0.2s;
+    }
+    .help-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+    .help-modal {
+      background: #0d131b;
+      border: 1px solid #1d2a3a;
+      border-radius: 16px;
+      max-width: 520px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+    .help-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid #1d2a3a;
+    }
+    .help-header h2 {
+      margin: 0;
+      font-size: 16px;
+      color: #d9e7ff;
+    }
+    .help-close {
+      background: none;
+      border: none;
+      color: #7a8fa6;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .help-close:hover {
+      color: #cfe1ff;
+    }
+    .help-content {
+      padding: 20px;
+    }
+    .help-content h3 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: #8ab4ff;
+    }
+    .help-content p {
+      margin: 0 0 16px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #9fb6d3;
+    }
+    .help-content ul {
+      margin: 0 0 16px;
+      padding-left: 20px;
+    }
+    .help-content li {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #9fb6d3;
+      margin-bottom: 6px;
+    }
+    .help-content kbd {
+      background: #1d2a3a;
+      border: 1px solid #3d5a80;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 11px;
+      color: #cfe1ff;
+    }
   </style>
 </head>
 
@@ -225,6 +318,9 @@
     </div>
 
     <div class="btn-group">
+      <select id="presetSelect" class="collapseBtn">
+        <option value="">— Presets —</option>
+      </select>
       <button id="savePresetBtn" class="collapseBtn" type="button">Save preset</button>
       <button id="loadPresetBtn" class="collapseBtn" type="button">Load preset</button>
       <button id="shareBtn" class="collapseBtn" type="button">Share</button>
@@ -233,6 +329,7 @@
     <div class="btn-group">
       <button id="scopeToggleBtn" class="collapseBtn" type="button">📊</button>
       <button id="effectsBtn" class="collapseBtn" type="button">🎛</button>
+      <button id="helpBtn" class="collapseBtn" type="button">?</button>
     </div>
   </div>
 
@@ -460,6 +557,45 @@
   <p>&copy; <a href="https://github.com/dmitryweiner" target="_blank" rel="noopener">Dmitry Weiner</a> 2025 &middot; <a href="https://github.com/dmitryweiner/neural-things/tree/main/formulas-audio-lab" target="_blank" rel="noopener">[code]</a></p>
 </footer>
 
+<!-- Help Modal -->
+<div id="helpOverlay" class="help-overlay">
+  <div class="help-modal">
+    <div class="help-header">
+      <h2>How to Use Formula Audio Lab</h2>
+      <button class="help-close" id="helpCloseBtn" type="button">&times;</button>
+    </div>
+    <div class="help-content">
+      <h3>Getting Started</h3>
+      <p>Click <kbd>▶ Play</kbd> or enable any formula checkbox to start audio. Audio starts automatically when you enable a formula.</p>
+
+      <h3>Formulas</h3>
+      <p>Each formula is a mathematical sound generator. Enable multiple formulas simultaneously by checking their boxes. Adjust parameters with sliders or <kbd>+</kbd>/<kbd>−</kbd> buttons.</p>
+
+      <h3>Effects</h3>
+      <p>Click <kbd>🎛</kbd> to open the effects panel. Available effects: Filter, Chorus/Flanger, Reverb, Limiter, Delay, and Phaser. Toggle each effect with its checkbox.</p>
+
+      <h3>Presets</h3>
+      <ul>
+        <li><strong>Dropdown</strong> — select a built-in preset to load</li>
+        <li><strong>Save preset</strong> — save current settings to browser storage</li>
+        <li><strong>Load preset</strong> — restore saved settings</li>
+        <li><strong>Share</strong> — copy URL with current settings to clipboard</li>
+      </ul>
+
+      <h3>Recording</h3>
+      <p>Click <kbd>Record</kbd> to capture audio to WAV file. Click again to stop and download.</p>
+
+      <h3>Tips</h3>
+      <ul>
+        <li>Start with low Gain values — some formulas can be loud</li>
+        <li>Use <kbd>Limiter</kbd> when experimenting with chaos (Lorenz, Rossler)</li>
+        <li>"Reset state" re-initializes formulas like Karplus-Strong (pluck again)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script src="presets.js"></script>
 <script>
 (async function(){
   // ---------- AudioWorklet code (generator only) ----------
@@ -1083,8 +1219,76 @@
     return { v: 2, masterGain: Number($('#masterGain').value), fx, formulas };
   }
 
-  function applyStateToUI(state){
+  // Default state for effects (all OFF with default values)
+  const DEFAULT_FX = {
+    filterOn: false, filterType: 'lowpass', filterFreq: 1000, filterQ: 0.7,
+    chorusOn: false, chorusMode: 'chorus', chorusRate: 0.35, chorusDepth: 6, chorusMix: 0.35, chorusFb: 0.15,
+    reverbOn: false, reverbDecay: 2.8, reverbMix: 0.25,
+    limiterOn: false, limiterThr: -12, limiterRel: 0.15,
+    delayOn: false, delayTime: 0.35, delayFb: 0.4, delayMix: 0.3,
+    phaserOn: false, phaserRate: 0.5, phaserDepth: 0.7, phaserStages: 4, phaserFb: 0.3, phaserMix: 0.5
+  };
+
+  function resetToDefaults(){
+    // Reset master gain
+    $('#masterGain').value = '0.25';
+    $('#masterGainVal').textContent = '0.250';
+
+    // Reset all FX to defaults
+    $('#fxFilterOn').checked = DEFAULT_FX.filterOn;
+    $('#fxFilterType').value = DEFAULT_FX.filterType;
+    $('#fxFilterFreq').value = DEFAULT_FX.filterFreq;
+    $('#fxFilterQ').value = DEFAULT_FX.filterQ;
+
+    $('#fxChorusOn').checked = DEFAULT_FX.chorusOn;
+    $('#fxChorusMode').value = DEFAULT_FX.chorusMode;
+    $('#fxChorusRate').value = DEFAULT_FX.chorusRate;
+    $('#fxChorusDepth').value = DEFAULT_FX.chorusDepth;
+    $('#fxChorusMix').value = DEFAULT_FX.chorusMix;
+    $('#fxChorusFb').value = DEFAULT_FX.chorusFb;
+
+    $('#fxReverbOn').checked = DEFAULT_FX.reverbOn;
+    $('#fxReverbDecay').value = DEFAULT_FX.reverbDecay;
+    $('#fxReverbMix').value = DEFAULT_FX.reverbMix;
+
+    $('#fxLimiterOn').checked = DEFAULT_FX.limiterOn;
+    $('#fxLimiterThr').value = DEFAULT_FX.limiterThr;
+    $('#fxLimiterRel').value = DEFAULT_FX.limiterRel;
+
+    $('#fxDelayOn').checked = DEFAULT_FX.delayOn;
+    $('#fxDelayTime').value = DEFAULT_FX.delayTime;
+    $('#fxDelayFb').value = DEFAULT_FX.delayFb;
+    $('#fxDelayMix').value = DEFAULT_FX.delayMix;
+
+    $('#fxPhaserOn').checked = DEFAULT_FX.phaserOn;
+    $('#fxPhaserRate').value = DEFAULT_FX.phaserRate;
+    $('#fxPhaserDepth').value = DEFAULT_FX.phaserDepth;
+    $('#fxPhaserStages').value = DEFAULT_FX.phaserStages;
+    $('#fxPhaserFb').value = DEFAULT_FX.phaserFb;
+    $('#fxPhaserMix').value = DEFAULT_FX.phaserMix;
+
+    updateFXLabels();
+
+    // Reset all formulas to disabled + default slider values
+    for (const f of FORMULAS){
+      const enEl = $(`#en_${f.id}`);
+      enEl.checked = false;
+      const formulaWrap = enEl.closest('.formula');
+      if (formulaWrap) formulaWrap.classList.remove('active');
+
+      for (const s of f.sliders){
+        const el = $(`#${f.id}_${s.k}`);
+        el.value = String(s.value);
+        $(`#${f.id}_${s.k}_v`).textContent = fmt(s.value);
+      }
+    }
+  }
+
+  function applyStateToUI(state, resetFirst = false){
     if (!state || typeof state !== 'object') return;
+
+    // Optionally reset everything to defaults first
+    if (resetFirst) resetToDefaults();
 
     if (typeof state.masterGain === 'number'){
       $('#masterGain').value = String(state.masterGain);
@@ -2127,6 +2331,64 @@
       $('#status').textContent = 'link copied';
     } catch {
       $('#status').textContent = 'link in URL';
+    }
+  });
+
+  // Populate preset dropdown from PRESETS array
+  const presetSelect = $('#presetSelect');
+  if (typeof PRESETS !== 'undefined' && Array.isArray(PRESETS)) {
+    PRESETS.forEach((preset, idx) => {
+      const opt = document.createElement('option');
+      opt.value = String(idx);
+      opt.textContent = preset.name;
+      presetSelect.appendChild(opt);
+    });
+  }
+
+  presetSelect.addEventListener('change', () => {
+    const idx = presetSelect.value;
+    if (idx === '') return;
+    const preset = PRESETS[Number(idx)];
+    if (!preset || !preset.state) return;
+    
+    // Reset to defaults first, then apply preset
+    applyStateToUI(preset.state, true);
+    if (ctx) applyUIToAudioLive();
+    $('#status').textContent = `loaded: ${preset.name}`;
+  });
+
+  // ---------- Help Popup ----------
+  const HELP_SHOWN_KEY = 'formula_audio_lab_help_shown';
+  const helpOverlay = $('#helpOverlay');
+  const helpCloseBtn = $('#helpCloseBtn');
+  const helpBtn = $('#helpBtn');
+
+  function openHelp() {
+    helpOverlay.classList.add('open');
+  }
+
+  function closeHelp() {
+    helpOverlay.classList.remove('open');
+    localStorage.setItem(HELP_SHOWN_KEY, 'true');
+  }
+
+  // Show help on first visit
+  if (!localStorage.getItem(HELP_SHOWN_KEY)) {
+    openHelp();
+  }
+
+  helpCloseBtn.addEventListener('click', closeHelp);
+  helpBtn.addEventListener('click', openHelp);
+
+  // Close on overlay click (outside modal)
+  helpOverlay.addEventListener('click', (e) => {
+    if (e.target === helpOverlay) closeHelp();
+  });
+
+  // Close on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && helpOverlay.classList.contains('open')) {
+      closeHelp();
     }
   });
 

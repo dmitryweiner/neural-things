@@ -365,17 +365,19 @@ Phase effect via chain of all-pass filters with LFO modulation.
 - **Status** — displayed to the right of the title in gray text
 - **▶ Play / ⏹ Stop** — single button for starting and stopping audio (green in Play mode, red in Stop mode)
 - **Record** — record audio to WAV format (button highlights red during recording)
-- **Save preset** — to localStorage
-- **Load preset** — from localStorage
+- **Presets dropdown** — select a built-in preset to load instantly
+- **Save preset** — save current settings to localStorage
+- **Load preset** — restore saved settings from localStorage
 - **Share** — copies URL with state to clipboard
 - **📊** — show/hide oscilloscope (button highlights when oscilloscope is visible)
 - **🎛** — open/close effects panel (button highlights when panel is open)
+- **?** — open help popup with usage instructions
 
 **Button grouping on mobile:**
 Buttons are divided into logical groups with visual separators:
 1. Playback controls: Play/Stop, Record
-2. Preset management: Save, Load, Share
-3. Panels: 📊 (Scope), 🎛 (Effects)
+2. Preset management: Presets dropdown, Save, Load, Share
+3. Panels: 📊 (Scope), 🎛 (Effects), ? (Help)
 
 ### Auto-start Audio
 When enabling any formula (clicking checkbox) audio automatically starts if not already running. This eliminates the need to press Play first.
@@ -403,6 +405,20 @@ When enabling any formula (clicking checkbox) audio automatically starts if not 
 - Opens with 🎛 button
 - Has scrolling when content overflows (max-height: 60vh)
 - Automatically hides oscilloscope when opened
+
+### Help Popup
+- **First visit** — automatically shows on first app open to guide new users
+- **Manual access** — click the **?** button in top bar anytime
+- **Remember preference** — once closed, won't auto-show again (saved to localStorage)
+- **Close methods** — click ✕ button, click outside modal, or press Escape key
+
+### Built-in Presets
+The app includes several curated presets accessible via dropdown:
+- **Stillness meditation** — calm ambient soundscape
+- **Waiting for the subway** — urban atmospheric texture
+- **Inside the atomic station** — industrial drone
+- **Long journey on the helicopter** — chaotic rhythmic atmosphere
+- **Abandoned shrine** — mysterious ambient pad
 
 ### Formula Cards
 - **Disable all** — disables all formulas at once
@@ -543,6 +559,12 @@ No external dependencies. Pure HTML + CSS + JavaScript.
 ---
 
 ## Changelog
+
+### 2025-12-31
+
+- **Added:** **Built-in presets dropdown** — select from 5 curated soundscapes (Stillness meditation, Waiting for the subway, etc.)
+- **Added:** **Help popup** — shows usage instructions on first visit, accessible anytime via **?** button
+- **Changed:** Presets are now stored as JSON objects in `presets.js` instead of base64url hashes — easier to read and modify
 
 ### 2025-12-25 (v2)
 
