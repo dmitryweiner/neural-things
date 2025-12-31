@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sound Analyzer</title>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color-scheme: dark;
+    }
+    body {
+      margin: 0;
+      background: #0b0f14;
+      color: #e8eef6;
+    }
+
+    /* Top bar */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: #0d131b;
+      border-bottom: 1px solid #1d2a3a;
+      padding: 12px 14px;
+    }
+    .topbar h1 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      font-weight: 750;
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .status-text {
+      font-size: 12px;
+      font-weight: 400;
+      color: #7a8fa6;
+    }
+
+    /* Buttons */
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    button {
+      background: #1d3557;
+      color: #fff;
+      border: 0;
+      padding: 9px 11px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 650;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #startStopBtn {
+      background: #27ae60;
+      box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+    }
+    #startStopBtn:hover:not(:disabled) {
+      background: #2ecc71;
+    }
+    #startStopBtn.running {
+      background: #e67e22;
+      box-shadow: 0 2px 8px rgba(230, 126, 34, 0.3);
+    }
+    #startStopBtn.running:hover {
+      background: #f39c12;
+    }
+
+    #settingsBtn {
+      background: #1d3557;
+    }
+    #settingsBtn:hover {
+      background: #2a4a6f;
+    }
+    #settingsBtn.active {
+      background: #3d5a80;
+    }
+
+    #recordBtn.recording {
+      background: #c0392b;
+      animation: pulse-rec 1s infinite;
+    }
+    @keyframes pulse-rec {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .collapseBtn {
+      background: #0f1b29;
+      border: 1px solid #1d2a3a;
+      color: #cfe1ff;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    .collapseBtn.active {
+      background: #1d3557;
+      border-color: #3d5a80;
+    }
+
+    /* Settings panel */
+    .settingsPanel {
+      margin-top: 10px;
+      border: 1px solid #1d2a3a;
+      border-radius: 14px;
+      padding: 12px;
+      background: #0b1119;
+      display: none;
+    }
+    .settingsPanel.open {
+      display: block;
+    }
+    .settingsPanel h3 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: #d9e7ff;
+    }
+    .settingsGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .settingItem {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .settingItem label {
+      font-size: 12px;
+      color: #9fb6d3;
+    }
+    .settingItem select,
+    .settingItem input[type="checkbox"] {
+      background: #0f1b29;
+      color: #e8eef6;
+      border: 1px solid #1d2a3a;
+      border-radius: 8px;
+      padding: 6px 8px;
+    }
+    .settingItem input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+    }
+    .checkboxRow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Main content */
+    main {
+      padding: 14px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Visualization panels */
+    .vizPanel {
+      background: #0d131b;
+      border: 1px solid #1d2a3a;
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+      margin-bottom: 14px;
+    }
+    .vizHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .vizHeader h2 {
+      margin: 0;
+      font-size: 14px;
+      color: #d9e7ff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .vizControls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .vizBody {
+      display: block;
+    }
+    .vizBody.collapsed {
+      display: none;
+    }
+
+    /* Canvas */
+    .canvasWrap {
+      position: relative;
+      border: 1px solid #1d2a3a;
+      border-radius: 12px;
+      background: #060a0f;
+      padding: 8px;
+      margin-bottom: 10px;
+    }
+    canvas {
+      width: 100%;
+      height: 150px;
+      display: block;
+      border-radius: 10px;
+    }
+
+    /* Controls */
+    .ctrl {
+      display: grid;
+      grid-template-columns: 120px 1fr 60px;
+      gap: 10px;
+      align-items: center;
+      margin-top: 8px;
+    }
+    .ctrl label {
+      font-size: 12px;
+      color: #cfe1ff;
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+    select {
+      background: #0f1b29;
+      color: #e8eef6;
+      border: 1px solid #1d2a3a;
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+    .small {
+      font-size: 11px;
+      color: #9fb6d3;
+    }
+
+    /* Mode buttons */
+    .modeBtn {
+      font-size: 11px;
+      padding: 4px 8px;
+    }
+    .modeBtn.active {
+      background: #1d3557;
+      border-color: #3d5a80;
+    }
+
+    /* Footer */
+    .site-footer {
+      margin-top: 40px;
+      padding: 20px 14px;
+      border-top: 1px solid #1d2a3a;
+      text-align: center;
+      font-size: 12px;
+      color: #7a8fa6;
+    }
+    .site-footer a {
+      color: #8ab4ff;
+      text-decoration: none;
+    }
+    .site-footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Mobile */
+    @media (max-width: 600px) {
+      .btn-group {
+        gap: 6px;
+        padding: 6px 0;
+        border-bottom: 1px solid #1d2a3a;
+        width: 100%;
+      }
+      .btn-group:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+      .ctrl {
+        grid-template-columns: 80px 1fr 50px;
+      }
+      canvas {
+        height: 120px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<section class="topbar">
+  <h1>Sound Analyzer <span class="status-text" id="status">not started</span></h1>
+
+  <div class="row">
+    <div class="btn-group">
+      <button id="startStopBtn">▶ Start</button>
+      <button id="recordBtn">● Record</button>
+    </div>
+
+    <div class="btn-group">
+      <button id="settingsBtn">⚙ Settings</button>
+    </div>
+  </div>
+
+  <div id="settingsPanel" class="settingsPanel">
+    <h3>Audio Capture Settings</h3>
+    <div class="settingsGrid">
+      <div class="settingItem">
+        <label for="sampleRateSelect">Sample Rate</label>
+        <select id="sampleRateSelect">
+          <option value="auto">Auto (device default)</option>
+        </select>
+      </div>
+      <div class="settingItem">
+        <label for="channelSelect">Channels</label>
+        <select id="channelSelect">
+          <option value="1">Mono</option>
+          <option value="2">Stereo</option>
+        </select>
+      </div>
+      <div class="settingItem">
+        <label>Echo Cancellation</label>
+        <div class="checkboxRow">
+          <input type="checkbox" id="echoCancellation">
+          <span class="small">Reduce echo</span>
+        </div>
+      </div>
+      <div class="settingItem">
+        <label>Noise Suppression</label>
+        <div class="checkboxRow">
+          <input type="checkbox" id="noiseSuppression">
+          <span class="small">Reduce noise</span>
+        </div>
+      </div>
+      <div class="settingItem">
+        <label>Auto Gain Control</label>
+        <div class="checkboxRow">
+          <input type="checkbox" id="autoGainControl">
+          <span class="small">Auto volume</span>
+        </div>
+      </div>
+      <div class="settingItem">
+        <label for="fftSizeSelect">FFT Size</label>
+        <select id="fftSizeSelect">
+          <option value="512">512</option>
+          <option value="1024">1024</option>
+          <option value="2048" selected>2048</option>
+          <option value="4096">4096</option>
+          <option value="8192">8192</option>
+        </select>
+      </div>
+    </div>
+    <div class="small" style="margin-top: 10px; color: #7a8fa6;">
+      <span id="deviceCapabilities">Device capabilities will be shown when microphone is accessed.</span>
+    </div>
+  </div>
+</section>
+
+<main>
+  <!-- Oscilloscope Panel -->
+  <section class="vizPanel" id="oscilloscopePanel">
+    <div class="vizHeader">
+      <h2>
+        <span>📈 Oscilloscope</span>
+      </h2>
+      <div class="vizControls">
+        <button class="collapseBtn" id="oscilloscopeCollapseBtn">▼</button>
+      </div>
+    </div>
+    <div class="vizBody" id="oscilloscopeBody">
+      <div class="canvasWrap">
+        <canvas id="oscilloscopeCanvas"></canvas>
+      </div>
+      <div class="ctrl">
+        <label for="oscYScale">Y Scale</label>
+        <input type="range" id="oscYScale" min="0.1" max="5" step="0.1" value="1">
+        <div class="small" id="oscYScaleVal">1.0x</div>
+      </div>
+      <div class="ctrl">
+        <label for="oscTimeWindow">Time Window</label>
+        <input type="range" id="oscTimeWindow" min="128" max="4096" step="128" value="1024">
+        <div class="small" id="oscTimeWindowVal">1024</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Spectrum Panel -->
+  <section class="vizPanel" id="spectrumPanel">
+    <div class="vizHeader">
+      <h2>
+        <span>📊 Spectrum</span>
+      </h2>
+      <div class="vizControls">
+        <button class="collapseBtn modeBtn active" id="spectrumGraphBtn">Graph</button>
+        <button class="collapseBtn modeBtn" id="spectrumSpectroBtn">Spectrogram</button>
+        <button class="collapseBtn" id="spectrumCollapseBtn">▼</button>
+      </div>
+    </div>
+    <div class="vizBody" id="spectrumBody">
+      <div class="canvasWrap">
+        <canvas id="spectrumCanvas"></canvas>
+      </div>
+      <div class="ctrl">
+        <label for="specYScale">Y Scale</label>
+        <input type="range" id="specYScale" min="0.5" max="3" step="0.1" value="1">
+        <div class="small" id="specYScaleVal">1.0x</div>
+      </div>
+      <div class="ctrl" id="specFreqScaleCtrl">
+        <label for="specFreqScale">Frequency Scale</label>
+        <select id="specFreqScale">
+          <option value="linear">Linear</option>
+          <option value="log" selected>Logarithmic</option>
+        </select>
+        <div></div>
+      </div>
+      <div class="ctrl spectroCtrl" id="specSpeedCtrl" style="display: none;">
+        <label for="specSpeed">Update Speed</label>
+        <select id="specSpeed">
+          <option value="slow">Slow (15 fps)</option>
+          <option value="medium" selected>Medium (30 fps)</option>
+          <option value="fast">Fast (60 fps)</option>
+        </select>
+        <div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cepstrum Panel -->
+  <section class="vizPanel" id="cepstrumPanel">
+    <div class="vizHeader">
+      <h2>
+        <span>🔬 Cepstrum</span>
+      </h2>
+      <div class="vizControls">
+        <button class="collapseBtn modeBtn active" id="cepstrumGraphBtn">Graph</button>
+        <button class="collapseBtn modeBtn" id="cepstrumSpectroBtn">Spectrogram</button>
+        <button class="collapseBtn" id="cepstrumCollapseBtn">▼</button>
+      </div>
+    </div>
+    <div class="vizBody" id="cepstrumBody">
+      <div class="canvasWrap">
+        <canvas id="cepstrumCanvas"></canvas>
+      </div>
+      <div class="ctrl">
+        <label for="cepYScale">Y Scale</label>
+        <input type="range" id="cepYScale" min="0.5" max="5" step="0.1" value="1">
+        <div class="small" id="cepYScaleVal">1.0x</div>
+      </div>
+      <div class="ctrl" id="cepQuefrencyScaleCtrl">
+        <label for="cepQuefrencyScale">Quefrency Scale</label>
+        <select id="cepQuefrencyScale">
+          <option value="linear" selected>Linear</option>
+          <option value="log">Logarithmic</option>
+        </select>
+        <div></div>
+      </div>
+      <div class="ctrl spectroCtrl" id="cepSpeedCtrl" style="display: none;">
+        <label for="cepSpeed">Update Speed</label>
+        <select id="cepSpeed">
+          <option value="slow">Slow (15 fps)</option>
+          <option value="medium" selected>Medium (30 fps)</option>
+          <option value="fast">Fast (60 fps)</option>
+        </select>
+        <div></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>&copy; <a href="https://github.com/dmitryweiner" target="_blank" rel="noopener">Dmitry Weiner</a> 2025 &middot; <a href="https://github.com/dmitryweiner/neural-things/tree/main/sound" target="_blank" rel="noopener">[code]</a></p>
+</footer>
+
+<script>
+(async function() {
+  'use strict';
+
+  // ========== AudioWorklet for Recording ==========
+  const recorderWorkletCode = `
+  class RecorderProcessor extends AudioWorkletProcessor {
+    constructor() {
+      super();
+      this.recording = false;
+      this.chunks = [];
+      
+      this.port.onmessage = (e) => {
+        if (e.data.type === 'start') {
+          this.recording = true;
+          this.chunks = [];
+        } else if (e.data.type === 'stop') {
+          this.recording = false;
+          const totalLength = this.chunks.reduce((acc, c) => acc + c.length, 0);
+          const result = new Float32Array(totalLength);
+          let offset = 0;
+          for (const chunk of this.chunks) {
+            result.set(chunk, offset);
+            offset += chunk.length;
+          }
+          this.port.postMessage({ type: 'data', samples: result });
+          this.chunks = [];
+        }
+      };
+    }
+    
+    process(inputs, outputs) {
+      const input = inputs[0];
+      const output = outputs[0];
+      
+      if (input && input[0] && output && output[0]) {
+        output[0].set(input[0]);
+        
+        if (this.recording) {
+          this.chunks.push(new Float32Array(input[0]));
+        }
+      }
+      
+      return true;
+    }
+  }
+  
+  registerProcessor('recorder-processor', RecorderProcessor);
+  `;
+
+  // ========== DOM Helpers ==========
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => document.querySelectorAll(s);
+
+  // ========== State ==========
+  let audioCtx = null;
+  let analyser = null;
+  let mediaStream = null;
+  let sourceNode = null;
+  let recorderNode = null;
+  let animationId = null;
+  let isRunning = false;
+  let isRecording = false;
+  let wakeLock = null;
+
+  // Visualization modes
+  let spectrumMode = 'graph'; // 'graph' or 'spectrogram'
+  let cepstrumMode = 'graph';
+
+  // Spectrogram state
+  let specSpectroCanvas = null;
+  let specSpectroCtx = null;
+  let cepSpectroCanvas = null;
+  let cepSpectroCtx = null;
+  let lastSpecSpectroTime = 0;
+  let lastCepSpectroTime = 0;
+
+  // Panel collapse state storage key
+  const PANEL_STATE_KEY = 'sound_analyzer_panels';
+
+  // ========== Wake Lock ==========
+  async function requestWakeLock() {
+    if ('wakeLock' in navigator) {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      } catch (err) {
+        console.log('Wake Lock error:', err.name, err.message);
+      }
+    }
+  }
+
+  async function releaseWakeLock() {
+    if (wakeLock) {
+      await wakeLock.release();
+      wakeLock = null;
+    }
+  }
+
+  // ========== WAV Encoding ==========
+  function encodeWAV(samples, sampleRate, numChannels = 1) {
+    const bitsPerSample = 16;
+    const bytesPerSample = bitsPerSample / 8;
+    const blockAlign = numChannels * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = samples.length * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    function writeString(view, offset, str) {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+      }
+    }
+
+    // RIFF header
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(view, 8, 'WAVE');
+
+    // fmt chunk
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitsPerSample, true);
+
+    // data chunk
+    writeString(view, 36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    // Convert float samples to 16-bit PCM
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++) {
+      let s = Math.max(-1, Math.min(1, samples[i]));
+      s = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      view.setInt16(offset, s, true);
+      offset += 2;
+    }
+
+    return new Blob([buffer], { type: 'audio/wav' });
+  }
+
+  // ========== Canvas Utilities ==========
+  function resizeCanvas(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  }
+
+  function resizeAllCanvases() {
+    resizeCanvas($('#oscilloscopeCanvas'));
+    resizeCanvas($('#spectrumCanvas'));
+    resizeCanvas($('#cepstrumCanvas'));
+  }
+
+  window.addEventListener('resize', resizeAllCanvases);
+
+  // Spectrogram color palette
+  function getSpectroColor(value) {
+    const v = Math.min(255, Math.max(0, value));
+    const hue = 240 - (v / 255) * 240;
+    const lightness = 20 + (v / 255) * 40;
+    return `hsl(${hue}, 100%, ${lightness}%)`;
+  }
+
+  function initSpectroCanvas(targetCanvas, existingCanvas, existingCtx) {
+    const w = targetCanvas.width;
+    const h = targetCanvas.height;
+
+    if (existingCanvas && existingCanvas.width === w && existingCanvas.height === h) {
+      return { canvas: existingCanvas, ctx: existingCtx };
+    }
+
+    const newCanvas = document.createElement('canvas');
+    newCanvas.width = w;
+    newCanvas.height = h;
+    const newCtx = newCanvas.getContext('2d');
+
+    newCtx.fillStyle = '#060a0f';
+    newCtx.fillRect(0, 0, w, h);
+
+    if (existingCanvas && existingCtx) {
+      newCtx.drawImage(existingCanvas, 0, 0, w, h);
+    }
+
+    return { canvas: newCanvas, ctx: newCtx };
+  }
+
+  // ========== FFT Utilities for Cepstrum ==========
+  // Simple IFFT implementation using DFT (not optimized, but works for our purpose)
+  function ifft(realInput) {
+    const N = realInput.length;
+    const output = new Float32Array(N);
+    
+    for (let n = 0; n < N; n++) {
+      let sumReal = 0;
+      for (let k = 0; k < N; k++) {
+        const angle = (2 * Math.PI * k * n) / N;
+        sumReal += realInput[k] * Math.cos(angle);
+      }
+      output[n] = sumReal / N;
+    }
+    
+    return output;
+  }
+
+  // ========== Audio Setup ==========
+  async function startAudio() {
+    if (isRunning) return;
+
+    try {
+      // Get user-selected constraints
+      const constraints = {
+        audio: {
+          echoCancellation: $('#echoCancellation').checked,
+          noiseSuppression: $('#noiseSuppression').checked,
+          autoGainControl: $('#autoGainControl').checked,
+        }
+      };
+
+      const sampleRateValue = $('#sampleRateSelect').value;
+      if (sampleRateValue !== 'auto') {
+        constraints.audio.sampleRate = parseInt(sampleRateValue);
+      }
+
+      const channelCount = parseInt($('#channelSelect').value);
+      constraints.audio.channelCount = channelCount;
+
+      // Request microphone
+      mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+      // Show device capabilities
+      const track = mediaStream.getAudioTracks()[0];
+      if (track.getCapabilities) {
+        const caps = track.getCapabilities();
+        const capsText = [];
+        if (caps.sampleRate) {
+          capsText.push(`Sample rate: ${caps.sampleRate.min}-${caps.sampleRate.max} Hz`);
+          // Populate sample rate dropdown
+          populateSampleRates(caps.sampleRate.min, caps.sampleRate.max);
+        }
+        if (caps.channelCount) {
+          capsText.push(`Channels: ${caps.channelCount.min}-${caps.channelCount.max}`);
+        }
+        if (caps.echoCancellation) {
+          capsText.push(`Echo cancellation: ${caps.echoCancellation.join(', ')}`);
+        }
+        if (caps.noiseSuppression) {
+          capsText.push(`Noise suppression: ${caps.noiseSuppression.join(', ')}`);
+        }
+        if (caps.autoGainControl) {
+          capsText.push(`Auto gain: ${caps.autoGainControl.join(', ')}`);
+        }
+        $('#deviceCapabilities').textContent = capsText.join(' | ');
+      }
+
+      // Create audio context
+      const sampleRate = track.getSettings().sampleRate || 48000;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate });
+
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+
+      // Create nodes
+      sourceNode = audioCtx.createMediaStreamSource(mediaStream);
+      
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = parseInt($('#fftSizeSelect').value);
+      analyser.smoothingTimeConstant = 0.8;
+
+      sourceNode.connect(analyser);
+
+      // Setup recorder worklet
+      const blob = new Blob([recorderWorkletCode], { type: 'application/javascript' });
+      const url = URL.createObjectURL(blob);
+      await audioCtx.audioWorklet.addModule(url);
+      
+      recorderNode = new AudioWorkletNode(audioCtx, 'recorder-processor', {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1]
+      });
+
+      sourceNode.connect(recorderNode);
+
+      // Request wake lock
+      await requestWakeLock();
+
+      isRunning = true;
+      $('#status').textContent = `running @ ${audioCtx.sampleRate} Hz`;
+      $('#startStopBtn').textContent = '⏹ Stop';
+      $('#startStopBtn').classList.add('running');
+
+      // Resize canvases and start visualization
+      resizeAllCanvases();
+      startVisualization();
+
+    } catch (err) {
+      console.error('Error starting audio:', err);
+      $('#status').textContent = `Error: ${err.message}`;
+    }
+  }
+
+  function stopAudio() {
+    if (!isRunning) return;
+
+    // Stop recording if active
+    if (isRecording) {
+      stopRecording();
+    }
+
+    // Stop animation
+    if (animationId) {
+      cancelAnimationFrame(animationId);
+      animationId = null;
+    }
+
+    // Release wake lock
+    releaseWakeLock();
+
+    // Stop media stream
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(track => track.stop());
+      mediaStream = null;
+    }
+
+    // Close audio context
+    if (audioCtx) {
+      audioCtx.close();
+      audioCtx = null;
+    }
+
+    sourceNode = null;
+    analyser = null;
+    recorderNode = null;
+    isRunning = false;
+
+    $('#status').textContent = 'stopped';
+    $('#startStopBtn').textContent = '▶ Start';
+    $('#startStopBtn').classList.remove('running');
+  }
+
+  function populateSampleRates(min, max) {
+    const select = $('#sampleRateSelect');
+    const currentValue = select.value;
+    
+    // Common sample rates
+    const rates = [8000, 16000, 22050, 44100, 48000, 96000];
+    const validRates = rates.filter(r => r >= min && r <= max);
+
+    select.innerHTML = '<option value="auto">Auto (device default)</option>';
+    for (const rate of validRates) {
+      const option = document.createElement('option');
+      option.value = rate;
+      option.textContent = `${rate} Hz`;
+      select.appendChild(option);
+    }
+
+    if (validRates.includes(parseInt(currentValue))) {
+      select.value = currentValue;
+    }
+  }
+
+  // ========== Recording ==========
+  async function startRecording() {
+    // Auto-start audio if not running
+    if (!isRunning) {
+      await startAudio();
+    }
+
+    if (!recorderNode || isRecording) return;
+
+    isRecording = true;
+    recorderNode.port.postMessage({ type: 'start' });
+    
+    $('#recordBtn').textContent = '⏹ Stop Rec';
+    $('#recordBtn').classList.add('recording');
+    $('#status').textContent = 'recording...';
+  }
+
+  async function stopRecording() {
+    if (!recorderNode || !isRecording) return;
+
+    $('#recordBtn').disabled = true;
+    $('#status').textContent = 'finalizing...';
+
+    const samplesPromise = new Promise((resolve) => {
+      recorderNode.port.onmessage = (e) => {
+        if (e.data.type === 'data') {
+          resolve(e.data.samples);
+        }
+      };
+    });
+
+    recorderNode.port.postMessage({ type: 'stop' });
+    const samples = await samplesPromise;
+    isRecording = false;
+
+    $('#recordBtn').disabled = false;
+    $('#recordBtn').textContent = '● Record';
+    $('#recordBtn').classList.remove('recording');
+
+    // Encode and download
+    const sampleRate = audioCtx ? audioCtx.sampleRate : 48000;
+    const blob = encodeWAV(samples, sampleRate, 1);
+    const url = URL.createObjectURL(blob);
+    const name = `recording-${new Date().toISOString().replace(/[:.]/g, '-')}.wav`;
+
+    // Try Web Share API on mobile
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], name, { type: 'audio/wav' })] })) {
+      try {
+        const file = new File([blob], name, { type: 'audio/wav' });
+        await navigator.share({ files: [file], title: 'Sound Recording' });
+        $('#status').innerHTML = `shared — <a href="${url}" download="${name}" style="color:#8ab4ff;">download</a>`;
+        return;
+      } catch (shareErr) {
+        if (shareErr.name !== 'AbortError') console.warn('Share failed:', shareErr);
+      }
+    }
+
+    // Fallback: auto-download
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    $('#status').innerHTML = `saved — <a href="${url}" download="${name}" style="color:#8ab4ff;">download</a>`;
+  }
+
+  function toggleRecording() {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  }
+
+  // ========== Visualization ==========
+  function startVisualization() {
+    const oscCanvas = $('#oscilloscopeCanvas');
+    const specCanvas = $('#spectrumCanvas');
+    const cepCanvas = $('#cepstrumCanvas');
+
+    const oscCtx = oscCanvas.getContext('2d');
+    const specCtx = specCanvas.getContext('2d');
+    const cepCtx = cepCanvas.getContext('2d');
+
+    const timeBuf = new Uint8Array(analyser.fftSize);
+    const freqBuf = new Uint8Array(analyser.frequencyBinCount);
+    const freqFloatBuf = new Float32Array(analyser.frequencyBinCount);
+
+    function getSpeedInterval(speedValue) {
+      switch (speedValue) {
+        case 'slow': return 66; // ~15 fps
+        case 'fast': return 16; // ~60 fps
+        default: return 33; // ~30 fps
+      }
+    }
+
+    function draw() {
+      animationId = requestAnimationFrame(draw);
+      if (!analyser) return;
+
+      analyser.getByteTimeDomainData(timeBuf);
+      analyser.getByteFrequencyData(freqBuf);
+      analyser.getFloatFrequencyData(freqFloatBuf);
+
+      // Draw oscilloscope
+      if (!$('#oscilloscopeBody').classList.contains('collapsed')) {
+        drawOscilloscope(oscCanvas, oscCtx, timeBuf);
+      }
+
+      // Draw spectrum
+      if (!$('#spectrumBody').classList.contains('collapsed')) {
+        drawSpectrum(specCanvas, specCtx, freqBuf);
+      }
+
+      // Draw cepstrum
+      if (!$('#cepstrumBody').classList.contains('collapsed')) {
+        drawCepstrum(cepCanvas, cepCtx, freqFloatBuf);
+      }
+    }
+
+    draw();
+  }
+
+  function drawOscilloscope(canvas, ctx, timeBuf) {
+    const w = canvas.width;
+    const h = canvas.height;
+    const yScale = parseFloat($('#oscYScale').value);
+    const timeWindow = parseInt($('#oscTimeWindow').value);
+    const samplesToShow = Math.min(timeWindow, timeBuf.length);
+
+    // Clear
+    ctx.fillStyle = '#060a0f';
+    ctx.fillRect(0, 0, w, h);
+
+    // Grid
+    ctx.strokeStyle = 'rgba(18, 32, 51, 0.7)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 1; i < 10; i++) {
+      const x = (w * i) / 10;
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+    }
+    for (let i = 1; i < 5; i++) {
+      const y = (h * i) / 5;
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+    }
+    ctx.stroke();
+
+    // Waveform
+    const mid = h / 2;
+    ctx.strokeStyle = '#8ab4ff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+
+    for (let i = 0; i < samplesToShow; i++) {
+      const v = (timeBuf[i] - 128) / 128;
+      const y = mid - v * (mid * 0.9) * yScale;
+      const x = (w * i) / (samplesToShow - 1);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  function drawSpectrum(canvas, ctx, freqBuf) {
+    const w = canvas.width;
+    const h = canvas.height;
+    const yScale = parseFloat($('#specYScale').value);
+    const freqScale = $('#specFreqScale').value;
+    const isLog = freqScale === 'log';
+
+    if (spectrumMode === 'graph') {
+      // Clear
+      ctx.fillStyle = '#060a0f';
+      ctx.fillRect(0, 0, w, h);
+
+      // Grid
+      ctx.strokeStyle = 'rgba(18, 32, 51, 0.7)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 1; i < 10; i++) {
+        const x = (w * i) / 10;
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+      }
+      for (let i = 1; i < 5; i++) {
+        const y = (h * i) / 5;
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+      }
+      ctx.stroke();
+
+      // Spectrum line
+      ctx.strokeStyle = '#27ae60';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+
+      const bins = freqBuf.length;
+      for (let i = 0; i < bins; i++) {
+        let x;
+        if (isLog) {
+          const minLog = Math.log10(1);
+          const maxLog = Math.log10(bins);
+          const logVal = Math.log10(i + 1);
+          x = ((logVal - minLog) / (maxLog - minLog)) * w;
+        } else {
+          x = (i / bins) * w;
+        }
+
+        const value = freqBuf[i] / 255;
+        const y = h - value * h * yScale;
+        
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+    } else {
+      // Spectrogram mode
+      const speed = $('#specSpeed').value;
+      const interval = getSpeedInterval(speed);
+      const now = performance.now();
+
+      if (now - lastSpecSpectroTime >= interval) {
+        lastSpecSpectroTime = now;
+
+        const result = initSpectroCanvas(canvas, specSpectroCanvas, specSpectroCtx);
+        specSpectroCanvas = result.canvas;
+        specSpectroCtx = result.ctx;
+
+        // Shift left
+        const shiftAmount = 2;
+        specSpectroCtx.drawImage(specSpectroCanvas, -shiftAmount, 0);
+
+        // Draw new column
+        const bins = freqBuf.length;
+        const sampleRate = audioCtx ? audioCtx.sampleRate : 48000;
+        const nyquist = sampleRate / 2;
+        const minFreq = 20;
+        const maxFreq = Math.min(10000, nyquist);
+
+        for (let y = 0; y < h; y++) {
+          let freq;
+          if (isLog) {
+            const normalizedY = y / h;
+            freq = maxFreq * Math.pow(minFreq / maxFreq, normalizedY);
+          } else {
+            freq = maxFreq - (y / h) * (maxFreq - minFreq);
+          }
+          
+          const binIndex = Math.floor((freq / nyquist) * bins);
+          const value = freqBuf[Math.min(binIndex, bins - 1)] * yScale;
+          specSpectroCtx.fillStyle = getSpectroColor(value);
+          specSpectroCtx.fillRect(w - shiftAmount, y, shiftAmount, 1);
+        }
+      }
+
+      if (specSpectroCtx) {
+        ctx.drawImage(specSpectroCanvas, 0, 0);
+      } else {
+        ctx.fillStyle = '#060a0f';
+        ctx.fillRect(0, 0, w, h);
+      }
+    }
+
+    function getSpeedInterval(speed) {
+      switch (speed) {
+        case 'slow': return 66;
+        case 'fast': return 16;
+        default: return 33;
+      }
+    }
+  }
+
+  function drawCepstrum(canvas, ctx, freqFloatBuf) {
+    const w = canvas.width;
+    const h = canvas.height;
+    const yScale = parseFloat($('#cepYScale').value);
+    const quefrencyScale = $('#cepQuefrencyScale').value;
+    const isLog = quefrencyScale === 'log';
+
+    // Calculate cepstrum: IFFT of log magnitude spectrum
+    // freqFloatBuf is already in dB (log scale), so we use it directly
+    const logMag = new Float32Array(freqFloatBuf.length);
+    for (let i = 0; i < freqFloatBuf.length; i++) {
+      // Convert dB to a more suitable range for IFFT
+      // dB values are typically -100 to 0, normalize to 0-1 range
+      logMag[i] = (freqFloatBuf[i] + 100) / 100;
+    }
+    
+    const cepstrum = ifft(logMag);
+
+    if (cepstrumMode === 'graph') {
+      // Clear
+      ctx.fillStyle = '#060a0f';
+      ctx.fillRect(0, 0, w, h);
+
+      // Grid
+      ctx.strokeStyle = 'rgba(18, 32, 51, 0.7)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 1; i < 10; i++) {
+        const x = (w * i) / 10;
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+      }
+      for (let i = 1; i < 5; i++) {
+        const y = (h * i) / 5;
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+      }
+      ctx.stroke();
+
+      // Cepstrum line (show only first half - positive quefrencies)
+      ctx.strokeStyle = '#e67e22';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+
+      const halfLen = Math.floor(cepstrum.length / 2);
+      let maxVal = 0;
+      for (let i = 1; i < halfLen; i++) {
+        maxVal = Math.max(maxVal, Math.abs(cepstrum[i]));
+      }
+      if (maxVal < 0.001) maxVal = 0.001;
+
+      for (let i = 1; i < halfLen; i++) {
+        let x;
+        if (isLog) {
+          const minLog = Math.log10(1);
+          const maxLog = Math.log10(halfLen);
+          const logVal = Math.log10(i);
+          x = ((logVal - minLog) / (maxLog - minLog)) * w;
+        } else {
+          x = (i / halfLen) * w;
+        }
+
+        const value = cepstrum[i] / maxVal;
+        const y = h / 2 - value * (h / 2) * yScale * 0.8;
+        
+        if (i === 1) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+    } else {
+      // Spectrogram mode for cepstrum
+      const speed = $('#cepSpeed').value;
+      const interval = getSpeedInterval(speed);
+      const now = performance.now();
+
+      if (now - lastCepSpectroTime >= interval) {
+        lastCepSpectroTime = now;
+
+        const result = initSpectroCanvas(canvas, cepSpectroCanvas, cepSpectroCtx);
+        cepSpectroCanvas = result.canvas;
+        cepSpectroCtx = result.ctx;
+
+        // Shift left
+        const shiftAmount = 2;
+        cepSpectroCtx.drawImage(cepSpectroCanvas, -shiftAmount, 0);
+
+        // Calculate max for normalization
+        const halfLen = Math.floor(cepstrum.length / 2);
+        let maxVal = 0;
+        for (let i = 1; i < halfLen; i++) {
+          maxVal = Math.max(maxVal, Math.abs(cepstrum[i]));
+        }
+        if (maxVal < 0.001) maxVal = 0.001;
+
+        // Draw new column
+        for (let y = 0; y < h; y++) {
+          let quefrencyIdx;
+          if (isLog) {
+            const normalizedY = 1 - (y / h);
+            quefrencyIdx = Math.floor(Math.pow(halfLen, normalizedY));
+          } else {
+            quefrencyIdx = Math.floor((1 - y / h) * halfLen);
+          }
+          
+          quefrencyIdx = Math.max(1, Math.min(halfLen - 1, quefrencyIdx));
+          const value = Math.abs(cepstrum[quefrencyIdx]) / maxVal * 255 * yScale;
+          cepSpectroCtx.fillStyle = getSpectroColor(value);
+          cepSpectroCtx.fillRect(w - shiftAmount, y, shiftAmount, 1);
+        }
+      }
+
+      if (cepSpectroCtx) {
+        ctx.drawImage(cepSpectroCanvas, 0, 0);
+      } else {
+        ctx.fillStyle = '#060a0f';
+        ctx.fillRect(0, 0, w, h);
+      }
+    }
+
+    function getSpeedInterval(speed) {
+      switch (speed) {
+        case 'slow': return 66;
+        case 'fast': return 16;
+        default: return 33;
+      }
+    }
+  }
+
+  // ========== Panel State Persistence ==========
+  function savePanelState() {
+    const state = {
+      oscilloscope: !$('#oscilloscopeBody').classList.contains('collapsed'),
+      spectrum: !$('#spectrumBody').classList.contains('collapsed'),
+      cepstrum: !$('#cepstrumBody').classList.contains('collapsed')
+    };
+    localStorage.setItem(PANEL_STATE_KEY, JSON.stringify(state));
+  }
+
+  function loadPanelState() {
+    try {
+      const saved = localStorage.getItem(PANEL_STATE_KEY);
+      if (saved) {
+        const state = JSON.parse(saved);
+        
+        if (state.oscilloscope === false) {
+          $('#oscilloscopeBody').classList.add('collapsed');
+          $('#oscilloscopeCollapseBtn').textContent = '▶';
+        }
+        if (state.spectrum === false) {
+          $('#spectrumBody').classList.add('collapsed');
+          $('#spectrumCollapseBtn').textContent = '▶';
+        }
+        if (state.cepstrum === false) {
+          $('#cepstrumBody').classList.add('collapsed');
+          $('#cepstrumCollapseBtn').textContent = '▶';
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load panel state:', e);
+    }
+  }
+
+  // ========== Event Handlers ==========
+  
+  // Start/Stop
+  $('#startStopBtn').addEventListener('click', () => {
+    if (isRunning) {
+      stopAudio();
+    } else {
+      startAudio();
+    }
+  });
+
+  // Record
+  $('#recordBtn').addEventListener('click', toggleRecording);
+
+  // Settings toggle
+  $('#settingsBtn').addEventListener('click', () => {
+    const panel = $('#settingsPanel');
+    const open = !panel.classList.contains('open');
+    panel.classList.toggle('open', open);
+    $('#settingsBtn').classList.toggle('active', open);
+  });
+
+  // FFT size change
+  $('#fftSizeSelect').addEventListener('change', () => {
+    if (analyser) {
+      analyser.fftSize = parseInt($('#fftSizeSelect').value);
+    }
+  });
+
+  // Panel collapse toggles
+  function setupCollapseBtn(btnId, bodyId) {
+    $(btnId).addEventListener('click', () => {
+      const body = $(bodyId);
+      const collapsed = !body.classList.contains('collapsed');
+      body.classList.toggle('collapsed', collapsed);
+      $(btnId).textContent = collapsed ? '▶' : '▼';
+      savePanelState();
+    });
+  }
+
+  setupCollapseBtn('#oscilloscopeCollapseBtn', '#oscilloscopeBody');
+  setupCollapseBtn('#spectrumCollapseBtn', '#spectrumBody');
+  setupCollapseBtn('#cepstrumCollapseBtn', '#cepstrumBody');
+
+  // Spectrum mode toggle
+  $('#spectrumGraphBtn').addEventListener('click', () => {
+    spectrumMode = 'graph';
+    $('#spectrumGraphBtn').classList.add('active');
+    $('#spectrumSpectroBtn').classList.remove('active');
+    $('#specSpeedCtrl').style.display = 'none';
+  });
+
+  $('#spectrumSpectroBtn').addEventListener('click', () => {
+    spectrumMode = 'spectrogram';
+    $('#spectrumSpectroBtn').classList.add('active');
+    $('#spectrumGraphBtn').classList.remove('active');
+    $('#specSpeedCtrl').style.display = 'grid';
+    // Reset spectrogram canvas
+    specSpectroCanvas = null;
+    specSpectroCtx = null;
+  });
+
+  // Cepstrum mode toggle
+  $('#cepstrumGraphBtn').addEventListener('click', () => {
+    cepstrumMode = 'graph';
+    $('#cepstrumGraphBtn').classList.add('active');
+    $('#cepstrumSpectroBtn').classList.remove('active');
+    $('#cepSpeedCtrl').style.display = 'none';
+  });
+
+  $('#cepstrumSpectroBtn').addEventListener('click', () => {
+    cepstrumMode = 'spectrogram';
+    $('#cepstrumSpectroBtn').classList.add('active');
+    $('#cepstrumGraphBtn').classList.remove('active');
+    $('#cepSpeedCtrl').style.display = 'grid';
+    // Reset spectrogram canvas
+    cepSpectroCanvas = null;
+    cepSpectroCtx = null;
+  });
+
+  // Slider value displays
+  $('#oscYScale').addEventListener('input', (e) => {
+    $('#oscYScaleVal').textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+  });
+
+  $('#oscTimeWindow').addEventListener('input', (e) => {
+    $('#oscTimeWindowVal').textContent = e.target.value;
+  });
+
+  $('#specYScale').addEventListener('input', (e) => {
+    $('#specYScaleVal').textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+  });
+
+  $('#cepYScale').addEventListener('input', (e) => {
+    $('#cepYScaleVal').textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+  });
+
+  // ========== Initialization ==========
+  loadPanelState();
+  resizeAllCanvases();
+
+})();
+</script>
+
+</body>
+</html>
+
