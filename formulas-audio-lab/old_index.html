@@ -1,0 +1,2542 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Formula Audio Lab</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color-scheme: dark; }
+    body { margin: 0; background:#0b0f14; color:#e8eef6; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background:#0d131b;
+      border-bottom: 1px solid #1d2a3a;
+      padding: 12px 14px;
+    }
+    .topbar h1 { margin: 0 0 10px; font-size: 16px; font-weight: 750; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .status-text { font-size: 12px; font-weight: 400; color: #7a8fa6; }
+    .title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .title-left { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .title-left h1 { margin: 0; }
+    #helpBtn { 
+      width: 28px; height: 28px; 
+      padding: 0; 
+      font-size: 14px; 
+      font-weight: 700;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .row { display:flex; gap:10px; flex-wrap: wrap; align-items:center; }
+    .btn-group { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .btn-row { gap: 16px; }
+    @media (max-width: 600px){
+      .btn-row { gap: 10px; }
+      .btn-group { 
+        gap: 6px;
+        padding: 6px 0;
+        border-bottom: 1px solid #1d2a3a;
+        width: 100%;
+      }
+      .btn-group:last-child { border-bottom: none; padding-bottom: 0; }
+      #presetSelect { max-width: 140px; }
+    }
+
+    button {
+      background:#1d3557; color:#fff; border:0; padding:9px 11px;
+      border-radius:10px; cursor:pointer; font-weight:650;
+    }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+
+    #playStopBtn {
+      background: #27ae60;
+      box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+    }
+    #playStopBtn:hover:not(:disabled) {
+      background: #2ecc71;
+    }
+    #playStopBtn.playing {
+      background: #e67e22;
+      box-shadow: 0 2px 8px rgba(230, 126, 34, 0.3);
+    }
+    #playStopBtn.playing:hover {
+      background: #f39c12;
+    }
+
+    #recBtn.recording {
+      background: #c0392b;
+      animation: pulse-rec 1s infinite;
+    }
+    @keyframes pulse-rec {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .collapseBtn{
+      background:#0f1b29;
+      border:1px solid #1d2a3a;
+      color:#cfe1ff;
+      padding:6px 10px;
+      border-radius: 999px;
+      font-weight:650;
+      cursor:pointer;
+    }
+    .collapseBtn.active{
+      background:#1d3557;
+      border-color:#3d5a80;
+    }
+
+    .topgrid{
+      margin-top: 10px;
+    }
+
+    .scopeWrap{
+      position: relative;
+      border:1px solid #1d2a3a;
+      border-radius: 12px;
+      background:#060a0f;
+      padding: 8px;
+    }
+    .scopeModeBtn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      font-size: 11px;
+      padding: 4px 8px;
+      z-index: 5;
+    }
+
+    canvas { width:100%; height: 120px; display:block; border-radius: 10px; }
+
+    .ctrl { display:grid; grid-template-columns: 130px 1fr 70px; gap: 10px; align-items: center; margin-top: 8px;}
+    .ctrl.with-adj { grid-template-columns: 130px auto 1fr auto 70px; gap: 6px; }
+    .ctrl label { font-size: 12px; color:#cfe1ff; }
+    input[type="range"] { width: 100%; }
+    input[type="checkbox"] { transform: scale(1.15); }
+    select {
+      background:#0f1b29; color:#e8eef6;
+      border:1px solid #1d2a3a; border-radius:10px;
+      padding: 8px 10px;
+    }
+    #presetSelect {
+      max-width: 200px;
+      text-overflow: ellipsis;
+    }
+    .small { font-size: 11px; color:#9fb6d3; }
+    .adj-btn {
+      width: 26px; height: 26px;
+      padding: 0;
+      background: #0f1b29;
+      border: 1px solid #1d2a3a;
+      border-radius: 6px;
+      color: #cfe1ff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      touch-action: manipulation; /* Prevent zoom/scroll on touch */
+      user-select: none;
+    }
+    .adj-btn:hover { background: #1d3557; border-color: #3d5a80; }
+    .adj-btn:active { background: #27ae60; }
+
+    .effectsPanel{
+      margin-top: 10px;
+      border:1px solid #1d2a3a;
+      border-radius: 14px;
+      padding: 12px;
+      background:#0b1119;
+      display:none;
+    }
+    .effectsPanel.open{
+      display:block;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+    .effectsGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 980px){
+      .effectsGrid{ grid-template-columns: 1fr; }
+    }
+    .fxCard{
+      background:#0d131b;
+      border:1px solid #1d2a3a;
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.22);
+    }
+    .fxCard h2 { margin: 0 0 8px; font-size: 13px; color:#d9e7ff; display:flex; justify-content:space-between; align-items:center; }
+    .sep { height:1px; background:#1d2a3a; margin: 10px 0; }
+
+    main { padding: 14px; max-width: 1200px; margin: 0 auto; }
+    .card {
+      background:#0d131b; border: 1px solid #1d2a3a; border-radius: 14px;
+      padding: 14px; box-shadow: 0 10px 24px rgba(0,0,0,.25);
+      margin-top: 14px;
+    }
+    .card h2 { margin:0 0 10px; font-size:14px; color:#d9e7ff;}
+
+    .formula { border-top:1px solid #1d2a3a; padding-top: 12px; margin-top: 12px; transition: border-color 0.2s, background 0.2s; }
+    .formula:first-child { border-top:0; padding-top:0; margin-top:0; }
+    .formula.active { 
+      border-left: 3px solid #27ae60; 
+      padding-left: 12px; 
+      margin-left: -12px;
+      background: rgba(39, 174, 96, 0.05);
+    }
+    .formula:first-child.active { margin-left: -12px; }
+    .fhead { display:flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+    .fhead h3 { margin:0; font-size: 13px; display:flex; align-items:center; gap:10px; }
+    .factions{ display:flex; gap: 8px; align-items:center; flex-wrap:wrap; }
+    .fbody{ margin-top: 10px; }
+    .fbody.collapsed{ display:none; }
+
+    /* Scope collapsing - hide entire wrapper when collapsed */
+    .scopeWrap.scopeCollapsed { display: none; }
+
+    /* Mobile: start with collapsed scope to save height */
+    @media (max-width: 600px){
+      .scopeWrap{ padding: 8px; }
+      .ctrl { grid-template-columns: 90px 1fr 45px; }
+      .ctrl.with-adj { grid-template-columns: 90px auto 1fr auto 45px; }
+    }
+
+    /* Footer */
+    .site-footer {
+      margin-top: 40px;
+      padding: 20px 14px;
+      border-top: 1px solid #1d2a3a;
+      text-align: center;
+      font-size: 12px;
+      color: #7a8fa6;
+    }
+    .site-footer a {
+      color: #8ab4ff;
+      text-decoration: none;
+    }
+    .site-footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Help Modal */
+    .help-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s, visibility 0.2s;
+    }
+    .help-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+    .help-modal {
+      background: #0d131b;
+      border: 1px solid #1d2a3a;
+      border-radius: 16px;
+      max-width: 520px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+    .help-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid #1d2a3a;
+    }
+    .help-header h2 {
+      margin: 0;
+      font-size: 16px;
+      color: #d9e7ff;
+    }
+    .help-close {
+      background: none;
+      border: none;
+      color: #7a8fa6;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .help-close:hover {
+      color: #cfe1ff;
+    }
+    .help-content {
+      padding: 20px;
+    }
+    .help-content h3 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: #8ab4ff;
+    }
+    .help-content p {
+      margin: 0 0 16px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #9fb6d3;
+    }
+    .help-content ul {
+      margin: 0 0 16px;
+      padding-left: 20px;
+    }
+    .help-content li {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #9fb6d3;
+      margin-bottom: 6px;
+    }
+    .help-content kbd {
+      background: #1d2a3a;
+      border: 1px solid #3d5a80;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 11px;
+      color: #cfe1ff;
+    }
+  </style>
+</head>
+
+<body>
+
+<section class="topbar">
+  <div class="title-row">
+    <div class="title-left">
+      <h1>Formula Audio Lab</h1>
+      <span class="status-text" id="status">not started</span>
+    </div>
+    <button id="helpBtn" class="collapseBtn" type="button">?</button>
+  </div>
+
+  <div class="row btn-row">
+    <div class="btn-group">
+      <button id="playStopBtn">▶ Play</button>
+      <button id="recBtn" disabled>Record</button>
+    </div>
+
+    <div class="btn-group">
+      <select id="presetSelect" class="collapseBtn">
+        <option value="">— Presets —</option>
+      </select>
+      <button id="savePresetBtn" class="collapseBtn" type="button">Save preset</button>
+      <button id="loadPresetBtn" class="collapseBtn" type="button">Load preset</button>
+      <button id="shareBtn" class="collapseBtn" type="button">Share</button>
+    </div>
+
+    <div class="btn-group">
+      <button id="scopeToggleBtn" class="collapseBtn" type="button">📊</button>
+      <button id="effectsBtn" class="collapseBtn" type="button">🎛</button>
+    </div>
+  </div>
+
+  <div class="topgrid">
+    <div class="scopeWrap" id="scopeWrap">
+      <button id="scopeModeBtn" class="collapseBtn scopeModeBtn" type="button">Spectrum</button>
+      <canvas id="scope"></canvas>
+    </div>
+    <div class="ctrl with-adj" style="margin-top: 10px;">
+      <label>Master volume</label>
+      <button class="adj-btn" data-slider="masterGain" data-dir="-1">−</button>
+      <input id="masterGain" type="range" min="0" max="1" step="0.001" value="0.25">
+      <button class="adj-btn" data-slider="masterGain" data-dir="1">+</button>
+      <div class="small" id="masterGainVal">0.25</div>
+    </div>
+  </div>
+
+  <div id="effectsPanel" class="effectsPanel">
+    <div class="effectsGrid">
+
+      <div class="fxCard">
+        <h2>
+          <span>Filter (Biquad)</span>
+          <label class="small"><input id="fxFilterOn" type="checkbox"> ON</label>
+        </h2>
+        <div class="ctrl">
+          <label>Type</label>
+          <select id="fxFilterType">
+            <option value="lowpass">Low-pass</option>
+            <option value="highpass">High-pass</option>
+            <option value="bandpass">Band-pass</option>
+          </select>
+          <div></div>
+        </div>
+        <div class="ctrl with-adj">
+          <label>Cutoff (Hz)</label>
+          <button class="adj-btn" data-slider="fxFilterFreq" data-dir="-1">−</button>
+          <input id="fxFilterFreq" type="range" min="20" max="2000" step="1" value="1000">
+          <button class="adj-btn" data-slider="fxFilterFreq" data-dir="1">+</button>
+          <div class="small" id="fxFilterFreqVal">12000</div>
+        </div>
+        <div class="ctrl with-adj">
+          <label>Q</label>
+          <button class="adj-btn" data-slider="fxFilterQ" data-dir="-1">−</button>
+          <input id="fxFilterQ" type="range" min="0.1" max="30" step="0.1" value="0.7">
+          <button class="adj-btn" data-slider="fxFilterQ" data-dir="1">+</button>
+          <div class="small" id="fxFilterQVal">0.7</div>
+        </div>
+      </div>
+
+      <div class="fxCard">
+        <h2>
+          <span>Chorus / Flanger</span>
+          <label class="small"><input id="fxChorusOn" type="checkbox"> ON</label>
+        </h2>
+        <div class="ctrl">
+          <label>Mode</label>
+          <select id="fxChorusMode">
+            <option value="chorus">Chorus</option>
+            <option value="flanger">Flanger</option>
+          </select>
+          <div></div>
+        </div>
+        <div class="ctrl with-adj">
+          <label>Rate (Hz)</label>
+          <button class="adj-btn" data-slider="fxChorusRate" data-dir="-1">−</button>
+          <input id="fxChorusRate" type="range" min="0.01" max="8" step="0.01" value="0.35">
+          <button class="adj-btn" data-slider="fxChorusRate" data-dir="1">+</button>
+          <div class="small" id="fxChorusRateVal">0.35</div>
+        </div>
+        <div class="ctrl with-adj">
+          <label>Depth (ms)</label>
+          <button class="adj-btn" data-slider="fxChorusDepth" data-dir="-1">−</button>
+          <input id="fxChorusDepth" type="range" min="0" max="20" step="0.1" value="6">
+          <button class="adj-btn" data-slider="fxChorusDepth" data-dir="1">+</button>
+          <div class="small" id="fxChorusDepthVal">6.0</div>
+        </div>
+        <div class="ctrl with-adj">
+          <label>Mix (dry↔wet)</label>
+          <button class="adj-btn" data-slider="fxChorusMix" data-dir="-1">−</button>
+          <input id="fxChorusMix" type="range" min="0" max="1" step="0.01" value="0.35">
+          <button class="adj-btn" data-slider="fxChorusMix" data-dir="1">+</button>
+          <div class="small" id="fxChorusMixVal">0.35</div>
+        </div>
+        <div class="ctrl with-adj">
+          <label>Feedback</label>
+          <button class="adj-btn" data-slider="fxChorusFb" data-dir="-1">−</button>
+          <input id="fxChorusFb" type="range" min="0" max="0.95" step="0.01" value="0.15">
+          <button class="adj-btn" data-slider="fxChorusFb" data-dir="1">+</button>
+          <div class="small" id="fxChorusFbVal">0.15</div>
+        </div>
+      </div>
+
+      <div class="fxCard">
+        <h2>
+          <span>Reverb (Convolver)</span>
+          <label class="small"><input id="fxReverbOn" type="checkbox"> ON</label>
+        </h2>
+        <div class="ctrl with-adj">
+          <label>Decay (s)</label>
+          <button class="adj-btn" data-slider="fxReverbDecay" data-dir="-1">−</button>
+          <input id="fxReverbDecay" type="range" min="0.1" max="8" step="0.1" value="2.8">
+          <button class="adj-btn" data-slider="fxReverbDecay" data-dir="1">+</button>
+          <div class="small" id="fxReverbDecayVal">2.8</div>
+        </div>
+        <div class="ctrl with-adj">
+          <label>Mix (dry↔wet)</label>
+          <button class="adj-btn" data-slider="fxReverbMix" data-dir="-1">−</button>
+          <input id="fxReverbMix" type="range" min="0" max="1" step="0.01" value="0.25">
+          <button class="adj-btn" data-slider="fxReverbMix" data-dir="1">+</button>
+          <div class="small" id="fxReverbMixVal">0.25</div>
+        </div>
+      </div>
+
+      <div class="fxCard">
+        <h2>
+          <span>Limiter (anti-clip)</span>
+          <label class="small"><input id="fxLimiterOn" type="checkbox"> ON</label>
+        </h2>
+        <div class="ctrl with-adj">
+          <label>Threshold (dB)</label>
+          <button class="adj-btn" data-slider="fxLimiterThr" data-dir="-1">−</button>
+          <input id="fxLimiterThr" type="range" min="-40" max="0" step="0.5" value="-12">
+          <button class="adj-btn" data-slider="fxLimiterThr" data-dir="1">+</button>
+          <div class="small" id="fxLimiterThrVal">-12</div>
+        </div>
+        <div class="ctrl with-adj">
+          <label>Release (s)</label>
+          <button class="adj-btn" data-slider="fxLimiterRel" data-dir="-1">−</button>
+          <input id="fxLimiterRel" type="range" min="0.02" max="1" step="0.01" value="0.15">
+          <button class="adj-btn" data-slider="fxLimiterRel" data-dir="1">+</button>
+          <div class="small" id="fxLimiterRelVal">0.15</div>
+        </div>
+      </div>
+
+      <div class="fxCard">
+        <h2>
+          <span>Delay / Echo</span>
+          <label class="small"><input id="fxDelayOn" type="checkbox"> ON</label>
+        </h2>
+        <div class="ctrl with-adj">
+          <label>Time (s)</label>
+          <button class="adj-btn" data-slider="fxDelayTime" data-dir="-1">−</button>
+          <input id="fxDelayTime" type="range" min="0.05" max="2.0" step="0.01" value="0.35">
+          <button class="adj-btn" data-slider="fxDelayTime" data-dir="1">+</button>
+          <div class="small" id="fxDelayTimeVal">0.35</div>
+        </div>
+        <div class="ctrl with-adj">
+          <label>Feedback</label>
+          <button class="adj-btn" data-slider="fxDelayFb" data-dir="-1">−</button>
+          <input id="fxDelayFb" type="range" min="0" max="0.9" step="0.01" value="0.4">
+          <button class="adj-btn" data-slider="fxDelayFb" data-dir="1">+</button>
+          <div class="small" id="fxDelayFbVal">0.40</div>
+        </div>
+        <div class="ctrl with-adj">
+          <label>Mix (dry↔wet)</label>
+          <button class="adj-btn" data-slider="fxDelayMix" data-dir="-1">−</button>
+          <input id="fxDelayMix" type="range" min="0" max="1" step="0.01" value="0.3">
+          <button class="adj-btn" data-slider="fxDelayMix" data-dir="1">+</button>
+          <div class="small" id="fxDelayMixVal">0.30</div>
+        </div>
+      </div>
+
+      <div class="fxCard">
+        <h2>
+          <span>Phaser</span>
+          <label class="small"><input id="fxPhaserOn" type="checkbox"> ON</label>
+        </h2>
+        <div class="ctrl with-adj">
+          <label>Rate (Hz)</label>
+          <button class="adj-btn" data-slider="fxPhaserRate" data-dir="-1">−</button>
+          <input id="fxPhaserRate" type="range" min="0.1" max="10" step="0.01" value="0.5">
+          <button class="adj-btn" data-slider="fxPhaserRate" data-dir="1">+</button>
+          <div class="small" id="fxPhaserRateVal">0.50</div>
+        </div>
+        <div class="ctrl with-adj">
+          <label>Depth</label>
+          <button class="adj-btn" data-slider="fxPhaserDepth" data-dir="-1">−</button>
+          <input id="fxPhaserDepth" type="range" min="0" max="1" step="0.01" value="0.7">
+          <button class="adj-btn" data-slider="fxPhaserDepth" data-dir="1">+</button>
+          <div class="small" id="fxPhaserDepthVal">0.70</div>
+        </div>
+        <div class="ctrl">
+          <label>Stages</label>
+          <select id="fxPhaserStages">
+            <option value="2">2</option>
+            <option value="4" selected>4</option>
+            <option value="6">6</option>
+            <option value="8">8</option>
+          </select>
+          <div></div>
+        </div>
+        <div class="ctrl with-adj">
+          <label>Feedback</label>
+          <button class="adj-btn" data-slider="fxPhaserFb" data-dir="-1">−</button>
+          <input id="fxPhaserFb" type="range" min="0" max="0.9" step="0.01" value="0.3">
+          <button class="adj-btn" data-slider="fxPhaserFb" data-dir="1">+</button>
+          <div class="small" id="fxPhaserFbVal">0.30</div>
+        </div>
+        <div class="ctrl with-adj">
+          <label>Mix (dry↔wet)</label>
+          <button class="adj-btn" data-slider="fxPhaserMix" data-dir="-1">−</button>
+          <input id="fxPhaserMix" type="range" min="0" max="1" step="0.01" value="0.5">
+          <button class="adj-btn" data-slider="fxPhaserMix" data-dir="1">+</button>
+          <div class="small" id="fxPhaserMixVal">0.50</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<main>
+  <section class="card">
+    <h2>Formulas (can be enabled simultaneously)</h2>
+    <div class="row" style="margin-bottom:10px; justify-content: space-between;">
+      <button id="disableAllBtn" class="collapseBtn" type="button">Disable all</button>
+      <button id="collapseAllBtn" class="collapseBtn" type="button">▼ Collapse all</button>
+    </div>
+    <div id="formulas"></div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>&copy; <a href="https://github.com/dmitryweiner" target="_blank" rel="noopener">Dmitry Weiner</a> 2025 &middot; <a href="https://github.com/dmitryweiner/neural-things/tree/main/formulas-audio-lab" target="_blank" rel="noopener">[code]</a></p>
+</footer>
+
+<!-- Help Modal -->
+<div id="helpOverlay" class="help-overlay">
+  <div class="help-modal">
+    <div class="help-header">
+      <h2>How to Use Formula Audio Lab</h2>
+      <button class="help-close" id="helpCloseBtn" type="button">&times;</button>
+    </div>
+    <div class="help-content">
+      <h3>Getting Started</h3>
+      <p>Click <kbd>▶ Play</kbd> or enable any formula checkbox to start audio. Audio starts automatically when you enable a formula.</p>
+
+      <h3>Formulas</h3>
+      <p>Each formula is a mathematical sound generator. Enable multiple formulas simultaneously by checking their boxes. Adjust parameters with sliders or <kbd>+</kbd>/<kbd>−</kbd> buttons.</p>
+
+      <h3>Effects</h3>
+      <p>Click <kbd>🎛</kbd> to open the effects panel. Available effects: Filter, Chorus/Flanger, Reverb, Limiter, Delay, and Phaser. Toggle each effect with its checkbox.</p>
+
+      <h3>Presets</h3>
+      <ul>
+        <li><strong>Dropdown</strong> — select a built-in preset to load</li>
+        <li><strong>Save preset</strong> — save current settings to browser storage</li>
+        <li><strong>Load preset</strong> — restore saved settings</li>
+        <li><strong>Share</strong> — copy URL with current settings to clipboard</li>
+      </ul>
+
+      <h3>Recording</h3>
+      <p>Click <kbd>Record</kbd> to capture audio to WAV file. Click again to stop and download.</p>
+
+      <h3>Tips</h3>
+      <ul>
+        <li>Start with low Gain values — some formulas can be loud</li>
+        <li>Use <kbd>Limiter</kbd> when experimenting with chaos (Lorenz, Rossler)</li>
+        <li>"Reset state" re-initializes formulas like Karplus-Strong (pluck again)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script src="presets.js"></script>
+<script>
+(async function(){
+  // ---------- AudioWorklet code (generator only) ----------
+  const workletCode = `
+  class FormulaGeneratorProcessor extends AudioWorkletProcessor {
+    constructor(options){
+      super();
+      const o = (options && options.processorOptions) || {};
+      this.formula = o.formula || 'fm';
+      this.sr = sampleRate;
+      this.t = 0;
+      this.phase = 0;
+
+      this.logi = 0.33;
+      this.lx = 0.1; this.ly = 0.0; this.lz = 0.0;
+
+      this.ksBuf = null; this.ksIdx = 0; this.ksN = 0;
+      this.nlp = 0;
+
+      // Pink noise state (Paul Kellet's approximation)
+      this.pinkB0 = 0; this.pinkB1 = 0; this.pinkB2 = 0;
+      this.pinkB3 = 0; this.pinkB4 = 0; this.pinkB5 = 0; this.pinkB6 = 0;
+
+      // Brown noise state
+      this.brownVal = 0;
+
+      // Velvet noise state
+      this.velvetCounter = 0; this.velvetNext = 0;
+
+      // Rossler attractor state
+      this.rx = 0.1; this.ry = 0.0; this.rz = 0.0;
+
+      // Shepard tone phase accumulators (up to 10 octaves)
+      this.shepardPhases = new Float32Array(10);
+      this.shepardT = 0;
+
+      this.p = Object.assign({
+        gain: 0.2,
+        fc: 220, fm: 2, I: 2,
+        f1: 220, f2: 221,
+        base: 110, depth: 330, r: 3.86, lfoHz: 40,
+        f0: 55, k: 0.15,
+        fund: 110, N: 12, move: 0.35,
+        f: 220, f2pm: 3,
+        fbeat: 220, df: 0.8,
+        fd: 110, alpha: 3.0,
+        fq: 120, Aq: 220, wq: 0.8,
+        sigma: 10, rho: 28, beta: 2.6667,
+        lBase: 120, lFreqScale: 40, lAmp: 0.25,
+        ksFreq: 110, ksDamp: 0.985, ksBright: 0.5,
+        bcFreq: 220, bcBits: 6, bcDown: 8,
+        nCut: 800,
+        // Pink noise params
+        pinkBright: 0.5,
+        // Brown noise params
+        brownStep: 0.02,
+        // Velvet noise params
+        velvetDensity: 2000,
+        // Rossler attractor params
+        rossA: 0.2, rossB: 0.2, rossC: 5.7,
+        rossBase: 120, rossFreqScale: 30, rossAmp: 0.25,
+        // Shepard tone params
+        shepBase: 55, shepSpeed: 0.1, shepOctaves: 6
+      }, o.params || {});
+
+      this.port.onmessage = (e) => {
+        const msg = e.data || {};
+        if (msg.type === 'set') {
+          for (const [k,v] of Object.entries(msg.params || {})) this.p[k] = v;
+        } else if (msg.type === 'reset') {
+          this.t = 0; this.phase = 0;
+          this.logi = 0.33;
+          this.lx = 0.1; this.ly = 0.0; this.lz = 0.0;
+          this.nlp = 0;
+          this._initKS(true);
+          // Reset pink noise
+          this.pinkB0 = 0; this.pinkB1 = 0; this.pinkB2 = 0;
+          this.pinkB3 = 0; this.pinkB4 = 0; this.pinkB5 = 0; this.pinkB6 = 0;
+          // Reset brown noise
+          this.brownVal = 0;
+          // Reset velvet noise
+          this.velvetCounter = 0; this.velvetNext = 0;
+          // Reset Rossler
+          this.rx = 0.1; this.ry = 0.0; this.rz = 0.0;
+          // Reset Shepard
+          for (let i = 0; i < this.shepardPhases.length; i++) this.shepardPhases[i] = 0;
+          this.shepardT = 0;
+        }
+      };
+
+      this._initKS(true);
+    }
+    clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
+    _initKS(force){
+      const p = this.p;
+      const freq = Math.max(20, p.ksFreq || 110);
+      const N = Math.max(2, Math.floor(this.sr / freq));
+      if (!force && this.ksBuf && this.ksN === N) return;
+      this.ksN = N; this.ksBuf = new Float32Array(N); this.ksIdx = 0;
+      for (let i=0;i<N;i++) this.ksBuf[i] = (Math.random()*2 - 1);
+    }
+    process(inputs, outputs){
+      const out = outputs[0];
+      const ch0 = out[0];
+      const n = ch0.length;
+      const sr = this.sr;
+      const twoPi = 2*Math.PI;
+
+      let p = this.p;
+      let phase = this.phase;
+      let t = this.t;
+      let logi = this.logi;
+      let lx = this.lx, ly = this.ly, lz = this.lz;
+      let nlp = this.nlp;
+
+      for (let i=0;i<n;i++){
+        let x = 0;
+        switch(this.formula){
+          case 'fm': x = Math.sin(twoPi*p.fc*t + (p.I)*Math.sin(twoPi*p.fm*t)); break;
+          case 'logistic': {
+            const step = Math.max(1, Math.floor(sr / Math.max(1e-3, p.lfoHz)));
+            if ((i % step) === 0){ logi = (p.r) * logi * (1 - logi); logi = this.clamp(logi,0,1); }
+            const f = p.base + p.depth * (logi - 0.5);
+            phase += twoPi * (Math.max(0, f) / sr);
+            x = Math.sin(phase);
+            break;
+          }
+          case 'gliss': {
+            const f = p.f0 * Math.exp(p.k * t);
+            phase += twoPi * (f / sr);
+            x = Math.sin(phase);
+            break;
+          }
+          case 'additive': {
+            const fund = p.fund;
+            const N = Math.max(1, Math.floor(p.N));
+            const move = p.move;
+            let s = 0;
+            for (let k=1;k<=N;k++){
+              const ak = (1/k) * Math.sin(twoPi*move*t + k);
+              s += ak * Math.sin(twoPi*(k*fund)*t);
+            }
+            x = s * (1.0 / Math.log2(N+1));
+            break;
+          }
+          case 'pm': {
+            const phi = Math.sin(Math.sin(twoPi*p.f2pm*t));
+            x = Math.sin(twoPi*p.f*t + phi*5.0);
+            break;
+          }
+          case 'beats': x = 0.5*(Math.sin(twoPi*p.fbeat*t) + Math.sin(twoPi*(p.fbeat + p.df)*t)); break;
+          case 'dist': x = Math.tanh(p.alpha * Math.sin(twoPi*p.fd*t)); break;
+          case 'quasi': {
+            const mod = Math.sin(Math.sin(Math.sin(p.wq * t)));
+            const f = Math.max(0, p.fq + p.Aq*mod);
+            phase += twoPi * (f / sr);
+            x = Math.sin(phase);
+            break;
+          }
+          case 'lorenz': {
+            const dt = 1/sr;
+            const dx = p.sigma * (ly - lx);
+            const dy = lx * (p.rho - lz) - ly;
+            const dz = lx * ly - p.beta * lz;
+            lx += dx * dt; ly += dy * dt; lz += dz * dt;
+
+            const freq = Math.max(0, p.lBase + p.lFreqScale * Math.abs(lx));
+            const amp = this.clamp(p.lAmp * (0.3 + 0.7 * (0.5 + 0.5*Math.tanh(ly))), 0, 1);
+            phase += twoPi * (freq / sr);
+            x = amp * Math.sin(phase);
+            break;
+          }
+          case 'karplus': {
+            this._initKS(false);
+            const buf = this.ksBuf, N = this.ksN;
+            const idx = this.ksIdx;
+            const y0 = buf[idx];
+            const y1 = buf[(idx + 1) % N];
+            const damp = this.clamp(p.ksDamp, 0.8, 0.99999);
+            const bright = this.clamp(p.ksBright, 0, 1);
+            const avg = 0.5 * (y0 + y1);
+            const next = damp * (bright * y0 + (1 - bright) * avg);
+            buf[idx] = next;
+            this.ksIdx = (idx + 1) % N;
+            x = y0;
+            break;
+          }
+          case 'noiselp': {
+            const white = (Math.random()*2 - 1);
+            const cut = this.clamp(p.nCut, 20, 18000);
+            const a = 1 - Math.exp(-2*Math.PI*cut/sr);
+            nlp = nlp + a * (white - nlp);
+            x = nlp;
+            break;
+          }
+          case 'pinknoise': {
+            // Paul Kellet's economy pink noise approximation
+            const white = Math.random() * 2 - 1;
+            this.pinkB0 = 0.99886 * this.pinkB0 + white * 0.0555179;
+            this.pinkB1 = 0.99332 * this.pinkB1 + white * 0.0750759;
+            this.pinkB2 = 0.96900 * this.pinkB2 + white * 0.1538520;
+            this.pinkB3 = 0.86650 * this.pinkB3 + white * 0.3104856;
+            this.pinkB4 = 0.55000 * this.pinkB4 + white * 0.5329522;
+            this.pinkB5 = -0.7616 * this.pinkB5 - white * 0.0168980;
+            const pink = this.pinkB0 + this.pinkB1 + this.pinkB2 + this.pinkB3 + this.pinkB4 + this.pinkB5 + this.pinkB6 + white * 0.5362;
+            this.pinkB6 = white * 0.115926;
+            // Brightness control (mix with white)
+            const bright = this.clamp(p.pinkBright, 0, 1);
+            x = (pink * 0.11) * (1 - bright) + white * bright * 0.5;
+            break;
+          }
+          case 'brownnoise': {
+            // Brownian noise (random walk)
+            const white = Math.random() * 2 - 1;
+            const step = this.clamp(p.brownStep, 0.001, 0.1);
+            this.brownVal = this.clamp(this.brownVal + white * step, -1, 1);
+            x = this.brownVal;
+            break;
+          }
+          case 'velvetnoise': {
+            // Velvet noise: sparse impulses
+            const density = Math.max(100, p.velvetDensity);
+            const avgSamples = sr / density;
+            if (this.velvetCounter >= this.velvetNext) {
+              x = Math.random() > 0.5 ? 1 : -1;
+              this.velvetNext = this.velvetCounter + avgSamples * (0.5 + Math.random());
+            } else {
+              x = 0;
+            }
+            this.velvetCounter++;
+            break;
+          }
+          case 'rossler': {
+            // Rossler attractor
+            const dt = 1 / sr;
+            const a = p.rossA, b = p.rossB, c = p.rossC;
+            const dx = -this.ry - this.rz;
+            const dy = this.rx + a * this.ry;
+            const dz = b + this.rz * (this.rx - c);
+            this.rx += dx * dt * 100;
+            this.ry += dy * dt * 100;
+            this.rz += dz * dt * 100;
+            // Clamp to prevent explosion
+            this.rx = this.clamp(this.rx, -50, 50);
+            this.ry = this.clamp(this.ry, -50, 50);
+            this.rz = this.clamp(this.rz, -50, 50);
+
+            const freq = Math.max(0, p.rossBase + p.rossFreqScale * this.rx);
+            const amp = this.clamp(p.rossAmp * (0.3 + 0.7 * (0.5 + 0.02 * this.ry)), 0, 1);
+            phase += twoPi * (freq / sr);
+            x = amp * Math.sin(phase);
+            break;
+          }
+          case 'shepard': {
+            // Shepard tone: auditory illusion of endless rising
+            const baseF = Math.max(20, p.shepBase);
+            const speed = p.shepSpeed;
+            const octaves = Math.max(1, Math.min(10, Math.floor(p.shepOctaves)));
+            const centerLog = Math.log2(440); // Center frequency for Gaussian
+            const sigma = 1.5; // Width of Gaussian envelope
+
+            this.shepardT += speed / sr;
+            if (this.shepardT > 1) this.shepardT -= 1;
+
+            let sum = 0;
+            for (let k = 0; k < octaves; k++) {
+              const freqMult = Math.pow(2, k + this.shepardT);
+              const freq = baseF * freqMult;
+              if (freq > 18000) continue;
+
+              // Gaussian amplitude envelope based on log frequency
+              const logF = Math.log2(freq);
+              const envelope = Math.exp(-0.5 * Math.pow((logF - centerLog) / sigma, 2));
+
+              this.shepardPhases[k] += twoPi * (freq / sr);
+              if (this.shepardPhases[k] > twoPi) this.shepardPhases[k] -= twoPi;
+              sum += envelope * Math.sin(this.shepardPhases[k]);
+            }
+            x = sum / Math.sqrt(octaves);
+            break;
+          }
+          default: x = 0;
+        }
+
+        ch0[i] = x * (p.gain ?? 0.2);
+        t += 1/sr;
+        if (phase > 1e9) phase %= twoPi;
+      }
+
+      this.phase = phase; this.t = t; this.logi = logi;
+      this.lx = lx; this.ly = ly; this.lz = lz;
+      this.nlp = nlp;
+      return true;
+    }
+  }
+
+  registerProcessor('formula-generator', FormulaGeneratorProcessor);
+
+  // ---- Recorder Processor: captures raw PCM samples ----
+  class RecorderProcessor extends AudioWorkletProcessor {
+    constructor() {
+      super();
+      this.recording = false;
+      this.chunks = [];
+      
+      this.port.onmessage = (e) => {
+        if (e.data.type === 'start') {
+          this.recording = true;
+          this.chunks = [];
+        } else if (e.data.type === 'stop') {
+          this.recording = false;
+          const totalLength = this.chunks.reduce((acc, c) => acc + c.length, 0);
+          const result = new Float32Array(totalLength);
+          let offset = 0;
+          for (const chunk of this.chunks) {
+            result.set(chunk, offset);
+            offset += chunk.length;
+          }
+          this.port.postMessage({ type: 'data', samples: result });
+          this.chunks = [];
+        }
+      };
+    }
+    
+    process(inputs, outputs) {
+      const input = inputs[0];
+      const output = outputs[0];
+      
+      // Pass through audio (keeps node active in audio graph)
+      if (input && input[0] && output && output[0]) {
+        output[0].set(input[0]);
+        
+        // Record if active
+        if (this.recording) {
+          this.chunks.push(new Float32Array(input[0]));
+        }
+      }
+      
+      return true;
+    }
+  }
+  
+  registerProcessor('recorder-processor', RecorderProcessor);
+  `;
+
+  // ---------- UI schema ----------
+  const FORMULAS = [
+    { id:'additive', title:'Harmonic Sum', tag:'Additive', desc:'Σ aₙ(t) sin(2π n f t)',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
+        {k:'fund', name:'Fund (Hz)', min:20, max:500, step:1, value:110},
+        {k:'N', name:'Harmonics N', min:1, max:40, step:1, value:12},
+        {k:'move', name:'Move (Hz)', min:0.01, max:5, step:0.01, value:0.35},
+      ]},
+    { id:'lorenz', title:'Lorenz Attractor', tag:'Lorenz', desc:'Lorenz ODE mapped to freq/amp', hasReset:true,
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
+        {k:'sigma', name:'σ', min:0, max:30, step:0.01, value:10},
+        {k:'rho', name:'ρ', min:0, max:60, step:0.01, value:28},
+        {k:'beta', name:'β', min:0.1, max:10, step:0.0001, value:2.6667},
+        {k:'lBase', name:'Base f (Hz)', min:20, max:400, step:1, value:120},
+        {k:'lFreqScale', name:'Freq scale', min:0, max:200, step:0.1, value:40},
+        {k:'lAmp', name:'Amp scale', min:0, max:1, step:0.001, value:0.25},
+      ]},
+    { id:'rossler', title:'Rossler Attractor', tag:'Chaos', desc:'dx=-y-z, dy=x+ay, dz=b+z(x-c)', hasReset:true,
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
+        {k:'rossA', name:'a', min:0.01, max:0.5, step:0.001, value:0.2},
+        {k:'rossB', name:'b', min:0.01, max:0.5, step:0.001, value:0.2},
+        {k:'rossC', name:'c', min:2, max:12, step:0.01, value:5.7},
+        {k:'rossBase', name:'Base f (Hz)', min:20, max:400, step:1, value:120},
+        {k:'rossFreqScale', name:'Freq scale', min:0, max:100, step:0.1, value:30},
+        {k:'rossAmp', name:'Amp scale', min:0, max:1, step:0.001, value:0.25},
+      ]},
+    { id:'gliss', title:'Exponential Glissando', tag:'Gliss', desc:'f(t)=f0·e^{k t}', hasReset:true,
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
+        {k:'f0', name:'f0 (Hz)', min:10, max:400, step:1, value:55},
+        {k:'k', name:'k', min:-2.0, max:2.0, step:0.001, value:0.15},
+      ]},
+    { id:'shepard', title:'Shepard Tone', tag:'Illusion', desc:'Endless rising illusion', hasReset:true,
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
+        {k:'shepBase', name:'Base f (Hz)', min:20, max:200, step:1, value:55},
+        {k:'shepSpeed', name:'Speed', min:-0.5, max:0.5, step:0.001, value:0.1},
+        {k:'shepOctaves', name:'Octaves', min:3, max:10, step:1, value:6},
+      ]},
+    { id:'fm', title:'FM Sine', tag:'FM', desc:'sin(2π f_c t + I sin(2π f_m t))',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.15},
+        {k:'fc', name:'f_c (Hz)', min:20, max:2000, step:1, value:220},
+        {k:'fm', name:'f_m (Hz)', min:0.1, max:60, step:0.1, value:2.0},
+        {k:'I', name:'Index I', min:0, max:20, step:0.01, value:3.0},
+      ]},
+    { id:'beats', title:'Two Sines (Beats)', tag:'Beats', desc:'sin(2π f t)+sin(2π(f+Δf)t)',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
+        {k:'fbeat', name:'f (Hz)', min:20, max:2000, step:1, value:220},
+        {k:'df', name:'Δf (Hz)', min:0, max:20, step:0.01, value:0.8},
+      ]},
+    { id:'pm', title:'Phase Modulation', tag:'PM', desc:'sin(2π f t + 5·sin(sin(2π f2 t)))', hasReset:true,
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
+        {k:'f', name:'f (Hz)', min:20, max:2000, step:1, value:220},
+        {k:'f2pm', name:'f2 (Hz)', min:0.1, max:40, step:0.1, value:3},
+      ]},
+    { id:'quasi', title:'Quasi-random LFO', tag:'Quasi', desc:'f(t)=fq + Aq·sin(sin(sin(w·t)))', hasReset:true,
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
+        {k:'fq', name:'Base f (Hz)', min:20, max:500, step:1, value:120},
+        {k:'Aq', name:'Depth (Hz)', min:0, max:1200, step:1, value:220},
+        {k:'wq', name:'w', min:0.05, max:6, step:0.01, value:0.8},
+      ]},
+    { id:'logistic', title:'Logistic Map', tag:'Chaos', desc:'xₙ₊₁ = r xₙ(1−xₙ)',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
+        {k:'base', name:'Base f (Hz)', min:20, max:800, step:1, value:110},
+        {k:'depth', name:'Depth (Hz)', min:0, max:1200, step:1, value:330},
+        {k:'r', name:'r', min:2.8, max:4.0, step:0.0001, value:3.86},
+        {k:'lfoHz', name:'Update rate (Hz)', min:1, max:400, step:1, value:40},
+      ]},
+    { id:'dist', title:'Nonlinear Saturation', tag:'tanh', desc:'tanh(α·sin(2π f t))',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
+        {k:'fd', name:'f (Hz)', min:20, max:2000, step:1, value:110},
+        {k:'alpha', name:'α', min:0, max:10, step:0.01, value:3.0},
+      ]},
+    { id:'karplus', title:'Karplus–Strong (String)', tag:'KS', desc:'noise-in-delay + averaging + damping', hasReset:true,
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.14},
+        {k:'ksFreq', name:'Freq (Hz)', min:40, max:880, step:1, value:110},
+        {k:'ksDamp', name:'Damping', min:0.90, max:0.9999, step:0.0001, value:0.985},
+        {k:'ksBright', name:'Brightness', min:0, max:1, step:0.001, value:0.5},
+      ]},
+    { id:'noiselp', title:'Noise → Low-pass', tag:'Noise', desc:'white noise → 1-pole LP',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
+        {k:'nCut', name:'Cutoff (Hz)', min:20, max:18000, step:1, value:800},
+      ]},
+    { id:'pinknoise', title:'Pink Noise (1/f)', tag:'Noise', desc:'Natural 1/f spectrum noise',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.12},
+        {k:'pinkBright', name:'Brightness', min:0, max:1, step:0.01, value:0.3},
+      ]},
+    { id:'brownnoise', title:'Brown Noise (Brownian)', tag:'Noise', desc:'Random walk — deep rumble',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.15},
+        {k:'brownStep', name:'Step size', min:0.001, max:0.1, step:0.001, value:0.02},
+      ]},
+    { id:'velvetnoise', title:'Velvet Noise', tag:'Noise', desc:'Sparse random impulses',
+      sliders:[
+        {k:'gain', name:'Gain', min:0, max:1, step:0.001, value:0.10},
+        {k:'velvetDensity', name:'Density (imp/s)', min:100, max:10000, step:10, value:2000},
+      ]},
+  ];
+
+  // ---------- DOM helpers ----------
+  const $ = (s) => document.querySelector(s);
+  const formulasRoot = $('#formulas');
+  const PRESET_KEY = 'formula_audio_lab_preset_v2';
+
+  function fmt(v){
+    v = Number(v);
+    if (Math.abs(v) >= 100) return String(Math.round(v));
+    if (Math.abs(v) >= 10) return v.toFixed(2);
+    return v.toFixed(3);
+  }
+
+  // base64url helpers (UTF-8 safe)
+  function b64urlEncode(str){
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    for (const b of bytes) bin += String.fromCharCode(b);
+    return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function b64urlDecode(b64u){
+    const b64 = b64u.replace(/-/g,'+').replace(/_/g,'/');
+    const pad = b64.length % 4 ? '='.repeat(4 - (b64.length % 4)) : '';
+    const bin = atob(b64 + pad);
+    const bytes = new Uint8Array(bin.length);
+    for (let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  // ---------- UI build ----------
+  function makeFormulaUI(f){
+    const wrap = document.createElement('div');
+    wrap.className = 'formula';
+
+    const resetHtml = f.hasReset ? `
+        <div class="sep"></div>
+        <div class="row">
+          <button id="reset_${f.id}" disabled>Reset state</button>
+        </div>` : '';
+
+    wrap.innerHTML = `
+      <div class="fhead">
+        <div>
+          <h3>
+            <input type="checkbox" id="en_${f.id}">
+            ${f.title}
+          </h3>
+          <div class="small">${f.desc}</div>
+        </div>
+        <div class="factions">
+          <button class="collapseBtn" id="col_${f.id}" type="button">▼</button>
+        </div>
+      </div>
+
+      <div class="fbody" id="body_${f.id}">
+        <div id="sl_${f.id}"></div>${resetHtml}
+      </div>
+    `;
+    formulasRoot.appendChild(wrap);
+
+    const slidersHost = wrap.querySelector(`#sl_${f.id}`);
+    for (const s of f.sliders){
+      const line = document.createElement('div');
+      line.className = 'ctrl with-adj';
+      line.innerHTML = `
+        <label for="${f.id}_${s.k}">${s.name}</label>
+        <button class="adj-btn" data-slider="${f.id}_${s.k}" data-dir="-1">−</button>
+        <input id="${f.id}_${s.k}" type="range" min="${s.min}" max="${s.max}" step="${s.step}" value="${s.value}">
+        <button class="adj-btn" data-slider="${f.id}_${s.k}" data-dir="1">+</button>
+        <div class="small" id="${f.id}_${s.k}_v">${fmt(Number(s.value))}</div>
+      `;
+      slidersHost.appendChild(line);
+    }
+  }
+  for (const f of FORMULAS) makeFormulaUI(f);
+
+  // ---------- +/- Adjustment buttons (with hold-to-repeat) ----------
+  let adjRepeatInterval = null;
+  const ADJ_REPEAT_DELAY = 150; // ms between repeats when holding
+
+  function adjustSlider(btn) {
+    const sliderId = btn.dataset.slider;
+    const dir = Number(btn.dataset.dir);
+    const slider = document.getElementById(sliderId);
+    if (!slider) return;
+    
+    const step = Number(slider.step) || 1;
+    const min = Number(slider.min);
+    const max = Number(slider.max);
+    let newVal = Number(slider.value) + dir * step;
+    newVal = Math.max(min, Math.min(max, newVal));
+    
+    slider.value = newVal;
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function stopAdjRepeat() {
+    if (adjRepeatInterval) {
+      clearInterval(adjRepeatInterval);
+      adjRepeatInterval = null;
+    }
+  }
+
+  function setupAdjustmentButtons(container) {
+    container.addEventListener('pointerdown', (e) => {
+      const btn = e.target.closest('.adj-btn');
+      if (!btn) return;
+      
+      e.preventDefault(); // Prevent text selection on long press
+      stopAdjRepeat();
+      
+      // Immediate first adjustment
+      adjustSlider(btn);
+      
+      // Start repeating while held
+      adjRepeatInterval = setInterval(() => adjustSlider(btn), ADJ_REPEAT_DELAY);
+    });
+
+    container.addEventListener('pointerup', stopAdjRepeat);
+    container.addEventListener('pointerleave', stopAdjRepeat);
+    container.addEventListener('pointercancel', stopAdjRepeat);
+  }
+
+  setupAdjustmentButtons(formulasRoot);
+  
+  // Global pointerup to stop repeat if user releases outside container
+  document.addEventListener('pointerup', stopAdjRepeat);
+
+  // ---------- State serialization ----------
+  function readStateFromUI(){
+    const formulas = {};
+    for (const f of FORMULAS){
+      const enabled = !!$(`#en_${f.id}`).checked;
+      const params = {};
+      for (const s of f.sliders) params[s.k] = Number($(`#${f.id}_${s.k}`).value);
+      formulas[f.id] = { enabled, params };
+    }
+    const fx = {
+      filterOn: $('#fxFilterOn').checked,
+      filterType: $('#fxFilterType').value,
+      filterFreq: Number($('#fxFilterFreq').value),
+      filterQ: Number($('#fxFilterQ').value),
+      chorusOn: $('#fxChorusOn').checked,
+      chorusMode: $('#fxChorusMode').value,
+      chorusRate: Number($('#fxChorusRate').value),
+      chorusDepth: Number($('#fxChorusDepth').value),
+      chorusMix: Number($('#fxChorusMix').value),
+      chorusFb: Number($('#fxChorusFb').value),
+      reverbOn: $('#fxReverbOn').checked,
+      reverbDecay: Number($('#fxReverbDecay').value),
+      reverbMix: Number($('#fxReverbMix').value),
+      limiterOn: $('#fxLimiterOn').checked,
+      limiterThr: Number($('#fxLimiterThr').value),
+      limiterRel: Number($('#fxLimiterRel').value),
+      delayOn: $('#fxDelayOn').checked,
+      delayTime: Number($('#fxDelayTime').value),
+      delayFb: Number($('#fxDelayFb').value),
+      delayMix: Number($('#fxDelayMix').value),
+      phaserOn: $('#fxPhaserOn').checked,
+      phaserRate: Number($('#fxPhaserRate').value),
+      phaserDepth: Number($('#fxPhaserDepth').value),
+      phaserStages: Number($('#fxPhaserStages').value),
+      phaserFb: Number($('#fxPhaserFb').value),
+      phaserMix: Number($('#fxPhaserMix').value),
+    };
+    return { v: 2, masterGain: Number($('#masterGain').value), fx, formulas };
+  }
+
+  // Default state for effects (all OFF with default values)
+  const DEFAULT_FX = {
+    filterOn: false, filterType: 'lowpass', filterFreq: 1000, filterQ: 0.7,
+    chorusOn: false, chorusMode: 'chorus', chorusRate: 0.35, chorusDepth: 6, chorusMix: 0.35, chorusFb: 0.15,
+    reverbOn: false, reverbDecay: 2.8, reverbMix: 0.25,
+    limiterOn: false, limiterThr: -12, limiterRel: 0.15,
+    delayOn: false, delayTime: 0.35, delayFb: 0.4, delayMix: 0.3,
+    phaserOn: false, phaserRate: 0.5, phaserDepth: 0.7, phaserStages: 4, phaserFb: 0.3, phaserMix: 0.5
+  };
+
+  function resetToDefaults(){
+    // Reset master gain
+    $('#masterGain').value = '0.25';
+    $('#masterGainVal').textContent = '0.250';
+
+    // Reset all FX to defaults
+    $('#fxFilterOn').checked = DEFAULT_FX.filterOn;
+    $('#fxFilterType').value = DEFAULT_FX.filterType;
+    $('#fxFilterFreq').value = DEFAULT_FX.filterFreq;
+    $('#fxFilterQ').value = DEFAULT_FX.filterQ;
+
+    $('#fxChorusOn').checked = DEFAULT_FX.chorusOn;
+    $('#fxChorusMode').value = DEFAULT_FX.chorusMode;
+    $('#fxChorusRate').value = DEFAULT_FX.chorusRate;
+    $('#fxChorusDepth').value = DEFAULT_FX.chorusDepth;
+    $('#fxChorusMix').value = DEFAULT_FX.chorusMix;
+    $('#fxChorusFb').value = DEFAULT_FX.chorusFb;
+
+    $('#fxReverbOn').checked = DEFAULT_FX.reverbOn;
+    $('#fxReverbDecay').value = DEFAULT_FX.reverbDecay;
+    $('#fxReverbMix').value = DEFAULT_FX.reverbMix;
+
+    $('#fxLimiterOn').checked = DEFAULT_FX.limiterOn;
+    $('#fxLimiterThr').value = DEFAULT_FX.limiterThr;
+    $('#fxLimiterRel').value = DEFAULT_FX.limiterRel;
+
+    $('#fxDelayOn').checked = DEFAULT_FX.delayOn;
+    $('#fxDelayTime').value = DEFAULT_FX.delayTime;
+    $('#fxDelayFb').value = DEFAULT_FX.delayFb;
+    $('#fxDelayMix').value = DEFAULT_FX.delayMix;
+
+    $('#fxPhaserOn').checked = DEFAULT_FX.phaserOn;
+    $('#fxPhaserRate').value = DEFAULT_FX.phaserRate;
+    $('#fxPhaserDepth').value = DEFAULT_FX.phaserDepth;
+    $('#fxPhaserStages').value = DEFAULT_FX.phaserStages;
+    $('#fxPhaserFb').value = DEFAULT_FX.phaserFb;
+    $('#fxPhaserMix').value = DEFAULT_FX.phaserMix;
+
+    updateFXLabels();
+
+    // Reset all formulas to disabled + default slider values
+    for (const f of FORMULAS){
+      const enEl = $(`#en_${f.id}`);
+      enEl.checked = false;
+      const formulaWrap = enEl.closest('.formula');
+      if (formulaWrap) formulaWrap.classList.remove('active');
+
+      for (const s of f.sliders){
+        const el = $(`#${f.id}_${s.k}`);
+        el.value = String(s.value);
+        $(`#${f.id}_${s.k}_v`).textContent = fmt(s.value);
+      }
+    }
+  }
+
+  function applyStateToUI(state, resetFirst = false){
+    if (!state || typeof state !== 'object') return;
+
+    // Optionally reset everything to defaults first
+    if (resetFirst) resetToDefaults();
+
+    if (typeof state.masterGain === 'number'){
+      $('#masterGain').value = String(state.masterGain);
+      $('#masterGainVal').textContent = state.masterGain.toFixed(3);
+    }
+
+    const fx = state.fx || {};
+    const setVal = (id, val) => { if (val !== undefined) $(id).value = String(val); };
+    const setChk = (id, val) => { if (val !== undefined) $(id).checked = !!val; };
+
+    setChk('#fxFilterOn', fx.filterOn); setVal('#fxFilterType', fx.filterType);
+    setVal('#fxFilterFreq', fx.filterFreq); setVal('#fxFilterQ', fx.filterQ);
+
+    setChk('#fxChorusOn', fx.chorusOn); setVal('#fxChorusMode', fx.chorusMode);
+    setVal('#fxChorusRate', fx.chorusRate); setVal('#fxChorusDepth', fx.chorusDepth);
+    setVal('#fxChorusMix', fx.chorusMix); setVal('#fxChorusFb', fx.chorusFb);
+
+    setChk('#fxReverbOn', fx.reverbOn); setVal('#fxReverbDecay', fx.reverbDecay);
+    setVal('#fxReverbMix', fx.reverbMix);
+
+    setChk('#fxLimiterOn', fx.limiterOn); setVal('#fxLimiterThr', fx.limiterThr);
+    setVal('#fxLimiterRel', fx.limiterRel);
+
+    setChk('#fxDelayOn', fx.delayOn); setVal('#fxDelayTime', fx.delayTime);
+    setVal('#fxDelayFb', fx.delayFb); setVal('#fxDelayMix', fx.delayMix);
+
+    setChk('#fxPhaserOn', fx.phaserOn); setVal('#fxPhaserRate', fx.phaserRate);
+    setVal('#fxPhaserDepth', fx.phaserDepth); setVal('#fxPhaserStages', fx.phaserStages);
+    setVal('#fxPhaserFb', fx.phaserFb); setVal('#fxPhaserMix', fx.phaserMix);
+
+    updateFXLabels();
+
+    const formulas = state.formulas || {};
+    for (const f of FORMULAS){
+      const st = formulas[f.id];
+      if (!st) continue;
+
+      const enEl = $(`#en_${f.id}`);
+      enEl.checked = !!st.enabled;
+      // Update active highlight
+      const formulaWrap = enEl.closest('.formula');
+      if (formulaWrap) formulaWrap.classList.toggle('active', !!st.enabled);
+
+      const params = st.params || {};
+      for (const s of f.sliders){
+        if (params[s.k] === undefined) continue;
+        const el = $(`#${f.id}_${s.k}`);
+        el.value = String(params[s.k]);
+        $(`#${f.id}_${s.k}_v`).textContent = fmt(params[s.k]);
+      }
+    }
+  }
+
+  function loadStateFromURL(){
+    const m = location.hash.match(/#s=([A-Za-z0-9\-_]+)/);
+    if (!m) return null;
+    try {
+      const json = b64urlDecode(m[1]);
+      return JSON.parse(json);
+    } catch {
+      return null;
+    }
+  }
+  function writeStateToURL(state){
+    const json = JSON.stringify(state);
+    const token = b64urlEncode(json);
+    history.replaceState(null, '', `#s=${token}`);
+    return location.href;
+  }
+
+  // ---------- Audio graph ----------
+  let ctx = null;
+  let analyser = null;
+
+  let mixBus = null;
+  let masterGain = null;
+
+  // FX
+  let fxInput = null;
+  let filterNode = null;
+
+  let chorusDelay = null;
+  let chorusLFO = null;
+  let chorusLFOGain = null;
+  let chorusDry = null;
+  let chorusWet = null;
+  let chorusFb = null;
+
+  let reverbConv = null;
+  let reverbDry = null;
+  let reverbWet = null;
+
+  let limiter = null;
+
+  // Delay effect nodes
+  let delayNode = null;
+  let delayDry = null;
+  let delayWet = null;
+  let delayFb = null;
+
+  // Phaser effect nodes
+  let phaserFilters = [];
+  let phaserLFO = null;
+  let phaserLFOGains = [];
+  let phaserDry = null;
+  let phaserWet = null;
+  let phaserFb = null;
+  let phaserInput = null;
+  let phaserOutput = null;
+
+  // WAV Recording
+  let recorderNode = null;
+  let isRecording = false;
+  let downloadUrl = null;
+  let scopeRAF = null;
+
+  // Wake Lock (prevent sleep on mobile)
+  let wakeLock = null;
+
+  async function requestWakeLock() {
+    if ('wakeLock' in navigator) {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      } catch (err) {
+        console.log('Wake Lock error:', err.name, err.message);
+      }
+    }
+  }
+
+  async function releaseWakeLock() {
+    if (wakeLock) {
+      await wakeLock.release();
+      wakeLock = null;
+    }
+  }
+
+  // Page visibility state
+  let isPageVisible = !document.hidden;
+
+  // Handle page visibility changes (minimize, tab switch, etc.)
+  document.addEventListener('visibilitychange', async () => {
+    isPageVisible = document.visibilityState === 'visible';
+    
+    if (isPageVisible) {
+      // Page became visible - resume audio and visualization
+      if (ctx) {
+        // Resume AudioContext if it was suspended by the browser
+        if (ctx.state === 'suspended') {
+          try {
+            await ctx.resume();
+          } catch (e) {
+            console.log('AudioContext resume failed:', e);
+          }
+        }
+        // Re-request wake lock
+        if (ctx.state === 'running') {
+          await requestWakeLock();
+        }
+        // Restart visualization if audio is running
+        if (ctx.state === 'running' && analyser && !scopeRAF) {
+          startScopeAndMeter();
+        }
+      }
+    } else {
+      // Page hidden - stop visualization to save CPU, audio continues in AudioWorklet
+      if (scopeRAF) {
+        cancelAnimationFrame(scopeRAF);
+        scopeRAF = null;
+      }
+    }
+  });
+
+  // Encode Float32Array to WAV Blob
+  function encodeWAV(samples, sampleRate) {
+    const numChannels = 1;
+    const bitsPerSample = 16;
+    const bytesPerSample = bitsPerSample / 8;
+    const blockAlign = numChannels * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = samples.length * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    // RIFF header
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(view, 8, 'WAVE');
+
+    // fmt chunk
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true); // chunk size
+    view.setUint16(20, 1, true);  // PCM format
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitsPerSample, true);
+
+    // data chunk
+    writeString(view, 36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    // Convert float samples to 16-bit PCM
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++) {
+      let s = Math.max(-1, Math.min(1, samples[i]));
+      s = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      view.setInt16(offset, s, true);
+      offset += 2;
+    }
+
+    return new Blob([buffer], { type: 'audio/wav' });
+
+    function writeString(view, offset, str) {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+      }
+    }
+  }
+
+  const nodes = new Map(); // id -> {aw, g, params}
+
+  function buildWorkletURL(){
+    const blob = new Blob([workletCode], {type:'application/javascript'});
+    return URL.createObjectURL(blob);
+  }
+
+  function makeImpulseResponse(ctx, seconds, decay){
+    const sr = ctx.sampleRate;
+    const len = Math.max(1, Math.floor(sr * seconds));
+    const buf = ctx.createBuffer(2, len, sr);
+    for (let ch=0; ch<2; ch++){
+      const data = buf.getChannelData(ch);
+      for (let i=0; i<len; i++){
+        const t = i / sr;
+        const env = Math.exp(-t / Math.max(1e-3, decay));
+        data[i] = (Math.random()*2 - 1) * env;
+      }
+    }
+    return buf;
+  }
+
+  function setFXEnabled(){
+    if (!ctx) return;
+
+    const filterOn = $('#fxFilterOn').checked;
+    const chorusOn = $('#fxChorusOn').checked;
+    const reverbOn = $('#fxReverbOn').checked;
+    const limiterOn = $('#fxLimiterOn').checked;
+    const delayOn = $('#fxDelayOn').checked;
+    const phaserOn = $('#fxPhaserOn').checked;
+
+    // disconnect known nodes
+    fxInput.disconnect();
+    filterNode.disconnect();
+
+    chorusDry.disconnect(); chorusWet.disconnect();
+    chorusDelay.disconnect(); chorusFb.disconnect();
+
+    reverbDry.disconnect(); reverbWet.disconnect(); reverbConv.disconnect();
+
+    limiter.disconnect();
+
+    // Disconnect delay nodes
+    delayNode.disconnect(); delayDry.disconnect();
+    delayWet.disconnect(); delayFb.disconnect();
+
+    // Disconnect phaser nodes
+    phaserDry.disconnect(); phaserWet.disconnect();
+    phaserInput.disconnect(); phaserOutput.disconnect();
+    phaserFb.disconnect();
+    for (const f of phaserFilters) f.disconnect();
+
+    masterGain.disconnect();
+    analyser.disconnect();
+
+    // end
+    analyser.connect(ctx.destination);
+
+    let node = fxInput;
+
+    if (filterOn) { node.connect(filterNode); node = filterNode; }
+
+    if (chorusOn) {
+      node.connect(chorusDry);
+      node.connect(chorusDelay);
+
+      chorusDelay.connect(chorusFb);
+      chorusFb.connect(chorusDelay);
+
+      chorusDelay.connect(chorusWet);
+
+      const chorusSum = ctx.createGain();
+      chorusDry.connect(chorusSum);
+      chorusWet.connect(chorusSum);
+      node = chorusSum;
+    }
+
+    if (phaserOn) {
+      node.connect(phaserDry);
+      node.connect(phaserInput);
+
+      // Connect phaser filter chain
+      let pNode = phaserInput;
+      for (const f of phaserFilters) {
+        pNode.connect(f);
+        pNode = f;
+      }
+      pNode.connect(phaserOutput);
+      phaserOutput.connect(phaserFb);
+      phaserFb.connect(phaserInput);
+      phaserOutput.connect(phaserWet);
+
+      const phaserSum = ctx.createGain();
+      phaserDry.connect(phaserSum);
+      phaserWet.connect(phaserSum);
+      node = phaserSum;
+    }
+
+    if (delayOn) {
+      node.connect(delayDry);
+      node.connect(delayNode);
+      delayNode.connect(delayFb);
+      delayFb.connect(delayNode);
+      delayNode.connect(delayWet);
+
+      const delaySum = ctx.createGain();
+      delayDry.connect(delaySum);
+      delayWet.connect(delaySum);
+      node = delaySum;
+    }
+
+    if (reverbOn) {
+      node.connect(reverbDry);
+      node.connect(reverbConv);
+      reverbConv.connect(reverbWet);
+
+      const revSum = ctx.createGain();
+      reverbDry.connect(revSum);
+      reverbWet.connect(revSum);
+      node = revSum;
+    }
+
+    if (limiterOn) { node.connect(limiter); node = limiter; }
+
+    // master -> analyser -> speakers
+    node.connect(masterGain);
+    masterGain.connect(analyser);
+    
+    // Connect recorder node to masterGain for WAV recording
+    if (recorderNode) {
+      masterGain.connect(recorderNode);
+      // Keep recorder processing with silent output (prevents double audio)
+      try { recorderNode.disconnect(); } catch {}
+      const silentGain = ctx.createGain();
+      silentGain.gain.value = 0;
+      recorderNode.connect(silentGain);
+      silentGain.connect(ctx.destination);
+    }
+  }
+
+  // Update FX labels only (can be called without audio context)
+  function updateFXLabels(){
+    $('#fxFilterFreqVal').textContent = $('#fxFilterFreq').value;
+    $('#fxFilterQVal').textContent = Number($('#fxFilterQ').value).toFixed(1);
+    $('#fxChorusRateVal').textContent = Number($('#fxChorusRate').value).toFixed(2);
+    $('#fxChorusDepthVal').textContent = Number($('#fxChorusDepth').value).toFixed(1);
+    $('#fxChorusMixVal').textContent = Number($('#fxChorusMix').value).toFixed(2);
+    $('#fxChorusFbVal').textContent = Number($('#fxChorusFb').value).toFixed(2);
+    $('#fxReverbDecayVal').textContent = Number($('#fxReverbDecay').value).toFixed(1);
+    $('#fxReverbMixVal').textContent = Number($('#fxReverbMix').value).toFixed(2);
+    $('#fxLimiterThrVal').textContent = Number($('#fxLimiterThr').value).toFixed(1);
+    $('#fxLimiterRelVal').textContent = Number($('#fxLimiterRel').value).toFixed(2);
+    $('#fxDelayTimeVal').textContent = Number($('#fxDelayTime').value).toFixed(2);
+    $('#fxDelayFbVal').textContent = Number($('#fxDelayFb').value).toFixed(2);
+    $('#fxDelayMixVal').textContent = Number($('#fxDelayMix').value).toFixed(2);
+    $('#fxPhaserRateVal').textContent = Number($('#fxPhaserRate').value).toFixed(2);
+    $('#fxPhaserDepthVal').textContent = Number($('#fxPhaserDepth').value).toFixed(2);
+    $('#fxPhaserFbVal').textContent = Number($('#fxPhaserFb').value).toFixed(2);
+    $('#fxPhaserMixVal').textContent = Number($('#fxPhaserMix').value).toFixed(2);
+  }
+
+  function updateFXParams(){
+    if (!ctx) return;
+
+    filterNode.type = $('#fxFilterType').value;
+    const ff = Number($('#fxFilterFreq').value);
+    const fq = Number($('#fxFilterQ').value);
+    filterNode.frequency.setValueAtTime(ff, ctx.currentTime);
+    filterNode.Q.setValueAtTime(fq, ctx.currentTime);
+
+    const mode = $('#fxChorusMode').value;
+    const rate = Number($('#fxChorusRate').value);
+    const depthMs = Number($('#fxChorusDepth').value);
+    const mix = Number($('#fxChorusMix').value);
+    const fb = Number($('#fxChorusFb').value);
+
+    const baseMs = (mode === 'flanger') ? 2.0 : 12.0;
+    chorusDelay.delayTime.setValueAtTime(baseMs / 1000, ctx.currentTime);
+    chorusLFO.frequency.setValueAtTime(rate, ctx.currentTime);
+    chorusLFOGain.gain.setValueAtTime(depthMs / 1000, ctx.currentTime);
+    chorusDry.gain.setValueAtTime(1 - mix, ctx.currentTime);
+    chorusWet.gain.setValueAtTime(mix, ctx.currentTime);
+    chorusFb.gain.setValueAtTime(fb, ctx.currentTime);
+
+    const decay = Number($('#fxReverbDecay').value);
+    const rMix = Number($('#fxReverbMix').value);
+    reverbDry.gain.setValueAtTime(1 - rMix, ctx.currentTime);
+    reverbWet.gain.setValueAtTime(rMix, ctx.currentTime);
+
+    const seconds = Math.min(6.0, Math.max(0.3, decay * 1.4));
+    reverbConv.buffer = makeImpulseResponse(ctx, seconds, decay);
+
+    const thr = Number($('#fxLimiterThr').value);
+    const rel = Number($('#fxLimiterRel').value);
+
+    limiter.threshold.setValueAtTime(thr, ctx.currentTime);
+    limiter.ratio.setValueAtTime(20, ctx.currentTime);
+    limiter.attack.setValueAtTime(0.003, ctx.currentTime);
+    limiter.release.setValueAtTime(rel, ctx.currentTime);
+    limiter.knee.setValueAtTime(0, ctx.currentTime);
+
+    // Delay parameters
+    const delayTime = Number($('#fxDelayTime').value);
+    const delayFbVal = Number($('#fxDelayFb').value);
+    const delayMixVal = Number($('#fxDelayMix').value);
+
+    delayNode.delayTime.setValueAtTime(delayTime, ctx.currentTime);
+    delayFb.gain.setValueAtTime(delayFbVal, ctx.currentTime);
+    delayDry.gain.setValueAtTime(1 - delayMixVal, ctx.currentTime);
+    delayWet.gain.setValueAtTime(delayMixVal, ctx.currentTime);
+
+    // Phaser parameters
+    const phaserRate = Number($('#fxPhaserRate').value);
+    const phaserDepthVal = Number($('#fxPhaserDepth').value);
+    const phaserStages = Number($('#fxPhaserStages').value);
+    const phaserFbVal = Number($('#fxPhaserFb').value);
+    const phaserMixVal = Number($('#fxPhaserMix').value);
+
+    phaserLFO.frequency.setValueAtTime(phaserRate, ctx.currentTime);
+    phaserFb.gain.setValueAtTime(phaserFbVal, ctx.currentTime);
+    phaserDry.gain.setValueAtTime(1 - phaserMixVal, ctx.currentTime);
+    phaserWet.gain.setValueAtTime(phaserMixVal, ctx.currentTime);
+
+    // Update phaser filter frequencies with LFO depth
+    const baseFreq = 1000;
+    const freqRange = 3000 * phaserDepthVal;
+    for (let i = 0; i < phaserFilters.length; i++) {
+      const offset = (i / phaserFilters.length) * Math.PI * 2;
+      phaserFilters[i].frequency.setValueAtTime(baseFreq, ctx.currentTime);
+      phaserLFOGains[i].gain.setValueAtTime(freqRange, ctx.currentTime);
+    }
+  }
+
+  async function startAudio(){
+    if (ctx) return;
+
+    ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+
+    // iOS Safari: AudioContext may start in suspended state
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
+
+    const url = buildWorkletURL();
+    await ctx.audioWorklet.addModule(url);
+
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+
+    mixBus = ctx.createGain();
+    mixBus.gain.value = 1;
+    fxInput = mixBus;
+
+    filterNode = ctx.createBiquadFilter();
+
+    chorusDelay = ctx.createDelay(0.2);
+    chorusDry = ctx.createGain();
+    chorusWet = ctx.createGain();
+    chorusFb = ctx.createGain();
+
+    chorusLFO = ctx.createOscillator();
+    chorusLFOGain = ctx.createGain();
+    chorusLFO.connect(chorusLFOGain);
+    chorusLFOGain.connect(chorusDelay.delayTime);
+    chorusLFO.start();
+
+    reverbConv = ctx.createConvolver();
+    reverbDry = ctx.createGain();
+    reverbWet = ctx.createGain();
+
+    limiter = ctx.createDynamicsCompressor();
+
+    // Create delay nodes
+    delayNode = ctx.createDelay(3.0);
+    delayDry = ctx.createGain();
+    delayWet = ctx.createGain();
+    delayFb = ctx.createGain();
+
+    // Create phaser nodes
+    const numPhaserStages = 8; // Max stages, we'll use subset based on setting
+    phaserFilters = [];
+    phaserLFOGains = [];
+    phaserLFO = ctx.createOscillator();
+    phaserLFO.type = 'sine';
+    phaserLFO.start();
+
+    for (let i = 0; i < numPhaserStages; i++) {
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'allpass';
+      filter.frequency.value = 1000;
+      filter.Q.value = 0.5;
+      phaserFilters.push(filter);
+
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = 1500;
+      phaserLFO.connect(lfoGain);
+      lfoGain.connect(filter.frequency);
+      phaserLFOGains.push(lfoGain);
+    }
+
+    phaserDry = ctx.createGain();
+    phaserWet = ctx.createGain();
+    phaserFb = ctx.createGain();
+    phaserInput = ctx.createGain();
+    phaserOutput = ctx.createGain();
+
+    masterGain = ctx.createGain();
+    masterGain.gain.value = Number($('#masterGain').value);
+
+    // Create recorder node for WAV recording (connection is done in setFXEnabled)
+    recorderNode = new AudioWorkletNode(ctx, 'recorder-processor', {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      outputChannelCount: [1]
+    });
+
+    setFXEnabled();
+    updateFXParams();
+
+    // Create generators
+    for (const f of FORMULAS){
+      const initParams = {};
+      for (const s of f.sliders) initParams[s.k] = Number($(`#${f.id}_${s.k}`).value);
+
+      const aw = new AudioWorkletNode(ctx, 'formula-generator', {
+        numberOfInputs: 0,
+        numberOfOutputs: 1,
+        outputChannelCount: [1],
+        processorOptions: { formula: f.id, params: initParams }
+      });
+
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      aw.connect(g);
+      g.connect(mixBus);
+
+      nodes.set(f.id, { aw, g, params: initParams });
+    }
+
+    // Apply enabled states
+    for (const f of FORMULAS){
+      const on = $(`#en_${f.id}`).checked;
+      const st = nodes.get(f.id);
+      const now = ctx.currentTime;
+      const gain = Number($(`#${f.id}_gain`).value);
+      st.params.gain = gain;
+      st.g.gain.setTargetAtTime(on ? gain : 0, now, 0.02);
+      const resetBtn = $(`#reset_${f.id}`);
+      if (resetBtn) resetBtn.disabled = !on;
+    }
+
+    $('#status').textContent = 'running';
+    $('#playStopBtn').textContent = '⏹ Stop';
+    $('#playStopBtn').classList.add('playing');
+    $('#recBtn').disabled = false;
+
+    // Request wake lock to prevent sleep on mobile
+    requestWakeLock();
+
+    startScopeAndMeter();
+  }
+
+  function stopAudio(){
+    if (!ctx) return;
+
+    // Release wake lock
+    releaseWakeLock();
+
+    // cleanup download URL
+    cleanupDownloadUrl();
+
+    // stop recording if active
+    if (isRecording && recorderNode) {
+      recorderNode.port.postMessage({ type: 'stop' });
+      isRecording = false;
+    }
+
+    cancelAnimationFrame(scopeRAF);
+    scopeRAF = null;
+
+    const now = ctx.currentTime;
+    masterGain.gain.setTargetAtTime(0, now, 0.01);
+
+    setTimeout(() => {
+      try { chorusLFO.stop(); } catch {}
+      ctx.close();
+      ctx = null;
+      nodes.clear();
+      analyser = null;
+      recorderNode = null;
+
+      $('#status').textContent = 'stopped';
+      $('#playStopBtn').textContent = '▶ Play';
+      $('#playStopBtn').classList.remove('playing');
+      $('#recBtn').disabled = true;
+      $('#recBtn').textContent = 'Record';
+      $('#recBtn').classList.remove('recording');
+    }, 80);
+  }
+
+  // ---------- Scope ----------
+  const canvas = $('#scope');
+  const c2d = canvas.getContext('2d');
+  let scopeAutoGain = 1.0;
+
+  // Spectrogram state
+  let spectroCanvas = null; // Offscreen canvas element for spectrogram
+  let spectroCtx = null;    // Offscreen canvas context for spectrogram
+  let lastCanvasWidth = 0;
+  let lastCanvasHeight = 0;
+  let lastSpectroTime = 0;
+  const SPECTRO_INTERVAL = 33; // ~30 updates per second (constant speed)
+
+  // Color palette: blue to red (HSL hue 240 -> 0)
+  function getSpectroColor(value) {
+    // value 0-255 -> hue 240 (blue) to 0 (red)
+    const v = Math.min(255, Math.max(0, value));
+    const hue = 240 - (v / 255) * 240;
+    const lightness = 20 + (v / 255) * 40;  // darker when quiet, brighter when loud
+    return `hsl(${hue}, 100%, ${lightness}%)`;
+  }
+
+  function initSpectro(w, h, fftBins) {
+    // Skip if dimensions haven't changed and canvas already exists
+    if (spectroCanvas && lastCanvasWidth === w && lastCanvasHeight === h) {
+      return;
+    }
+    
+    // Create new offscreen canvas
+    const newCanvas = document.createElement('canvas');
+    newCanvas.width = w;
+    newCanvas.height = h;
+    const newCtx = newCanvas.getContext('2d');
+    
+    // Fill with background color first
+    newCtx.fillStyle = '#060a0f';
+    newCtx.fillRect(0, 0, w, h);
+    
+    // If old canvas exists, copy its content (preserving spectrogram data)
+    if (spectroCanvas && spectroCtx) {
+      // Draw old content scaled to new size
+      newCtx.drawImage(spectroCanvas, 0, 0, w, h);
+    }
+    
+    // Update references
+    spectroCanvas = newCanvas;
+    spectroCtx = newCtx;
+    lastCanvasWidth = w;
+    lastCanvasHeight = h;
+  }
+
+  function resizeCanvas(){
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    
+    // Reinitialize spectrogram on resize
+    if (analyser) {
+      initSpectro(canvas.width, canvas.height, analyser.frequencyBinCount);
+    }
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  function startScopeAndMeter(){
+    resizeCanvas();
+    const timeBuf = new Uint8Array(analyser.fftSize);
+    const freqBuf = new Uint8Array(analyser.frequencyBinCount);
+    
+    // Initialize spectrogram
+    initSpectro(canvas.width, canvas.height, analyser.frequencyBinCount);
+
+    const draw = () => {
+      scopeRAF = requestAnimationFrame(draw);
+      if (!analyser) return;
+      
+      // Skip drawing if page is hidden (save CPU, prevent audio issues on mobile)
+      if (!isPageVisible) return;
+      
+      // Skip drawing if scope is collapsed (save CPU)
+      if (scopeWrap.classList.contains('scopeCollapsed')) return;
+
+      analyser.getByteTimeDomainData(timeBuf);
+      analyser.getByteFrequencyData(freqBuf);
+
+      let peak = 1e-4;
+
+      for (let i=0;i<timeBuf.length;i++){
+        const v = (timeBuf[i] - 128) / 128;
+        const a = Math.abs(v);
+        if (a > peak) peak = a;
+      }
+
+      // auto Y scale
+      let target = 0.85 / peak;
+      target = Math.max(0.25, Math.min(12.0, target));
+      scopeAutoGain += (target - scopeAutoGain) * 0.08;
+
+      const w = canvas.width, h = canvas.height;
+      
+      // Reinit spectrogram if canvas size changed
+      if (w !== lastCanvasWidth || h !== lastCanvasHeight) {
+        initSpectro(w, h, analyser.frequencyBinCount);
+      }
+
+      // Mode: spectrum - draw spectrogram only
+      if (scopeMode === 'spectrum') {
+        // Update spectrogram with time-based throttling (constant speed)
+        const now = performance.now();
+        if (now - lastSpectroTime >= SPECTRO_INTERVAL) {
+          lastSpectroTime = now;
+          
+          if (spectroCtx) {
+            // Shift existing spectrogram to the left by 2 pixels
+            const shiftAmount = 2;
+            spectroCtx.drawImage(spectroCanvas, -shiftAmount, 0);
+            
+            // Draw new column on the right (logarithmic frequency scale)
+            const bins = freqBuf.length;
+            const minFreq = 20;      // 20 Hz — lower bound of human hearing
+            const maxFreq = 10000;   // 10 kHz — upper display limit
+            const nyquist = ctx.sampleRate / 2;
+            
+            for (let i = 0; i < h; i++) {
+              // Logarithmic mapping: Y position -> frequency
+              // y=0 (top) -> maxFreq, y=h (bottom) -> minFreq
+              const normalizedY = i / h;
+              const freq = maxFreq * Math.pow(minFreq / maxFreq, normalizedY);
+              const binIndex = Math.floor((freq / nyquist) * bins);
+              const value = freqBuf[Math.min(binIndex, bins - 1)];
+              spectroCtx.fillStyle = getSpectroColor(value);
+              spectroCtx.fillRect(w - shiftAmount, i, shiftAmount, 1);
+            }
+          }
+        }
+
+        // Draw spectrogram (always, to keep display updated)
+        if (spectroCtx) {
+          c2d.drawImage(spectroCanvas, 0, 0);
+        } else {
+          c2d.fillStyle = '#060a0f';
+          c2d.fillRect(0,0,w,h);
+        }
+      }
+
+      // Mode: wave - draw waveform only on dark background
+      if (scopeMode === 'wave') {
+        // Dark background
+        c2d.fillStyle = '#060a0f';
+        c2d.fillRect(0,0,w,h);
+
+        // grid
+        c2d.strokeStyle = 'rgba(18, 32, 51, 0.7)';
+        c2d.lineWidth = 1;
+        c2d.beginPath();
+        for (let i=1;i<10;i++){
+          const x = (w*i)/10;
+          c2d.moveTo(x,0); c2d.lineTo(x,h);
+        }
+        for (let i=1;i<5;i++){
+          const y = (h*i)/5;
+          c2d.moveTo(0,y); c2d.lineTo(w,y);
+        }
+        c2d.stroke();
+
+        // waveform
+        const mid = h/2;
+        c2d.strokeStyle = '#8ab4ff';
+        c2d.lineWidth = 2;
+        c2d.beginPath();
+
+        const gain = scopeAutoGain;
+        for (let i=0;i<timeBuf.length;i++){
+          const v = (timeBuf[i] - 128) / 128;
+          const y = mid - v * (mid * 0.9) * gain;
+          const x = (w * i) / (timeBuf.length - 1);
+          if (i===0) c2d.moveTo(x,y); else c2d.lineTo(x,y);
+        }
+        c2d.stroke();
+      }
+    };
+
+    draw();
+  }
+
+  // ---------- WAV Recording ----------
+  function cleanupDownloadUrl(){
+    if (downloadUrl){
+      URL.revokeObjectURL(downloadUrl);
+      downloadUrl = null;
+    }
+  }
+
+  async function toggleRecording(){
+    if (!ctx || !recorderNode){
+      $('#status').textContent = 'start audio first';
+      return;
+    }
+
+    const recBtn = $('#recBtn');
+
+    // START recording
+    if (!isRecording){
+      cleanupDownloadUrl();
+      isRecording = true;
+
+      recBtn.textContent = '● REC';
+      recBtn.classList.add('recording');
+      $('#status').textContent = 'recording…';
+
+      recorderNode.port.postMessage({ type: 'start' });
+      return;
+    }
+
+    // STOP recording
+    recBtn.disabled = true;
+    recBtn.classList.remove('recording');
+    $('#status').textContent = 'finalizing…';
+
+    // Request samples from recorder
+    const samplesPromise = new Promise((resolve) => {
+      recorderNode.port.onmessage = (e) => {
+        if (e.data.type === 'data') {
+          resolve(e.data.samples);
+        }
+      };
+    });
+
+    recorderNode.port.postMessage({ type: 'stop' });
+    const samples = await samplesPromise;
+    isRecording = false;
+
+    recBtn.disabled = false;
+    recBtn.textContent = 'Record';
+
+    // Encode to WAV
+    const blob = encodeWAV(samples, ctx.sampleRate);
+    downloadUrl = URL.createObjectURL(blob);
+
+    const name = `formula-audio-${new Date().toISOString().replace(/[:.]/g,'-')}.wav`;
+
+    // Try navigator.share() on mobile
+    const canShare = navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], name, { type: 'audio/wav' })] });
+    
+    if (canShare) {
+      try {
+        const file = new File([blob], name, { type: 'audio/wav' });
+        await navigator.share({
+          files: [file],
+          title: 'Formula Audio Recording'
+        });
+        $('#status').innerHTML = `shared — <a href="${downloadUrl}" download="${name}" style="color:#8ab4ff;">download</a>`;
+        return;
+      } catch (shareErr) {
+        if (shareErr.name !== 'AbortError') console.warn('Share failed:', shareErr);
+      }
+    }
+
+    // Fallback: auto-download
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = name;
+    a.rel = 'noopener';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    $('#status').innerHTML = `ready — <a href="${downloadUrl}" download="${name}" style="color:#8ab4ff;">download</a>`;
+  }
+
+  // ---------- Scope collapse ----------
+  const scopeWrap = $('#scopeWrap');
+  const scopeToggleBtn = $('#scopeToggleBtn');
+  const scopeModeBtn = $('#scopeModeBtn');
+  let scopeMode = 'spectrum'; // 'wave' or 'spectrum'
+
+  function setScopeCollapsed(collapsed){
+    scopeWrap.classList.toggle('scopeCollapsed', collapsed);
+    scopeToggleBtn.textContent = '📊';
+    scopeToggleBtn.classList.toggle('active', !collapsed);
+    // if we collapsed, canvas can be 0 height; on expand, resize so waveform renders crisply
+    if (!collapsed) setTimeout(resizeCanvas, 0);
+  }
+
+  // Default: collapsed on narrow screens
+  const defaultCollapse = window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
+  setScopeCollapsed(defaultCollapse);
+
+  scopeToggleBtn.addEventListener('click', () => {
+    setScopeCollapsed(!scopeWrap.classList.contains('scopeCollapsed'));
+  });
+
+  scopeModeBtn.addEventListener('click', () => {
+    scopeMode = scopeMode === 'wave' ? 'spectrum' : 'wave';
+    scopeModeBtn.textContent = scopeMode === 'wave' ? 'Wave' : 'Spectrum';
+  });
+
+  // ---------- Buttons ----------
+  function toggleAudio() {
+    if (ctx) {
+      stopAudio();
+    } else {
+      startAudio();
+    }
+  }
+  $('#playStopBtn').addEventListener('click', toggleAudio);
+  $('#recBtn').addEventListener('click', toggleRecording);
+
+  // Disable all formulas
+  $('#disableAllBtn').addEventListener('click', () => {
+    for (const f of FORMULAS) {
+      const en = $(`#en_${f.id}`);
+      en.checked = false;
+      // Remove active highlight
+      const formulaWrap = en.closest('.formula');
+      if (formulaWrap) formulaWrap.classList.remove('active');
+      if (ctx) {
+        const st = nodes.get(f.id);
+        if (st) {
+          st.g.gain.setTargetAtTime(0, ctx.currentTime, 0.02);
+        }
+        const resetBtn = $(`#reset_${f.id}`);
+        if (resetBtn) resetBtn.disabled = true;
+      }
+    }
+  });
+
+  // Collapse/Expand all formulas (toggle)
+  const collapseAllBtn = $('#collapseAllBtn');
+  let allCollapsed = false;
+  
+  collapseAllBtn.addEventListener('click', () => {
+    allCollapsed = !allCollapsed;
+    for (const f of FORMULAS) {
+      const body = $(`#body_${f.id}`);
+      const colBtn = $(`#col_${f.id}`);
+      body.classList.toggle('collapsed', allCollapsed);
+      colBtn.textContent = allCollapsed ? '▶' : '▼';
+    }
+    collapseAllBtn.textContent = allCollapsed ? '▶ Expand all' : '▼ Collapse all';
+  });
+
+  $('#masterGain').addEventListener('input', (e)=>{
+    const v = Number(e.target.value);
+    $('#masterGainVal').textContent = v.toFixed(3);
+    if (masterGain) masterGain.gain.value = v;
+  });
+
+  // +/- buttons for master volume
+  setupAdjustmentButtons(document.querySelector('.topgrid'));
+
+  // Effects panel toggle
+  const effectsPanel = $('#effectsPanel');
+  $('#effectsBtn').addEventListener('click', () => {
+    const open = !effectsPanel.classList.contains('open');
+    effectsPanel.classList.toggle('open', open);
+    $('#effectsBtn').textContent = '🎛';
+    $('#effectsBtn').classList.toggle('active', open);
+    // Hide scope when effects are open, show when closed
+    setScopeCollapsed(open);
+    if (!open) resizeCanvas();
+  });
+
+  // +/- Adjustment buttons for effects panel
+  setupAdjustmentButtons(effectsPanel);
+
+  // FX controls
+  const fxRoutingInputs = ['fxFilterOn','fxChorusOn','fxReverbOn','fxLimiterOn','fxDelayOn','fxPhaserOn'];
+  for (const id of fxRoutingInputs){
+    $('#'+id).addEventListener('change', () => {
+      if (!ctx) return;
+      setFXEnabled();
+      updateFXParams();
+    });
+  }
+  const fxParamInputs = [
+    'fxFilterType','fxFilterFreq','fxFilterQ',
+    'fxChorusMode','fxChorusRate','fxChorusDepth','fxChorusMix','fxChorusFb',
+    'fxReverbDecay','fxReverbMix',
+    'fxLimiterThr','fxLimiterRel',
+    'fxDelayTime','fxDelayFb','fxDelayMix',
+    'fxPhaserRate','fxPhaserDepth','fxPhaserStages','fxPhaserFb','fxPhaserMix'
+  ];
+  for (const id of fxParamInputs){
+    $('#'+id).addEventListener('input', () => {
+      updateFXLabels(); // Always update UI labels
+      if (!ctx) return;
+      updateFXParams(); // Only update audio if context exists
+    });
+  }
+
+  // ---------- Presets + Share ----------
+  $('#savePresetBtn').addEventListener('click', () => {
+    const state = readStateFromUI();
+    localStorage.setItem(PRESET_KEY, JSON.stringify(state));
+    $('#status').textContent = 'preset saved';
+  });
+
+  $('#loadPresetBtn').addEventListener('click', () => {
+    const raw = localStorage.getItem(PRESET_KEY);
+    if (!raw) { $('#status').textContent = 'no preset'; return; }
+    try {
+      const state = JSON.parse(raw);
+      applyStateToUI(state);
+      if (ctx) applyUIToAudioLive();
+      $('#status').textContent = 'preset loaded';
+    } catch {
+      $('#status').textContent = 'preset parse error';
+    }
+  });
+
+  $('#shareBtn').addEventListener('click', async () => {
+    const state = readStateFromUI();
+    const url = writeStateToURL(state);
+    try {
+      await navigator.clipboard.writeText(url);
+      $('#status').textContent = 'link copied';
+    } catch {
+      $('#status').textContent = 'link in URL';
+    }
+  });
+
+  // Populate preset dropdown from PRESETS array
+  const presetSelect = $('#presetSelect');
+  if (typeof PRESETS !== 'undefined' && Array.isArray(PRESETS)) {
+    PRESETS.forEach((preset, idx) => {
+      const opt = document.createElement('option');
+      opt.value = String(idx);
+      opt.textContent = preset.name;
+      presetSelect.appendChild(opt);
+    });
+  }
+
+  presetSelect.addEventListener('change', () => {
+    const idx = presetSelect.value;
+    if (idx === '') return;
+    const preset = PRESETS[Number(idx)];
+    if (!preset || !preset.state) return;
+    
+    // Reset to defaults first, then apply preset
+    applyStateToUI(preset.state, true);
+    if (ctx) applyUIToAudioLive();
+    $('#status').textContent = `loaded: ${preset.name}`;
+  });
+
+  // ---------- Help Popup ----------
+  const HELP_SHOWN_KEY = 'formula_audio_lab_help_shown';
+  const helpOverlay = $('#helpOverlay');
+  const helpCloseBtn = $('#helpCloseBtn');
+  const helpBtn = $('#helpBtn');
+
+  function openHelp() {
+    helpOverlay.classList.add('open');
+  }
+
+  function closeHelp() {
+    helpOverlay.classList.remove('open');
+    localStorage.setItem(HELP_SHOWN_KEY, 'true');
+  }
+
+  // Show help on first visit
+  if (!localStorage.getItem(HELP_SHOWN_KEY)) {
+    openHelp();
+  }
+
+  helpCloseBtn.addEventListener('click', closeHelp);
+  helpBtn.addEventListener('click', openHelp);
+
+  // Close on overlay click (outside modal)
+  helpOverlay.addEventListener('click', (e) => {
+    if (e.target === helpOverlay) closeHelp();
+  });
+
+  // Close on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && helpOverlay.classList.contains('open')) {
+      closeHelp();
+    }
+  });
+
+  function writeStateToURL(state){
+    const json = JSON.stringify(state);
+    const token = b64urlEncode(json);
+    const newHash = `#s=${token}`;
+    history.replaceState(null, '', newHash);
+    return location.href;
+  }
+
+  function loadStateFromURL(){
+    const m = location.hash.match(/#s=([A-Za-z0-9\-_]+)/);
+    if (!m) return null;
+    try {
+      const json = b64urlDecode(m[1]);
+      return JSON.parse(json);
+    } catch {
+      return null;
+    }
+  }
+
+  // Apply URL state on load
+  const urlState = loadStateFromURL();
+  if (urlState) applyStateToUI(urlState);
+
+  // ---------- Live apply after preset/url changes ----------
+  function applyUIToAudioLive(){
+    if (masterGain) masterGain.gain.value = Number($('#masterGain').value);
+
+    setFXEnabled();
+    updateFXParams();
+
+    for (const f of FORMULAS){
+      const st = nodes.get(f.id);
+      if (!st) continue;
+
+      const enabled = $(`#en_${f.id}`).checked;
+      const now = ctx.currentTime;
+
+      for (const s of f.sliders){
+        const v = Number($(`#${f.id}_${s.k}`).value);
+        st.params[s.k] = v;
+        st.aw.port.postMessage({type:'set', params: {[s.k]: v}});
+      }
+
+      const gain = Number($(`#${f.id}_gain`).value);
+      st.g.gain.setTargetAtTime(enabled ? gain : 0, now, 0.02);
+      const resetBtn = $(`#reset_${f.id}`);
+      if (resetBtn) resetBtn.disabled = !enabled;
+    }
+  }
+
+  // ---------- Formula control wiring ----------
+  for (const f of FORMULAS){
+    const en = document.getElementById(`en_${f.id}`);
+    const resetBtn = document.getElementById(`reset_${f.id}`);
+    const body = document.getElementById(`body_${f.id}`);
+    const col = document.getElementById(`col_${f.id}`);
+
+    col.addEventListener('click', () => {
+      const collapsed = !body.classList.contains('collapsed');
+      body.classList.toggle('collapsed', collapsed);
+      col.textContent = collapsed ? '▶' : '▼';
+    });
+
+    en.addEventListener('change', async () => {
+      // Auto-start audio if not running when enabling a formula
+      if (!ctx && en.checked) {
+        await startAudio();
+      }
+      if (!ctx) { en.checked = false; return; }
+      const st = nodes.get(f.id);
+      if (!st) return;
+
+      const on = en.checked;
+      const now = ctx.currentTime;
+      const gain = Number(document.getElementById(`${f.id}_gain`).value);
+      st.g.gain.setTargetAtTime(on ? gain : 0, now, 0.02);
+      if (resetBtn) resetBtn.disabled = !on;
+      
+      // Highlight active formula
+      const formulaWrap = en.closest('.formula');
+      if (formulaWrap) formulaWrap.classList.toggle('active', on);
+      
+      // Auto-expand if enabled and collapsed
+      if (on && body.classList.contains('collapsed')) {
+        body.classList.remove('collapsed');
+        col.textContent = '▼';
+      }
+      // Auto-collapse if disabled and expanded
+      if (!on && !body.classList.contains('collapsed')) {
+        body.classList.add('collapsed');
+        col.textContent = '▶';
+      }
+    });
+
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        if (!ctx) return;
+        nodes.get(f.id)?.aw.port.postMessage({type:'reset'});
+      });
+    }
+
+    for (const s of f.sliders){
+      const slider = document.getElementById(`${f.id}_${s.k}`);
+      const val = document.getElementById(`${f.id}_${s.k}_v`);
+
+      slider.addEventListener('input', () => {
+        const v = Number(slider.value);
+        val.textContent = fmt(v);
+
+        if (!ctx) return;
+        const st = nodes.get(f.id);
+        if (!st) return;
+
+        st.params[s.k] = v;
+        st.aw.port.postMessage({type:'set', params: {[s.k]: v}});
+
+        if (s.k === 'gain'){
+          const now = ctx.currentTime;
+          if (en.checked) st.g.gain.setTargetAtTime(v, now, 0.02);
+        }
+      });
+    }
+  }
+
+  // Initialize FX labels
+  updateFXLabels();
+
+})();
+</script>
+
+</body>
+</html>
