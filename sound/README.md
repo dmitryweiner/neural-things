@@ -1,8 +1,8 @@
 # Sound Analyzer
 
-**A real-time audio analysis tool with oscilloscope, spectrum analyzer, and cepstrum visualization.**
+**A real-time audio analysis tool with oscilloscope, spectrum analyzer, cepstrum, recurrence plot, and multiscale entropy visualizations.**
 
-Captures audio from your microphone and displays three synchronized visualizations in real-time. Supports WAV recording with configurable audio capture settings.
+Captures audio from your microphone and displays five synchronized visualizations in real-time. Supports WAV recording with configurable audio capture settings.
 
 ---
 
@@ -10,7 +10,9 @@ Captures audio from your microphone and displays three synchronized visualizatio
 
 - **Oscilloscope** — Real-time waveform display with adjustable Y-scale and time window
 - **Spectrum Analyzer** — Frequency spectrum in graph or spectrogram (waterfall) mode
-- **Cepstrum Analyzer** — Cepstral analysis for pitch detection and periodic structure identification
+- **Cepstrum Analyzer** — Cepstral analysis for pitch detection and periodic structure identification ([Wikipedia](https://en.wikipedia.org/wiki/Cepstrum))
+- **Recurrence Plot** — Nonlinear dynamics visualization for detecting recurrent patterns ([Wikipedia](https://en.wikipedia.org/wiki/Recurrence_plot))
+- **Multiscale Entropy** — Complexity analysis across multiple time scales ([Wikipedia](https://en.wikipedia.org/wiki/Multiscale_entropy))
 - **Peak Detection** — Automatic detection and display of peak values on all graphs (amplitude, frequency, quefrency)
 - **Dynamic Axis Labels** — Y-axis labels automatically adjust based on zoom scale
 - **WAV Recording** — Record audio directly to WAV format with one click
@@ -39,12 +41,12 @@ Captures audio from your microphone and displays three synchronized visualizatio
 │Analyser│  │ RecorderWorklet  │
 └───┬────┘  └────────┬─────────┘
     │                │
-    ├────────┬───────┤
-    │        │       │
-    ▼        ▼       ▼
-┌─────┐  ┌──────┐  ┌───────┐  ┌─────┐
-│Scope│  │Spec  │  │Cepstr │  │ WAV │
-└─────┘  └──────┘  └───────┘  └─────┘
+    ├────┬────┬────┬─┴────┐
+    │    │    │    │      │
+    ▼    ▼    ▼    ▼      ▼
+┌─────┐ ┌────┐ ┌───┐ ┌──┐ ┌───┐ ┌───┐
+│Scope│ │Spec│ │Cep│ │RP│ │MSE│ │WAV│
+└─────┘ └────┘ └───┘ └──┘ └───┘ └───┘
 ```
 
 ### Audio Processing
@@ -114,6 +116,26 @@ The x-axis represents "quefrency" (a time-like dimension). Peaks in the cepstrum
 | **Quefrency Scale** | Linear or Logarithmic quefrency axis |
 | **Update Speed** | Spectrogram scroll speed (Slow/Medium/Fast) |
 
+### Recurrence Plot Controls
+
+| Control | Description | Range |
+|---------|-------------|-------|
+| **Binary / Colored** | Toggle between binary (threshold) and colored (distance) display |
+| **Embedding (m)** | Embedding dimension for state space reconstruction | 2 – 8 |
+| **Time delay (τ)** | Time delay between embedding coordinates | 1 – 10 ms |
+| **Threshold (ε)** | Percentile threshold for recurrence detection | 5 – 20% |
+| **Window size** | Number of samples to analyze | 256 – 1024 |
+
+### Multiscale Entropy Controls
+
+| Control | Description | Range |
+|---------|-------------|-------|
+| **Perm / Sample** | Entropy type: Permutation or Sample entropy |
+| **Max scale (S)** | Maximum coarse-graining scale | 10 – 60 |
+| **Window (sec)** | Analysis window duration | 0.5 – 2 sec |
+| **Hop (ms)** | Time step between windows | 50 – 200 ms |
+| **RMS frame (ms)** | Frame size for RMS envelope calculation | 10 – 30 ms |
+
 ---
 
 ## Visualization Modes
@@ -172,6 +194,8 @@ All visualization settings and panel states are automatically saved to `localSto
 | **Oscilloscope** | Y Scale, Time Window |
 | **Spectrum** | Y Scale, Mode (Graph/Spectrogram), Scale (Linear/Log), Speed |
 | **Cepstrum** | Y Scale, Mode (Graph/Spectrogram), Scale (Linear/Log), Speed |
+| **Recurrence Plot** | Mode (Binary/Colored), Embedding dim, Time delay, Threshold, Window size |
+| **Multiscale Entropy** | Mode (Perm/Sample), Max scale, Window size, Hop size, RMS frame |
 
 Settings are saved immediately when changed and restored on page load.
 
@@ -239,9 +263,64 @@ Larger FFT sizes provide better frequency resolution but increased latency.
 
 For a signal with fundamental frequency f₀, expect a peak at quefrency = 1/f₀ (in samples).
 
+### Recurrence Plot Algorithm
+
+The recurrence plot visualizes recurrent states in a dynamical system:
+
+1. **Preprocessing**: Remove DC offset and normalize signal (std = 1)
+2. **Phase space reconstruction**: Build state vectors using time-delay embedding:
+   ```
+   y_i = [x_i, x_{i+τ}, x_{i+2τ}, ..., x_{i+(m-1)τ}]
+   ```
+3. **Distance matrix**: Compute Euclidean distances D[i,j] = ||y_i - y_j||
+4. **Visualization**:
+   - **Binary mode**: R[i,j] = 1 if D[i,j] ≤ ε (threshold), else 0
+   - **Colored mode**: Intensity = exp(-D/σ) for distance-based coloring
+
+**Interpretation**:
+- **Diagonal lines**: Indicate similar evolution of states over time (determinism)
+- **Vertical/horizontal lines**: Indicate laminar states (stationarity)
+- **Isolated points**: Indicate stochastic or chaotic behavior
+
+### Multiscale Entropy Algorithm
+
+Multiscale entropy (MSE) quantifies signal complexity across different time scales:
+
+1. **RMS Envelope**: Convert raw signal to energy envelope using RMS over short frames
+2. **Normalization**: Center and scale envelope to unit variance
+3. **Coarse-graining**: For each scale s, compute averaged series:
+   ```
+   y^(s)[k] = mean(x[k·s : k·s + s])
+   ```
+4. **Permutation Entropy**: For each coarse-grained series, count ordinal patterns:
+   - Extract overlapping vectors of length m (embedding dimension)
+   - Map each vector to its ordinal pattern (rank order)
+   - Compute Shannon entropy of pattern distribution
+   - Normalize by log₂(m!) for range [0, 1]
+
+**Interpretation**:
+- **High entropy** (yellow/red): Complex, irregular patterns
+- **Low entropy** (blue): Regular, predictable patterns
+- **Scale dependency**: How complexity changes with temporal granularity
+- **White noise**: High entropy at all scales
+- **Periodic signals**: Low entropy at all scales
+
 ---
 
 ## Changelog
+
+### 2026-01-08 (v1.2)
+
+- Added **Recurrence Plot** visualization for nonlinear dynamics analysis
+  - Binary and colored display modes
+  - Configurable embedding dimension, time delay, and threshold
+  - Real-time updates (~10 fps)
+- Added **Multiscale Entropy** heatmap visualization
+  - Permutation entropy computation across multiple scales
+  - Configurable window size, hop size, and RMS frame parameters
+  - Time-scale heatmap display
+- Added Wikipedia reference links [?] for Cepstrum, Recurrence Plot, and Multiscale Entropy
+- Extended state persistence for all new panel settings
 
 ### 2025-12-31 (v1.1)
 

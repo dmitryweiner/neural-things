@@ -291,6 +291,31 @@
       text-decoration: underline;
     }
 
+    /* Wiki links */
+    .wiki-link {
+      font-size: 10px;
+      color: #7a8fa6;
+      text-decoration: none;
+      vertical-align: super;
+      margin-left: 4px;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    .wiki-link:hover {
+      opacity: 1;
+      color: #8ab4ff;
+    }
+
+    /* Square canvas for RP */
+    .canvasWrap.square {
+      max-width: 400px;
+    }
+    .canvasWrap.square canvas {
+      aspect-ratio: 1;
+      height: auto;
+      max-height: 300px;
+    }
+
     /* Mobile */
     @media (max-width: 600px) {
       .btn-group {
@@ -308,6 +333,9 @@
       }
       canvas {
         height: 120px;
+      }
+      .canvasWrap.square canvas {
+        max-height: 200px;
       }
     }
   </style>
@@ -449,6 +477,7 @@
     <div class="vizHeader">
       <h2>
         <span>🔬 Cepstrum</span>
+        <a href="https://en.wikipedia.org/wiki/Cepstrum" target="_blank" rel="noopener" class="wiki-link" title="Wikipedia: Cepstrum">[?]</a>
       </h2>
       <div class="vizControls">
         <button class="collapseBtn modeBtn" id="cepstrumModeBtn">Graph</button>
@@ -473,6 +502,84 @@
           <button class="collapseBtn speedBtn" data-speed="fast" id="cepSpeedFast">Fast</button>
         </div>
         <div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Recurrence Plot Panel -->
+  <section class="vizPanel" id="recurrencePanel">
+    <div class="vizHeader">
+      <h2>
+        <span>🔄 Recurrence Plot</span>
+        <a href="https://en.wikipedia.org/wiki/Recurrence_plot" target="_blank" rel="noopener" class="wiki-link" title="Wikipedia: Recurrence Plot">[?]</a>
+      </h2>
+      <div class="vizControls">
+        <button class="collapseBtn modeBtn" id="rpModeBtn">Binary</button>
+        <button class="collapseBtn" id="recurrenceCollapseBtn">▼</button>
+      </div>
+    </div>
+    <div class="vizBody" id="recurrenceBody">
+      <div class="canvasWrap square">
+        <canvas id="recurrenceCanvas"></canvas>
+      </div>
+      <div class="ctrl">
+        <label for="rpEmbedDim">Embedding (m)</label>
+        <input type="range" id="rpEmbedDim" min="2" max="8" step="1" value="4">
+        <div class="small" id="rpEmbedDimVal">4</div>
+      </div>
+      <div class="ctrl">
+        <label for="rpTimeDelay">Time delay (τ)</label>
+        <input type="range" id="rpTimeDelay" min="1" max="10" step="1" value="2">
+        <div class="small" id="rpTimeDelayVal">2 ms</div>
+      </div>
+      <div class="ctrl">
+        <label for="rpThreshold">Threshold (ε)</label>
+        <input type="range" id="rpThreshold" min="5" max="20" step="1" value="10">
+        <div class="small" id="rpThresholdVal">10%</div>
+      </div>
+      <div class="ctrl">
+        <label for="rpWindowSize">Window size</label>
+        <input type="range" id="rpWindowSize" min="256" max="1024" step="64" value="512">
+        <div class="small" id="rpWindowSizeVal">512</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Multiscale Entropy Panel -->
+  <section class="vizPanel" id="msePanel">
+    <div class="vizHeader">
+      <h2>
+        <span>📐 Multiscale Entropy</span>
+        <a href="https://en.wikipedia.org/wiki/Multiscale_entropy" target="_blank" rel="noopener" class="wiki-link" title="Wikipedia: Multiscale Entropy">[?]</a>
+      </h2>
+      <div class="vizControls">
+        <button class="collapseBtn modeBtn" id="mseModeBtn">Perm</button>
+        <button class="collapseBtn" id="mseCollapseBtn">▼</button>
+      </div>
+    </div>
+    <div class="vizBody" id="mseBody">
+      <div class="canvasWrap">
+        <canvas id="mseCanvas"></canvas>
+      </div>
+      <div class="ctrl">
+        <label for="mseMaxScale">Max scale (S)</label>
+        <input type="range" id="mseMaxScale" min="10" max="60" step="5" value="30">
+        <div class="small" id="mseMaxScaleVal">30</div>
+      </div>
+      <div class="ctrl">
+        <label for="mseWindowSize">Window (sec)</label>
+        <input type="range" id="mseWindowSize" min="0.5" max="2" step="0.1" value="1">
+        <div class="small" id="mseWindowSizeVal">1.0s</div>
+      </div>
+      <div class="ctrl">
+        <label for="mseHopSize">Hop (ms)</label>
+        <input type="range" id="mseHopSize" min="50" max="200" step="10" value="100">
+        <div class="small" id="mseHopSizeVal">100</div>
+      </div>
+      <div class="ctrl">
+        <label for="mseRmsFrame">RMS frame (ms)</label>
+        <input type="range" id="mseRmsFrame" min="10" max="30" step="2" value="15">
+        <div class="small" id="mseRmsFrameVal">15</div>
       </div>
     </div>
   </section>
@@ -563,6 +670,16 @@
   let lastSpecSpectroTime = 0;
   let lastCepSpectroTime = 0;
 
+  // Recurrence Plot state
+  let rpMode = 'binary'; // 'binary' or 'colored'
+  let lastRpTime = 0;
+
+  // Multiscale Entropy state
+  let mseMode = 'permutation'; // 'permutation' or 'sample'
+  let mseBuffer = []; // Ring buffer for accumulating samples
+  let lastMseTime = 0;
+  let mseHeatmapData = null; // Cached heatmap data
+
   // Panel collapse state storage key
   const PANEL_STATE_KEY = 'sound_analyzer_panels';
 
@@ -644,6 +761,8 @@
     resizeCanvas($('#oscilloscopeCanvas'));
     resizeCanvas($('#spectrumCanvas'));
     resizeCanvas($('#cepstrumCanvas'));
+    resizeCanvas($('#recurrenceCanvas'));
+    resizeCanvas($('#mseCanvas'));
   }
 
   window.addEventListener('resize', resizeAllCanvases);
@@ -954,6 +1073,15 @@
       }
     }
 
+    // Additional canvases for new visualizations
+    const rpCanvas = $('#recurrenceCanvas');
+    const mseCanvas = $('#mseCanvas');
+    const rpCtx = rpCanvas.getContext('2d');
+    const mseCtx = mseCanvas.getContext('2d');
+
+    // Throttle tracking for RP
+    let lastRpDrawTime = 0;
+
     function draw() {
       animationId = requestAnimationFrame(draw);
       if (!analyser) return;
@@ -975,6 +1103,20 @@
       // Draw cepstrum
       if (!$('#cepstrumBody').classList.contains('collapsed')) {
         drawCepstrum(cepCanvas, cepCtx, freqFloatBuf);
+      }
+
+      // Draw recurrence plot (throttled to ~10 fps)
+      const now = performance.now();
+      if (!$('#recurrenceBody').classList.contains('collapsed')) {
+        if (now - lastRpDrawTime >= 100) {
+          lastRpDrawTime = now;
+          drawRecurrencePlot(rpCanvas, rpCtx, timeBuf);
+        }
+      }
+
+      // Draw multiscale entropy (heavily throttled)
+      if (!$('#mseBody').classList.contains('collapsed')) {
+        drawMultiscaleEntropy(mseCanvas, mseCtx, timeBuf);
       }
     }
 
@@ -1473,6 +1615,397 @@
     }
   }
 
+  // ========== Recurrence Plot ==========
+  function computePercentile(arr, percentile) {
+    const sorted = Float32Array.from(arr).sort((a, b) => a - b);
+    const idx = Math.floor((percentile / 100) * sorted.length);
+    return sorted[Math.min(idx, sorted.length - 1)];
+  }
+
+  function drawRecurrencePlot(canvas, ctx, timeBuf) {
+    const w = canvas.width;
+    const h = canvas.height;
+    const sampleRate = audioCtx ? audioCtx.sampleRate : 48000;
+
+    // Get parameters
+    const m = parseInt($('#rpEmbedDim').value);
+    const tauMs = parseInt($('#rpTimeDelay').value);
+    const epsilonPercentile = parseInt($('#rpThreshold').value);
+    const windowSize = parseInt($('#rpWindowSize').value);
+
+    // Convert tau from ms to samples
+    const tauSamples = Math.max(1, Math.floor(tauMs * sampleRate / 1000));
+
+    // Get signal from timeBuf (convert from Uint8 to float, remove DC, normalize)
+    const signalLen = Math.min(windowSize, timeBuf.length);
+    const signal = new Float32Array(signalLen);
+    let sum = 0;
+    for (let i = 0; i < signalLen; i++) {
+      signal[i] = (timeBuf[i] - 128) / 128;
+      sum += signal[i];
+    }
+    const mean = sum / signalLen;
+    
+    // Remove DC and calculate std
+    let sumSq = 0;
+    for (let i = 0; i < signalLen; i++) {
+      signal[i] -= mean;
+      sumSq += signal[i] * signal[i];
+    }
+    const std = Math.sqrt(sumSq / signalLen);
+    if (std > 0.001) {
+      for (let i = 0; i < signalLen; i++) {
+        signal[i] /= std;
+      }
+    }
+
+    // Build state vectors
+    const N = signalLen - (m - 1) * tauSamples;
+    if (N < 10) {
+      // Not enough data
+      ctx.fillStyle = '#060a0f';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#7a8fa6';
+      ctx.font = '14px system-ui';
+      ctx.fillText('Not enough data', 10, h / 2);
+      return;
+    }
+
+    const vectors = [];
+    for (let i = 0; i < N; i++) {
+      const vec = new Float32Array(m);
+      for (let j = 0; j < m; j++) {
+        vec[j] = signal[i + j * tauSamples];
+      }
+      vectors.push(vec);
+    }
+
+    // Compute distance matrix
+    const D = new Float32Array(N * N);
+    for (let i = 0; i < N; i++) {
+      for (let j = i; j < N; j++) {
+        let dist = 0;
+        for (let k = 0; k < m; k++) {
+          const diff = vectors[i][k] - vectors[j][k];
+          dist += diff * diff;
+        }
+        dist = Math.sqrt(dist);
+        D[i * N + j] = dist;
+        D[j * N + i] = dist; // Symmetric
+      }
+    }
+
+    // Compute threshold (epsilon percentile)
+    const threshold = computePercentile(D, epsilonPercentile);
+
+    // Find max distance for colored mode
+    let maxDist = 0;
+    for (let i = 0; i < D.length; i++) {
+      if (D[i] > maxDist) maxDist = D[i];
+    }
+    if (maxDist < 0.001) maxDist = 1;
+
+    // Margin for labels
+    const marginLeft = 50;
+    const marginBottom = 30;
+    const marginTop = 10;
+    const marginRight = 10;
+    const plotW = w - marginLeft - marginRight;
+    const plotH = h - marginBottom - marginTop;
+
+    // Clear
+    ctx.fillStyle = '#060a0f';
+    ctx.fillRect(0, 0, w, h);
+
+    // Draw RP matrix
+    const cellW = plotW / N;
+    const cellH = plotH / N;
+
+    if (rpMode === 'binary') {
+      // Binary mode: black/white
+      for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N; j++) {
+          const dist = D[i * N + j];
+          const x = marginLeft + j * cellW;
+          const y = marginTop + i * cellH;
+          ctx.fillStyle = dist <= threshold ? '#8ab4ff' : '#0a0f15';
+          ctx.fillRect(x, y, Math.ceil(cellW), Math.ceil(cellH));
+        }
+      }
+    } else {
+      // Colored mode: heatmap based on distance
+      for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N; j++) {
+          const dist = D[i * N + j];
+          const x = marginLeft + j * cellW;
+          const y = marginTop + i * cellH;
+          // Use exp(-D/sigma) for coloring
+          const sigma = maxDist / 3;
+          const intensity = Math.exp(-dist / sigma);
+          const value = Math.floor(intensity * 255);
+          ctx.fillStyle = getSpectroColor(value);
+          ctx.fillRect(x, y, Math.ceil(cellW), Math.ceil(cellH));
+        }
+      }
+    }
+
+    // Draw labels
+    ctx.fillStyle = '#7a8fa6';
+    ctx.font = '14px system-ui';
+
+    // Time labels on axes (convert N back to time)
+    const timeRange = (N / sampleRate) * 1000; // ms
+    const timeMarks = [0, timeRange / 2, timeRange];
+    for (const t of timeMarks) {
+      const pos = (t / timeRange);
+      // X axis
+      const x = marginLeft + pos * plotW;
+      ctx.fillText(t.toFixed(0), x - 10, h - 5);
+      // Y axis
+      const y = marginTop + pos * plotH;
+      ctx.fillText(t.toFixed(0), 5, y + 5);
+    }
+
+    ctx.fillStyle = '#9fb6d3';
+    ctx.fillText('ms', w - 20, h - 5);
+    ctx.fillText('ms', 5, marginTop - 2);
+  }
+
+  // ========== Multiscale Entropy ==========
+  function factorial(n) {
+    if (n <= 1) return 1;
+    let result = 1;
+    for (let i = 2; i <= n; i++) result *= i;
+    return result;
+  }
+
+  function permutationEntropy(series, m, tau) {
+    const n = series.length - (m - 1) * tau;
+    if (n < 1) return NaN;
+
+    // Count permutation patterns
+    const patterns = new Map();
+    for (let i = 0; i < n; i++) {
+      const vec = [];
+      for (let j = 0; j < m; j++) {
+        vec.push({ v: series[i + j * tau], idx: j });
+      }
+      vec.sort((a, b) => a.v - b.v);
+      const pattern = vec.map(x => x.idx).join(',');
+      patterns.set(pattern, (patterns.get(pattern) || 0) + 1);
+    }
+
+    // Compute entropy
+    let H = 0;
+    for (const count of patterns.values()) {
+      const p = count / n;
+      if (p > 0) H -= p * Math.log2(p);
+    }
+
+    // Normalize to [0, 1]
+    const maxH = Math.log2(factorial(m));
+    return H / maxH;
+  }
+
+  function coarseGrain(series, scale) {
+    const len = Math.floor(series.length / scale);
+    const result = new Float32Array(len);
+    for (let i = 0; i < len; i++) {
+      let sum = 0;
+      for (let j = 0; j < scale; j++) {
+        sum += series[i * scale + j];
+      }
+      result[i] = sum / scale;
+    }
+    return result;
+  }
+
+  function computeRMSEnvelope(signal, frameSize) {
+    const numFrames = Math.floor(signal.length / frameSize);
+    const envelope = new Float32Array(numFrames);
+    for (let i = 0; i < numFrames; i++) {
+      let sumSq = 0;
+      for (let j = 0; j < frameSize; j++) {
+        const s = signal[i * frameSize + j];
+        sumSq += s * s;
+      }
+      envelope[i] = Math.sqrt(sumSq / frameSize);
+    }
+    return envelope;
+  }
+
+  function drawMultiscaleEntropy(canvas, ctx, timeBuf) {
+    const w = canvas.width;
+    const h = canvas.height;
+    const sampleRate = audioCtx ? audioCtx.sampleRate : 48000;
+
+    // Get parameters
+    const maxScale = parseInt($('#mseMaxScale').value);
+    const windowSec = parseFloat($('#mseWindowSize').value);
+    const hopMs = parseInt($('#mseHopSize').value);
+    const rmsFrameMs = parseInt($('#mseRmsFrame').value);
+
+    // Convert to samples
+    const rmsFrameSamples = Math.floor(rmsFrameMs * sampleRate / 1000);
+    const windowSamples = Math.floor(windowSec * sampleRate);
+    const hopSamples = Math.floor(hopMs * sampleRate / 1000);
+
+    // Accumulate samples into buffer
+    for (let i = 0; i < timeBuf.length; i++) {
+      mseBuffer.push((timeBuf[i] - 128) / 128);
+    }
+
+    // Keep only last few seconds of data
+    const maxBufferSize = Math.floor(5 * sampleRate); // 5 seconds
+    if (mseBuffer.length > maxBufferSize) {
+      mseBuffer = mseBuffer.slice(mseBuffer.length - maxBufferSize);
+    }
+
+    // Need at least windowSamples to compute
+    if (mseBuffer.length < windowSamples) {
+      ctx.fillStyle = '#060a0f';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#7a8fa6';
+      ctx.font = '14px system-ui';
+      ctx.fillText('Collecting data...', 10, h / 2);
+      return;
+    }
+
+    // Throttle computation (every 200ms)
+    const now = performance.now();
+    if (now - lastMseTime < 200) {
+      // Just redraw cached data
+      if (mseHeatmapData) {
+        drawMseHeatmap(canvas, ctx, mseHeatmapData, maxScale, windowSec, hopMs);
+      }
+      return;
+    }
+    lastMseTime = now;
+
+    // Compute RMS envelope of the buffer
+    const signal = new Float32Array(mseBuffer);
+    const envelope = computeRMSEnvelope(signal, rmsFrameSamples);
+
+    // Normalize envelope
+    let mean = 0;
+    for (let i = 0; i < envelope.length; i++) mean += envelope[i];
+    mean /= envelope.length;
+    
+    let std = 0;
+    for (let i = 0; i < envelope.length; i++) {
+      std += (envelope[i] - mean) ** 2;
+    }
+    std = Math.sqrt(std / envelope.length);
+    
+    if (std > 0.001) {
+      for (let i = 0; i < envelope.length; i++) {
+        envelope[i] = (envelope[i] - mean) / std;
+      }
+    }
+
+    // Sliding windows in envelope domain
+    const windowEnvSamples = Math.floor(windowSec * sampleRate / rmsFrameSamples);
+    const hopEnvSamples = Math.max(1, Math.floor(hopMs * sampleRate / 1000 / rmsFrameSamples));
+
+    const windows = [];
+    for (let t = 0; t + windowEnvSamples <= envelope.length; t += hopEnvSamples) {
+      windows.push(envelope.slice(t, t + windowEnvSamples));
+    }
+
+    if (windows.length === 0) {
+      ctx.fillStyle = '#060a0f';
+      ctx.fillRect(0, 0, w, h);
+      return;
+    }
+
+    // For each window and scale, compute entropy
+    const E = []; // E[scale][timeWindow]
+    for (let s = 1; s <= maxScale; s++) {
+      E[s] = [];
+      for (const win of windows) {
+        const coarsed = coarseGrain(win, s);
+        if (coarsed.length < 10) {
+          E[s].push(NaN);
+        } else {
+          const entropy = permutationEntropy(Array.from(coarsed), 5, 1);
+          E[s].push(entropy);
+        }
+      }
+    }
+
+    mseHeatmapData = E;
+    drawMseHeatmap(canvas, ctx, E, maxScale, windowSec, hopMs);
+  }
+
+  function drawMseHeatmap(canvas, ctx, E, maxScale, windowSec, hopMs) {
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Margin for labels
+    const marginLeft = 60;
+    const marginBottom = 30;
+    const marginTop = 10;
+    const marginRight = 10;
+    const plotW = w - marginLeft - marginRight;
+    const plotH = h - marginBottom - marginTop;
+
+    // Clear
+    ctx.fillStyle = '#060a0f';
+    ctx.fillRect(0, 0, w, h);
+
+    if (!E || E.length < 2) return;
+
+    const numScales = maxScale;
+    const numWindows = E[1] ? E[1].length : 0;
+
+    if (numWindows === 0) return;
+
+    const cellW = plotW / numWindows;
+    const cellH = plotH / numScales;
+
+    // Draw heatmap
+    for (let s = 1; s <= numScales; s++) {
+      if (!E[s]) continue;
+      for (let t = 0; t < numWindows; t++) {
+        const entropy = E[s][t];
+        const x = marginLeft + t * cellW;
+        const y = marginTop + (numScales - s) * cellH;
+
+        if (isNaN(entropy)) {
+          ctx.fillStyle = '#1a1a2e';
+        } else {
+          // Color: low entropy = blue, high entropy = red
+          const value = Math.floor(entropy * 255);
+          ctx.fillStyle = getSpectroColor(value);
+        }
+        ctx.fillRect(x, y, Math.ceil(cellW), Math.ceil(cellH));
+      }
+    }
+
+    // Draw labels
+    ctx.fillStyle = '#7a8fa6';
+    ctx.font = '14px system-ui';
+
+    // Y axis: scale
+    const scaleMarks = [1, Math.floor(numScales / 2), numScales];
+    for (const s of scaleMarks) {
+      const y = marginTop + (numScales - s) * cellH + cellH / 2;
+      ctx.fillText(s.toString(), 10, y + 5);
+    }
+    ctx.fillStyle = '#9fb6d3';
+    ctx.fillText('Scale', 5, marginTop - 2);
+
+    // X axis: time
+    ctx.fillStyle = '#7a8fa6';
+    const totalTimeMs = numWindows * hopMs / 1000;
+    const timeMarks = [0, totalTimeMs / 2, totalTimeMs];
+    for (const t of timeMarks) {
+      const pos = t / totalTimeMs;
+      const x = marginLeft + pos * plotW;
+      ctx.fillText(t.toFixed(1) + 's', x - 15, h - 5);
+    }
+  }
+
   // ========== Panel State Persistence ==========
   function savePanelState() {
     const state = {
@@ -1480,6 +2013,8 @@
       oscilloscope: !$('#oscilloscopeBody').classList.contains('collapsed'),
       spectrum: !$('#spectrumBody').classList.contains('collapsed'),
       cepstrum: !$('#cepstrumBody').classList.contains('collapsed'),
+      recurrence: !$('#recurrenceBody').classList.contains('collapsed'),
+      mse: !$('#mseBody').classList.contains('collapsed'),
       // Visualization settings
       settings: {
         oscYScale: parseFloat($('#oscYScale').value),
@@ -1491,7 +2026,19 @@
         cepYScale: parseFloat($('#cepYScale').value),
         cepstrumMode: cepstrumMode,
         cepstrumScale: cepstrumScale,
-        cepstrumSpeed: cepstrumSpeed
+        cepstrumSpeed: cepstrumSpeed,
+        // Recurrence Plot settings
+        rpMode: rpMode,
+        rpEmbedDim: parseInt($('#rpEmbedDim').value),
+        rpTimeDelay: parseInt($('#rpTimeDelay').value),
+        rpThreshold: parseInt($('#rpThreshold').value),
+        rpWindowSize: parseInt($('#rpWindowSize').value),
+        // MSE settings
+        mseMode: mseMode,
+        mseMaxScale: parseInt($('#mseMaxScale').value),
+        mseWindowSize: parseFloat($('#mseWindowSize').value),
+        mseHopSize: parseInt($('#mseHopSize').value),
+        mseRmsFrame: parseInt($('#mseRmsFrame').value)
       }
     };
     localStorage.setItem(PANEL_STATE_KEY, JSON.stringify(state));
@@ -1515,6 +2062,14 @@
         if (state.cepstrum === false) {
           $('#cepstrumBody').classList.add('collapsed');
           $('#cepstrumCollapseBtn').textContent = '▶';
+        }
+        if (state.recurrence === false) {
+          $('#recurrenceBody').classList.add('collapsed');
+          $('#recurrenceCollapseBtn').textContent = '▶';
+        }
+        if (state.mse === false) {
+          $('#mseBody').classList.add('collapsed');
+          $('#mseCollapseBtn').textContent = '▶';
         }
         
         // Restore visualization settings
@@ -1569,6 +2124,50 @@
             $$('#cepSpeedCtrl .speedBtn').forEach(btn => btn.classList.remove('active'));
             const speedBtn = $(`#cepSpeed${cepstrumSpeed.charAt(0).toUpperCase() + cepstrumSpeed.slice(1)}`);
             if (speedBtn) speedBtn.classList.add('active');
+          }
+          
+          // Recurrence Plot settings
+          if (state.settings.rpMode !== undefined) {
+            rpMode = state.settings.rpMode;
+            $('#rpModeBtn').textContent = rpMode === 'binary' ? 'Binary' : 'Colored';
+          }
+          if (state.settings.rpEmbedDim !== undefined) {
+            $('#rpEmbedDim').value = state.settings.rpEmbedDim;
+            $('#rpEmbedDimVal').textContent = state.settings.rpEmbedDim;
+          }
+          if (state.settings.rpTimeDelay !== undefined) {
+            $('#rpTimeDelay').value = state.settings.rpTimeDelay;
+            $('#rpTimeDelayVal').textContent = state.settings.rpTimeDelay + ' ms';
+          }
+          if (state.settings.rpThreshold !== undefined) {
+            $('#rpThreshold').value = state.settings.rpThreshold;
+            $('#rpThresholdVal').textContent = state.settings.rpThreshold + '%';
+          }
+          if (state.settings.rpWindowSize !== undefined) {
+            $('#rpWindowSize').value = state.settings.rpWindowSize;
+            $('#rpWindowSizeVal').textContent = state.settings.rpWindowSize;
+          }
+          
+          // MSE settings
+          if (state.settings.mseMode !== undefined) {
+            mseMode = state.settings.mseMode;
+            $('#mseModeBtn').textContent = mseMode === 'permutation' ? 'Perm' : 'Sample';
+          }
+          if (state.settings.mseMaxScale !== undefined) {
+            $('#mseMaxScale').value = state.settings.mseMaxScale;
+            $('#mseMaxScaleVal').textContent = state.settings.mseMaxScale;
+          }
+          if (state.settings.mseWindowSize !== undefined) {
+            $('#mseWindowSize').value = state.settings.mseWindowSize;
+            $('#mseWindowSizeVal').textContent = state.settings.mseWindowSize.toFixed(1) + 's';
+          }
+          if (state.settings.mseHopSize !== undefined) {
+            $('#mseHopSize').value = state.settings.mseHopSize;
+            $('#mseHopSizeVal').textContent = state.settings.mseHopSize;
+          }
+          if (state.settings.mseRmsFrame !== undefined) {
+            $('#mseRmsFrame').value = state.settings.mseRmsFrame;
+            $('#mseRmsFrameVal').textContent = state.settings.mseRmsFrame;
           }
         }
       }
@@ -1628,6 +2227,8 @@
   setupCollapseBtn('#oscilloscopeCollapseBtn', '#oscilloscopeBody', '#oscilloscopeCanvas');
   setupCollapseBtn('#spectrumCollapseBtn', '#spectrumBody', '#spectrumCanvas');
   setupCollapseBtn('#cepstrumCollapseBtn', '#cepstrumBody', '#cepstrumCanvas');
+  setupCollapseBtn('#recurrenceCollapseBtn', '#recurrenceBody', '#recurrenceCanvas');
+  setupCollapseBtn('#mseCollapseBtn', '#mseBody', '#mseCanvas');
 
   // Spectrum mode toggle (single button)
   $('#spectrumModeBtn').addEventListener('click', () => {
@@ -1711,6 +2312,81 @@
       $(`#cepSpeed${speed}`).classList.add('active');
       savePanelState();
     });
+  });
+
+  // Recurrence Plot mode toggle
+  $('#rpModeBtn').addEventListener('click', () => {
+    if (rpMode === 'binary') {
+      rpMode = 'colored';
+      $('#rpModeBtn').textContent = 'Colored';
+    } else {
+      rpMode = 'binary';
+      $('#rpModeBtn').textContent = 'Binary';
+    }
+    savePanelState();
+  });
+
+  // Recurrence Plot sliders
+  $('#rpEmbedDim').addEventListener('input', (e) => {
+    $('#rpEmbedDimVal').textContent = e.target.value;
+    savePanelState();
+  });
+
+  $('#rpTimeDelay').addEventListener('input', (e) => {
+    $('#rpTimeDelayVal').textContent = e.target.value + ' ms';
+    savePanelState();
+  });
+
+  $('#rpThreshold').addEventListener('input', (e) => {
+    $('#rpThresholdVal').textContent = e.target.value + '%';
+    savePanelState();
+  });
+
+  $('#rpWindowSize').addEventListener('input', (e) => {
+    $('#rpWindowSizeVal').textContent = e.target.value;
+    savePanelState();
+  });
+
+  // MSE mode toggle
+  $('#mseModeBtn').addEventListener('click', () => {
+    if (mseMode === 'permutation') {
+      mseMode = 'sample';
+      $('#mseModeBtn').textContent = 'Sample';
+    } else {
+      mseMode = 'permutation';
+      $('#mseModeBtn').textContent = 'Perm';
+    }
+    // Reset buffer on mode change
+    mseBuffer = [];
+    mseHeatmapData = null;
+    savePanelState();
+  });
+
+  // MSE sliders
+  $('#mseMaxScale').addEventListener('input', (e) => {
+    $('#mseMaxScaleVal').textContent = e.target.value;
+    mseHeatmapData = null;
+    savePanelState();
+  });
+
+  $('#mseWindowSize').addEventListener('input', (e) => {
+    $('#mseWindowSizeVal').textContent = parseFloat(e.target.value).toFixed(1) + 's';
+    mseBuffer = [];
+    mseHeatmapData = null;
+    savePanelState();
+  });
+
+  $('#mseHopSize').addEventListener('input', (e) => {
+    $('#mseHopSizeVal').textContent = e.target.value;
+    mseHeatmapData = null;
+    savePanelState();
+  });
+
+  $('#mseRmsFrame').addEventListener('input', (e) => {
+    $('#mseRmsFrameVal').textContent = e.target.value;
+    mseBuffer = [];
+    mseHeatmapData = null;
+    savePanelState();
   });
 
   // Slider value displays (with state persistence)
