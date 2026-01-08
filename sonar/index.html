@@ -347,20 +347,38 @@
       <div class="small" id="ampVal">0.18</div>
     </div>
 
+    <div class="sep"></div>
+
     <div class="ctrl with-adj">
-      <label for="frame">Frame size (samples)</label>
-      <button class="adj-btn" data-slider="frame" data-dir="-1">−</button>
-      <input id="frame" type="range" min="128" max="4096" step="128" value="256">
-      <button class="adj-btn" data-slider="frame" data-dir="1">+</button>
-      <div class="small" id="frameVal">256</div>
+      <label for="speedOfSound">Speed of sound (m/s)</label>
+      <button class="adj-btn" data-slider="speedOfSound" data-dir="-1">−</button>
+      <input id="speedOfSound" type="range" min="300" max="400" step="1" value="343">
+      <button class="adj-btn" data-slider="speedOfSound" data-dir="1">+</button>
+      <div class="small" id="speedOfSoundVal">343</div>
     </div>
 
     <div class="ctrl with-adj">
-      <label for="hop">Hop (samples)</label>
-      <button class="adj-btn" data-slider="hop" data-dir="-1">−</button>
-      <input id="hop" type="range" min="32" max="2048" step="32" value="128">
-      <button class="adj-btn" data-slider="hop" data-dir="1">+</button>
-      <div class="small" id="hopVal">128</div>
+      <label for="minDist">Min distance (m)</label>
+      <button class="adj-btn" data-slider="minDist" data-dir="-1">−</button>
+      <input id="minDist" type="range" min="0.05" max="1" step="0.05" value="0.15">
+      <button class="adj-btn" data-slider="minDist" data-dir="1">+</button>
+      <div class="small" id="minDistVal">0.15</div>
+    </div>
+
+    <div class="ctrl with-adj">
+      <label for="maxDist">Max distance (m)</label>
+      <button class="adj-btn" data-slider="maxDist" data-dir="-1">−</button>
+      <input id="maxDist" type="range" min="1" max="20" step="0.5" value="10">
+      <button class="adj-btn" data-slider="maxDist" data-dir="1">+</button>
+      <div class="small" id="maxDistVal">10</div>
+    </div>
+
+    <div class="ctrl with-adj">
+      <label for="bandwidth">Bandpass width (Hz)</label>
+      <button class="adj-btn" data-slider="bandwidth" data-dir="-1">−</button>
+      <input id="bandwidth" type="range" min="500" max="5000" step="100" value="2000">
+      <button class="adj-btn" data-slider="bandwidth" data-dir="1">+</button>
+      <div class="small" id="bandwidthVal">2000</div>
     </div>
 
     <p class="warn">
@@ -382,7 +400,7 @@
     <span id="wakeLockStatus" class="wake-lock-status unsupported">Wake Lock: checking...</span>
     <div class="sep"></div>
     <div class="infoChartSection">
-      <div class="infoChartLabel">Intensity vs Time (current angle)</div>
+      <div class="infoChartLabel">Cepstrum Magnitude vs Distance (current angle)</div>
       <canvas id="infoChart" width="400" height="100"></canvas>
     </div>
   </div>
@@ -395,8 +413,8 @@
     <button id="btnClear" class="canvas-btn">Clear</button>
   </div>
   <p class="muted">
-    Polar view: current direction always at top (green line), radius = time-of-flight (center = close, edge = far). 
-    Brighter = more energy. Sonogram rotates as you turn.
+    Polar view: current direction always at top (green line), radius = distance (center = min, edge = max). 
+    Brighter = stronger echo. Cepstrum analysis detects time-of-flight peaks. Sonogram rotates as you turn.
   </p>
 </section>
 
@@ -429,6 +447,259 @@
 
   function setStatus(s) { statusEl.textContent = "Status: " + s; }
   function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+
+  // --- FFT/IFFT Implementation (Radix-2 Cooley-Tukey)
+  function nextPow2(n) {
+    let p = 1;
+    while (p < n) p <<= 1;
+    return p;
+  }
+
+  // In-place radix-2 FFT
+  // real and imag are Float64Arrays of length N (must be power of 2)
+  function fft(real, imag) {
+    const N = real.length;
+    if (N <= 1) return;
+
+    // Bit-reversal permutation
+    let j = 0;
+    for (let i = 0; i < N - 1; i++) {
+      if (i < j) {
+        let tr = real[i]; real[i] = real[j]; real[j] = tr;
+        let ti = imag[i]; imag[i] = imag[j]; imag[j] = ti;
+      }
+      let k = N >> 1;
+      while (k <= j) { j -= k; k >>= 1; }
+      j += k;
+    }
+
+    // Cooley-Tukey iterative FFT
+    for (let len = 2; len <= N; len <<= 1) {
+      const halfLen = len >> 1;
+      const angle = -2 * Math.PI / len;
+      const wReal = Math.cos(angle);
+      const wImag = Math.sin(angle);
+      
+      for (let i = 0; i < N; i += len) {
+        let wr = 1, wi = 0;
+        for (let k = 0; k < halfLen; k++) {
+          const evenIdx = i + k;
+          const oddIdx = i + k + halfLen;
+          
+          const tr = wr * real[oddIdx] - wi * imag[oddIdx];
+          const ti = wr * imag[oddIdx] + wi * real[oddIdx];
+          
+          real[oddIdx] = real[evenIdx] - tr;
+          imag[oddIdx] = imag[evenIdx] - ti;
+          real[evenIdx] += tr;
+          imag[evenIdx] += ti;
+          
+          const newWr = wr * wReal - wi * wImag;
+          wi = wr * wImag + wi * wReal;
+          wr = newWr;
+        }
+      }
+    }
+  }
+
+  // Inverse FFT via conjugate trick
+  function ifft(real, imag) {
+    const N = real.length;
+    // Conjugate
+    for (let i = 0; i < N; i++) imag[i] = -imag[i];
+    // Forward FFT
+    fft(real, imag);
+    // Conjugate and scale
+    for (let i = 0; i < N; i++) {
+      real[i] /= N;
+      imag[i] = -imag[i] / N;
+    }
+  }
+
+  // Compute magnitude spectrum
+  function magnitude(real, imag) {
+    const N = real.length;
+    const mag = new Float64Array(N);
+    for (let i = 0; i < N; i++) {
+      mag[i] = Math.sqrt(real[i] * real[i] + imag[i] * imag[i]);
+    }
+    return mag;
+  }
+
+  // --- Real Cepstrum Computation
+  // Computes: C = IFFT(log|FFT(signal)|)
+  // With bandpass filtering around pingFreq ± bandwidthHz
+  function computeRealCepstrum(signal, sampleRate, pingFreq, bandwidthHz) {
+    // Zero-pad to next power of 2
+    const N = nextPow2(signal.length);
+    const real = new Float64Array(N);
+    const imag = new Float64Array(N);
+    
+    // Copy signal with Hann window to reduce spectral leakage
+    for (let i = 0; i < signal.length; i++) {
+      const window = 0.5 * (1 - Math.cos(2 * Math.PI * i / (signal.length - 1)));
+      real[i] = signal[i] * window;
+    }
+    // Rest is zero-padded
+    
+    // Forward FFT
+    fft(real, imag);
+    
+    // Compute magnitude spectrum
+    const mag = magnitude(real, imag);
+    
+    // Apply bandpass filter in frequency domain
+    // Zero out frequencies outside pingFreq ± bandwidthHz
+    const freqPerBin = sampleRate / N;
+    const lowBin = Math.max(0, Math.floor((pingFreq - bandwidthHz) / freqPerBin));
+    const highBin = Math.min(N / 2, Math.ceil((pingFreq + bandwidthHz) / freqPerBin));
+    
+    // Take log of magnitude spectrum (only in bandpass region)
+    // Use epsilon to avoid log(0)
+    const EPS = 1e-10;
+    const logMag = new Float64Array(N);
+    
+    for (let i = 0; i < N; i++) {
+      // Mirror for negative frequencies (N/2 to N-1 mirrors 1 to N/2-1)
+      const freqBin = i <= N / 2 ? i : N - i;
+      
+      if (freqBin >= lowBin && freqBin <= highBin) {
+        logMag[i] = Math.log(mag[i] + EPS);
+      } else {
+        logMag[i] = Math.log(EPS); // Suppress out-of-band
+      }
+    }
+    
+    // IFFT of log magnitude to get real cepstrum
+    const cepReal = new Float64Array(N);
+    const cepImag = new Float64Array(N);
+    for (let i = 0; i < N; i++) {
+      cepReal[i] = logMag[i];
+      cepImag[i] = 0;
+    }
+    
+    ifft(cepReal, cepImag);
+    
+    // Return real part of cepstrum (quefrency domain)
+    // Index = quefrency in samples
+    return cepReal;
+  }
+
+  // --- Cepstrum to Distance Bins Conversion
+  // Converts cepstrum (quefrency in samples) to distance bins
+  // minDist and maxDist define the valid range (ignore direct leakage at low quefrency)
+  function cepstrumToDistanceBins(cepstrum, sampleRate, speedOfSound, minDist, maxDist, numBins) {
+    // Convert distance to quefrency (round-trip time)
+    // distance = speedOfSound * quefrencySec / 2
+    // quefrencySec = 2 * distance / speedOfSound
+    // quefrencySamples = quefrencySec * sampleRate
+    
+    const minQuefrency = Math.floor((2 * minDist / speedOfSound) * sampleRate);
+    const maxQuefrency = Math.min(
+      Math.ceil((2 * maxDist / speedOfSound) * sampleRate),
+      cepstrum.length / 2  // Only use first half (positive quefrencies)
+    );
+    
+    if (maxQuefrency <= minQuefrency) {
+      return new Float32Array(numBins);
+    }
+    
+    const quefrencyRange = maxQuefrency - minQuefrency;
+    const out = new Float32Array(numBins);
+    
+    // Sample cepstrum at evenly spaced distance intervals
+    for (let b = 0; b < numBins; b++) {
+      // Map bin to quefrency
+      const t = b / (numBins - 1);
+      const quefrency = Math.round(minQuefrency + t * quefrencyRange);
+      
+      if (quefrency >= 0 && quefrency < cepstrum.length) {
+        // Take absolute value since cepstrum can be negative
+        out[b] = Math.abs(cepstrum[quefrency]);
+      }
+    }
+    
+    return out;
+  }
+
+  // --- Temporal Sliding Mean for Cepstrum Stability
+  const CEPSTRUM_HISTORY_SIZE = 5;  // Number of frames to average
+  let cepstrumHistory = null;  // Will be initialized with resetCepstrumHistory()
+  let cepstrumHistoryIdx = null;  // Circular buffer index per angle
+
+  function resetCepstrumHistory() {
+    cepstrumHistory = new Array(ANGLE_BUCKETS);
+    cepstrumHistoryIdx = new Uint8Array(ANGLE_BUCKETS);
+    for (let a = 0; a < ANGLE_BUCKETS; a++) {
+      // Each angle bucket has a circular buffer of cepstrum frames
+      cepstrumHistory[a] = new Array(CEPSTRUM_HISTORY_SIZE);
+      for (let h = 0; h < CEPSTRUM_HISTORY_SIZE; h++) {
+        cepstrumHistory[a][h] = null;  // Will be Float32Array when populated
+      }
+      cepstrumHistoryIdx[a] = 0;
+    }
+  }
+
+  // Subtract temporal sliding mean from new cepstrum bins
+  // This removes stationary components (consistent leakage patterns)
+  function applySlidingMeanSubtraction(angleBucket, newBins) {
+    const history = cepstrumHistory[angleBucket];
+    const idx = cepstrumHistoryIdx[angleBucket];
+    
+    // Store new bins in circular buffer
+    history[idx] = new Float32Array(newBins);
+    cepstrumHistoryIdx[angleBucket] = (idx + 1) % CEPSTRUM_HISTORY_SIZE;
+    
+    // Count valid history entries
+    let validCount = 0;
+    for (let h = 0; h < CEPSTRUM_HISTORY_SIZE; h++) {
+      if (history[h] !== null) validCount++;
+    }
+    
+    // If we don't have enough history, just normalize and return
+    if (validCount < 2) {
+      return normalizeBins(newBins);
+    }
+    
+    // Compute sliding mean
+    const mean = new Float32Array(newBins.length);
+    for (let h = 0; h < CEPSTRUM_HISTORY_SIZE; h++) {
+      if (history[h] !== null) {
+        for (let i = 0; i < newBins.length; i++) {
+          mean[i] += history[h][i];
+        }
+      }
+    }
+    for (let i = 0; i < mean.length; i++) {
+      mean[i] /= validCount;
+    }
+    
+    // Subtract mean from current bins
+    const result = new Float32Array(newBins.length);
+    for (let i = 0; i < newBins.length; i++) {
+      // Subtract mean, but keep positive values (rectify)
+      result[i] = Math.max(0, newBins[i] - mean[i] * 0.8);  // 0.8 factor for partial subtraction
+    }
+    
+    return normalizeBins(result);
+  }
+
+  // Normalize bins to 0-1 range with sqrt compression
+  function normalizeBins(bins) {
+    let maxVal = 0;
+    for (let i = 0; i < bins.length; i++) {
+      if (bins[i] > maxVal) maxVal = bins[i];
+    }
+    
+    if (maxVal <= 0) return new Float32Array(bins.length);
+    
+    const out = new Float32Array(bins.length);
+    for (let i = 0; i < bins.length; i++) {
+      // Normalize and apply sqrt compression for better visualization
+      out[i] = Math.sqrt(clamp(bins[i] / maxVal, 0, 1));
+    }
+    return out;
+  }
 
   // --- Slider value formatting
   function fmt(v, decimals = 0) {
@@ -489,8 +760,10 @@
     burstMs: { decimals: 0 },
     listenMs: { decimals: 0 },
     amp: { decimals: 2 },
-    frame: { decimals: 0 },
-    hop: { decimals: 0 }
+    speedOfSound: { decimals: 0 },
+    minDist: { decimals: 2 },
+    maxDist: { decimals: 1 },
+    bandwidth: { decimals: 0 }
   };
 
   for (const [id, cfg] of Object.entries(sliderConfigs)) {
@@ -689,11 +962,12 @@
 
   function resetImage() {
     resetPolarData();
+    resetCepstrumHistory();
     drawPolarSonogram(null);
   }
 
   // --- Info chart drawing
-  function drawInfoChart(bins) {
+  function drawInfoChart(bins, minDist, maxDist) {
     const w = infoChart.width;
     const h = infoChart.height;
     const padding = { top: 8, right: 8, bottom: 20, left: 32 };
@@ -710,12 +984,22 @@
     chartCtx.strokeStyle = "rgba(255, 255, 255, 0.1)";
     chartCtx.lineWidth = 1;
     
-    // Horizontal grid (intensity levels)
+    // Horizontal grid (magnitude levels)
     for (let i = 0; i <= 4; i++) {
       const y = padding.top + (i / 4) * plotH;
       chartCtx.beginPath();
       chartCtx.moveTo(padding.left, y);
       chartCtx.lineTo(w - padding.right, y);
+      chartCtx.stroke();
+    }
+
+    // Vertical grid (distance markers)
+    const numDistMarkers = 5;
+    for (let i = 0; i <= numDistMarkers; i++) {
+      const x = padding.left + (i / numDistMarkers) * plotW;
+      chartCtx.beginPath();
+      chartCtx.moveTo(x, padding.top);
+      chartCtx.lineTo(x, padding.top + plotH);
       chartCtx.stroke();
     }
 
@@ -730,14 +1014,22 @@
       chartCtx.fillText(val.toFixed(1), padding.left - 4, y);
     }
 
-    // X-axis label
+    // X-axis labels (distance in meters)
     chartCtx.fillStyle = "#666";
     chartCtx.font = "9px system-ui";
     chartCtx.textAlign = "center";
     chartCtx.textBaseline = "top";
-    chartCtx.fillText("time →", w / 2, h - 12);
+    
+    const distMin = minDist || 0.15;
+    const distMax = maxDist || 10;
+    
+    for (let i = 0; i <= numDistMarkers; i++) {
+      const dist = distMin + (i / numDistMarkers) * (distMax - distMin);
+      const x = padding.left + (i / numDistMarkers) * plotW;
+      chartCtx.fillText(dist.toFixed(1) + "m", x, h - 12);
+    }
 
-    // Draw the intensity line
+    // Draw the cepstrum magnitude line
     chartCtx.strokeStyle = "#00ff00";
     chartCtx.lineWidth = 1.5;
     chartCtx.beginPath();
@@ -766,6 +1058,19 @@
     chartCtx.lineTo(padding.left + plotW, padding.top + plotH);
     chartCtx.closePath();
     chartCtx.fill();
+
+    // Find and mark peaks (echo candidates)
+    const peakThreshold = 0.5;
+    chartCtx.fillStyle = "#ff6600";
+    for (let i = 1; i < bins.length - 1; i++) {
+      if (bins[i] > peakThreshold && bins[i] > bins[i-1] && bins[i] > bins[i+1]) {
+        const x = padding.left + (i / (bins.length - 1)) * plotW;
+        const y = padding.top + (1 - bins[i]) * plotH;
+        chartCtx.beginPath();
+        chartCtx.arc(x, y, 3, 0, Math.PI * 2);
+        chartCtx.fill();
+      }
+    }
   }
 
   function clearInfoChart() {
@@ -838,15 +1143,17 @@
   let running = false;
 
   // --- Live scan parameters (synced from UI with debounce)
-  // Default values optimized based on calibration data analysis
+  // Cepstrum-based echo detection parameters
   let scanParams = {
     freq: 19000,
     burstMs: 8,
     listenMs: 80,
     channel: 'R',
     amp: 0.18,
-    frameSize: 256,
-    hopSize: 128,
+    speedOfSound: 343,  // m/s
+    minDist: 0.15,      // meters (skip direct leakage)
+    maxDist: 10,        // meters (physical plausibility limit)
+    bandwidth: 2000,    // Hz (bandpass filter width around ping freq)
     burst: null  // cached tone buffer, regenerated when freq/burstMs change
   };
 
@@ -863,8 +1170,10 @@
     scanParams.listenMs = Number($("listenMs").value);
     scanParams.channel = String($("channel").value);
     scanParams.amp = Number($("amp").value);
-    scanParams.frameSize = Number($("frame").value);
-    scanParams.hopSize = Number($("hop").value);
+    scanParams.speedOfSound = Number($("speedOfSound").value);
+    scanParams.minDist = Number($("minDist").value);
+    scanParams.maxDist = Number($("maxDist").value);
+    scanParams.bandwidth = Number($("bandwidth").value);
 
     if (needNewBurst) {
       const sr = audioCtx.sampleRate;
@@ -886,7 +1195,7 @@
 
   // Wire up debounced sync to all settings controls
   function setupLiveParamsSync() {
-    const sliderIds = ['freq', 'burstMs', 'listenMs', 'amp', 'frame', 'hop'];
+    const sliderIds = ['freq', 'burstMs', 'listenMs', 'amp', 'speedOfSound', 'minDist', 'maxDist', 'bandwidth'];
     for (const id of sliderIds) {
       const slider = $(id);
       if (slider) {
@@ -1072,11 +1381,11 @@
     }
 
     running = true;
-    setStatus("running");
+    setStatus("running (cepstrum mode)");
 
     while (running) {
       // Read current params from the live-synced object
-      const { freq, listenMs, channel, amp, frameSize, hopSize, burst } = scanParams;
+      const { freq, listenMs, channel, amp, speedOfSound, minDist, maxDist, bandwidth, burst } = scanParams;
 
       const deg = hasHeading ? headingDegrees : (performance.now() / 50) % 360;
       const bucket = Math.floor(normalizeDeg(deg));
@@ -1087,17 +1396,25 @@
       const recSec = burstSec + (listenMs / 1000);
       const recorded = await recordWindow(recSec);
 
+      // Skip the burst portion to reduce direct leakage
       const skip = Math.floor(burstSec * sr * 0.9);
       const tail = recorded.subarray(skip);
 
-      const bins = energyEnvelopeBins(tail, sr, freq, frameSize, hopSize, RADIUS_BINS);
+      // Compute real cepstrum with bandpass filtering
+      const cepstrum = computeRealCepstrum(tail, sr, freq, bandwidth);
+      
+      // Convert cepstrum to distance bins (filtering by min/max distance)
+      const rawBins = cepstrumToDistanceBins(cepstrum, sr, speedOfSound, minDist, maxDist, RADIUS_BINS);
+      
+      // Apply temporal sliding mean subtraction for stability
+      const bins = applySlidingMeanSubtraction(bucket, rawBins);
 
       updatePolarDataAtAngle(deg, bins);
       drawPolarSonogram(deg);
 
       // Update info chart only if panel is open
       if (infoPanel.classList.contains('open')) {
-        drawInfoChart(bins);
+        drawInfoChart(bins, minDist, maxDist);
       }
 
       await new Promise(r => setTimeout(r, 0));
@@ -1518,6 +1835,7 @@
 
   // init
   resetPolarData();
+  resetCepstrumHistory();
   resetImage();
   clearInfoChart();
   setStatus("idle");
