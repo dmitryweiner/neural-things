@@ -227,6 +227,107 @@
       text-decoration: underline;
     }
 
+    /* Custom Preset Dropdown */
+    .preset-dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .preset-dropdown-btn {
+      min-width: 160px;
+      max-width: 200px;
+      text-align: left;
+      padding-right: 24px;
+      position: relative;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .preset-dropdown-btn::after {
+      content: '▼';
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 8px;
+    }
+    .preset-dropdown-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      z-index: 50;
+      min-width: 220px;
+      max-height: 300px;
+      overflow-y: auto;
+      background: #0d131b;
+      border: 1px solid #1d2a3a;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      display: none;
+      margin-top: 4px;
+    }
+    .preset-dropdown-menu.open {
+      display: block;
+    }
+    .preset-section-label {
+      padding: 8px 12px 4px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #7a8fa6;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .preset-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .preset-item:hover {
+      background: #1d2a3a;
+    }
+    .preset-item.selected {
+      background: rgba(39, 174, 96, 0.15);
+    }
+    .preset-item-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+      color: #e8eef6;
+    }
+    .preset-delete-btn {
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      margin-left: 8px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      color: #7a8fa6;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .preset-delete-btn:hover {
+      background: #c0392b;
+      border-color: #c0392b;
+      color: #fff;
+    }
+    .preset-divider {
+      height: 1px;
+      background: #1d2a3a;
+      margin: 4px 0;
+    }
+    @media (max-width: 600px) {
+      .preset-dropdown-btn { max-width: 140px; min-width: 120px; }
+      .preset-dropdown-menu { min-width: 200px; }
+    }
+
     /* Help Modal */
     .help-overlay {
       position: fixed;
@@ -335,11 +436,11 @@
     </div>
 
     <div class="btn-group">
-      <select id="presetSelect" class="collapseBtn">
-        <option value="">— Presets —</option>
-      </select>
+      <div class="preset-dropdown" id="presetDropdown">
+        <button class="collapseBtn preset-dropdown-btn" id="presetDropdownBtn" type="button">— Presets —</button>
+        <div class="preset-dropdown-menu" id="presetDropdownMenu"></div>
+      </div>
       <button id="savePresetBtn" class="collapseBtn" type="button">Save preset</button>
-      <button id="loadPresetBtn" class="collapseBtn" type="button">Load preset</button>
       <button id="shareBtn" class="collapseBtn" type="button">Share</button>
     </div>
 
@@ -592,10 +693,10 @@
 
       <h3>Presets</h3>
       <ul>
-        <li><strong>Dropdown</strong> — select a built-in preset to load</li>
-        <li><strong>Save preset</strong> — save current settings to browser storage</li>
-        <li><strong>Load preset</strong> — restore saved settings</li>
-        <li><strong>Share</strong> — copy URL with current settings to clipboard</li>
+        <li><strong>Dropdown</strong> — select from built-in or your saved presets</li>
+        <li><strong>Save preset</strong> — save with a custom name (or auto-named "Preset N")</li>
+        <li><strong>× button</strong> — delete your saved presets</li>
+        <li><strong>Share</strong> — copy URL; recipients auto-save the preset</li>
       </ul>
 
       <h3>Recording</h3>
@@ -1071,7 +1172,9 @@
   // ---------- DOM helpers ----------
   const $ = (s) => document.querySelector(s);
   const formulasRoot = $('#formulas');
-  const PRESET_KEY = 'formula_audio_lab_preset_v2';
+  const USER_PRESETS_KEY = 'formula_audio_lab_user_presets_v1';
+  let userPresets = [];  // Array of { name, state }
+  let selectedPresetName = null;  // Currently selected preset name (for UI)
 
   function fmt(v){
     v = Number(v);
@@ -2319,28 +2422,205 @@
     });
   }
 
-  // ---------- Presets + Share ----------
-  $('#savePresetBtn').addEventListener('click', () => {
-    const state = readStateFromUI();
-    localStorage.setItem(PRESET_KEY, JSON.stringify(state));
-    $('#status').textContent = 'preset saved';
-  });
-
-  $('#loadPresetBtn').addEventListener('click', () => {
-    const raw = localStorage.getItem(PRESET_KEY);
-    if (!raw) { $('#status').textContent = 'no preset'; return; }
+  // ---------- User Presets Management ----------
+  function loadUserPresets() {
     try {
-      const state = JSON.parse(raw);
-      applyStateToUI(state);
-      if (ctx) applyUIToAudioLive();
-      $('#status').textContent = 'preset loaded';
+      const raw = localStorage.getItem(USER_PRESETS_KEY);
+      if (raw) {
+        userPresets = JSON.parse(raw);
+        if (!Array.isArray(userPresets)) userPresets = [];
+      }
     } catch {
-      $('#status').textContent = 'preset parse error';
+      userPresets = [];
+    }
+  }
+
+  function saveUserPresets() {
+    localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(userPresets));
+  }
+
+  function getNextPresetNumber() {
+    let maxNum = 0;
+    for (const p of userPresets) {
+      const match = p.name.match(/^Preset (\d+)$/);
+      if (match) maxNum = Math.max(maxNum, Number(match[1]));
+    }
+    return maxNum + 1;
+  }
+
+  function addUserPreset(name, state) {
+    // Check if preset with same name exists
+    const existingIdx = userPresets.findIndex(p => p.name === name);
+    if (existingIdx >= 0) {
+      userPresets[existingIdx].state = state;
+    } else {
+      userPresets.push({ name, state });
+    }
+    saveUserPresets();
+    populatePresetDropdown();
+  }
+
+  function deleteUserPreset(name) {
+    userPresets = userPresets.filter(p => p.name !== name);
+    saveUserPresets();
+    if (selectedPresetName === name) {
+      selectedPresetName = null;
+    }
+    populatePresetDropdown();
+  }
+
+  // ---------- Custom Preset Dropdown ----------
+  const presetDropdown = $('#presetDropdown');
+  const presetDropdownBtn = $('#presetDropdownBtn');
+  const presetDropdownMenu = $('#presetDropdownMenu');
+  let dropdownOpen = false;
+
+  function updateDropdownButtonText() {
+    presetDropdownBtn.textContent = selectedPresetName || '— Presets —';
+  }
+
+  function populatePresetDropdown() {
+    presetDropdownMenu.innerHTML = '';
+
+    // Built-in presets section
+    if (typeof PRESETS !== 'undefined' && Array.isArray(PRESETS) && PRESETS.length > 0) {
+      const label = document.createElement('div');
+      label.className = 'preset-section-label';
+      label.textContent = 'Built-in';
+      presetDropdownMenu.appendChild(label);
+
+      for (const preset of PRESETS) {
+        const item = document.createElement('div');
+        item.className = 'preset-item';
+        if (selectedPresetName === preset.name) item.classList.add('selected');
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'preset-item-name';
+        nameSpan.textContent = preset.name;
+        item.appendChild(nameSpan);
+        
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectPreset(preset.name, preset.state, false);
+          closeDropdown();
+        });
+        
+        presetDropdownMenu.appendChild(item);
+      }
+    }
+
+    // User presets section
+    if (userPresets.length > 0) {
+      if (presetDropdownMenu.children.length > 0) {
+        const divider = document.createElement('div');
+        divider.className = 'preset-divider';
+        presetDropdownMenu.appendChild(divider);
+      }
+
+      const label = document.createElement('div');
+      label.className = 'preset-section-label';
+      label.textContent = 'My presets';
+      presetDropdownMenu.appendChild(label);
+
+      for (const preset of userPresets) {
+        const item = document.createElement('div');
+        item.className = 'preset-item';
+        if (selectedPresetName === preset.name) item.classList.add('selected');
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'preset-item-name';
+        nameSpan.textContent = preset.name;
+        item.appendChild(nameSpan);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'preset-delete-btn';
+        deleteBtn.innerHTML = '×';
+        deleteBtn.title = 'Delete preset';
+        deleteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (confirm(`Delete preset "${preset.name}"?`)) {
+            deleteUserPreset(preset.name);
+            $('#status').textContent = `deleted: ${preset.name}`;
+          }
+        });
+        item.appendChild(deleteBtn);
+        
+        item.addEventListener('click', (e) => {
+          if (e.target === deleteBtn) return;
+          e.stopPropagation();
+          selectPreset(preset.name, preset.state, true);
+          closeDropdown();
+        });
+        
+        presetDropdownMenu.appendChild(item);
+      }
+    }
+
+    updateDropdownButtonText();
+  }
+
+  function selectPreset(name, state, isUserPreset) {
+    selectedPresetName = name;
+    applyStateToUI(state, true);
+    if (ctx) applyUIToAudioLive();
+    $('#status').textContent = `loaded: ${name}`;
+    updateDropdownButtonText();
+    // Update selection highlighting
+    presetDropdownMenu.querySelectorAll('.preset-item').forEach(item => {
+      const itemName = item.querySelector('.preset-item-name')?.textContent;
+      item.classList.toggle('selected', itemName === name);
+    });
+  }
+
+  function openDropdown() {
+    dropdownOpen = true;
+    presetDropdownMenu.classList.add('open');
+  }
+
+  function closeDropdown() {
+    dropdownOpen = false;
+    presetDropdownMenu.classList.remove('open');
+  }
+
+  presetDropdownBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (dropdownOpen) {
+      closeDropdown();
+    } else {
+      openDropdown();
     }
   });
 
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!presetDropdown.contains(e.target)) {
+      closeDropdown();
+    }
+  });
+
+  // ---------- Save Preset ----------
+  $('#savePresetBtn').addEventListener('click', () => {
+    const defaultName = `Preset ${getNextPresetNumber()}`;
+    const name = prompt('Enter preset name:', defaultName);
+    
+    if (name === null) return; // Cancelled
+    
+    const finalName = name.trim() || defaultName;
+    const state = readStateFromUI();
+    
+    addUserPreset(finalName, state);
+    selectedPresetName = finalName;
+    updateDropdownButtonText();
+    $('#status').textContent = `saved: ${finalName}`;
+  });
+
+  // ---------- Share ----------
   $('#shareBtn').addEventListener('click', async () => {
     const state = readStateFromUI();
+    // Include preset name if one is selected
+    if (selectedPresetName) {
+      state.presetName = selectedPresetName;
+    }
     const url = writeStateToURL(state);
     try {
       await navigator.clipboard.writeText(url);
@@ -2350,28 +2630,9 @@
     }
   });
 
-  // Populate preset dropdown from PRESETS array
-  const presetSelect = $('#presetSelect');
-  if (typeof PRESETS !== 'undefined' && Array.isArray(PRESETS)) {
-    PRESETS.forEach((preset, idx) => {
-      const opt = document.createElement('option');
-      opt.value = String(idx);
-      opt.textContent = preset.name;
-      presetSelect.appendChild(opt);
-    });
-  }
-
-  presetSelect.addEventListener('change', () => {
-    const idx = presetSelect.value;
-    if (idx === '') return;
-    const preset = PRESETS[Number(idx)];
-    if (!preset || !preset.state) return;
-    
-    // Reset to defaults first, then apply preset
-    applyStateToUI(preset.state, true);
-    if (ctx) applyUIToAudioLive();
-    $('#status').textContent = `loaded: ${preset.name}`;
-  });
+  // Initialize presets
+  loadUserPresets();
+  populatePresetDropdown();
 
   // ---------- Help Popup ----------
   const HELP_SHOWN_KEY = 'formula_audio_lab_help_shown';
@@ -2429,7 +2690,23 @@
 
   // Apply URL state on load
   const urlState = loadStateFromURL();
-  if (urlState) applyStateToUI(urlState);
+  if (urlState) {
+    applyStateToUI(urlState);
+    
+    // If URL contains a preset name, save it to user presets and select it
+    if (urlState.presetName) {
+      const presetName = urlState.presetName;
+      // Remove presetName from state before saving (it's metadata, not part of audio state)
+      const stateToSave = { ...urlState };
+      delete stateToSave.presetName;
+      
+      addUserPreset(presetName, stateToSave);
+      selectedPresetName = presetName;
+      updateDropdownButtonText();
+      populatePresetDropdown();
+      $('#status').textContent = `loaded shared: ${presetName}`;
+    }
+  }
 
   // ---------- Live apply after preset/url changes ----------
   function applyUIToAudioLive(){

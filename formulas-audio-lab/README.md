@@ -25,9 +25,10 @@ An interactive audio laboratory where sound is generated in real-time via the Au
 ### UI State
 
 All state is serialized to JSON:
-- Saving to `localStorage` (button "Save preset")
+- User presets saved to `localStorage` as array (button "Save preset")
 - Encoding to URL hash via base64url (button "Share")
 - Auto-loading from URL when opening the page
+- Shared URLs include preset name — auto-saved to recipient's presets
 
 ---
 
@@ -365,10 +366,9 @@ Phase effect via chain of all-pass filters with LFO modulation.
 - **Status** — displayed to the right of the title in gray text
 - **▶ Play / ⏹ Stop** — single button for starting and stopping audio (green in Play mode, red in Stop mode)
 - **Record** — record audio to WAV format (button highlights red during recording)
-- **Presets dropdown** — select a built-in preset to load instantly
-- **Save preset** — save current settings to localStorage
-- **Load preset** — restore saved settings from localStorage
-- **Share** — copies URL with state to clipboard
+- **Presets dropdown** — select from built-in or your saved presets (user presets have delete button)
+- **Save preset** — save current settings with a custom name (prompts for name, defaults to "Preset N")
+- **Share** — copies URL with state and preset name to clipboard; recipients get the preset saved automatically
 - **📊** — show/hide oscilloscope (button highlights when oscilloscope is visible)
 - **🎛** — open/close effects panel (button highlights when panel is open)
 - **?** — open help popup with usage instructions
@@ -376,7 +376,7 @@ Phase effect via chain of all-pass filters with LFO modulation.
 **Button grouping on mobile:**
 Buttons are divided into logical groups with visual separators:
 1. Playback controls: Play/Stop, Record
-2. Preset management: Presets dropdown, Save, Load, Share
+2. Preset management: Presets dropdown, Save, Share
 3. Panels: 📊 (Scope), 🎛 (Effects), ? (Help)
 
 ### Auto-start Audio
@@ -412,13 +412,22 @@ When enabling any formula (clicking checkbox) audio automatically starts if not 
 - **Remember preference** — once closed, won't auto-show again (saved to localStorage)
 - **Close methods** — click ✕ button, click outside modal, or press Escape key
 
-### Built-in Presets
-The app includes several curated presets accessible via dropdown:
+### Presets System
+The app supports two types of presets:
+
+**Built-in presets** (included with the app):
 - **Stillness meditation** — calm ambient soundscape
 - **Waiting for the subway** — urban atmospheric texture
-- **Inside the atomic station** — industrial drone
+- **Inside the nuclear power plant** — industrial drone
 - **Long journey on the helicopter** — chaotic rhythmic atmosphere
 - **Abandoned shrine** — mysterious ambient pad
+
+**User presets** (saved to browser localStorage):
+- Click **Save preset** to save current settings with a custom name
+- If no name is entered, defaults to "Preset 1", "Preset 2", etc.
+- User presets appear in the dropdown with a delete button (×)
+- Unlimited number of user presets can be saved
+- When sharing a link, the preset name is included — recipients automatically get the preset saved
 
 ### Formula Cards
 - **Disable all** — disables all formulas at once
@@ -447,8 +456,10 @@ class FormulaGeneratorProcessor extends AudioWorkletProcessor {
 Only functional state is saved to URL (enabled effects/formulas and their parameters). UI state (collapsed panels) is not persisted.
 
 ```javascript
+// Audio state (used in presets and URL sharing)
 {
   v: 2,                    // format version
+  presetName: "My preset", // optional, included when sharing a named preset
   masterGain: 0.25,
   fx: {
     filterOn: false, filterType: 'lowpass', filterFreq: 12000, filterQ: 0.7,
@@ -466,6 +477,12 @@ Only functional state is saved to URL (enabled effects/formulas and their parame
     ...
   }
 }
+
+// User presets (localStorage key: formula_audio_lab_user_presets_v1)
+[
+  { name: "My preset 1", state: { v: 2, masterGain: ..., fx: {...}, formulas: {...} } },
+  { name: "My preset 2", state: { ... } }
+]
 ```
 
 ### URL Sharing
@@ -559,6 +576,15 @@ No external dependencies. Pure HTML + CSS + JavaScript.
 ---
 
 ## Changelog
+
+### 2026-01-19
+
+- **Added:** **User presets** — save unlimited custom presets with names to browser localStorage
+- **Added:** **Preset naming dialog** — prompt for name when saving (defaults to "Preset N" if empty)
+- **Added:** **Delete presets** — remove user presets via × button in dropdown
+- **Added:** **Shared preset auto-save** — when opening a shared URL with a named preset, it's automatically saved to your presets
+- **Changed:** Preset dropdown now shows two sections: "Built-in" and "My presets"
+- **Removed:** "Load preset" button (replaced by integrated dropdown functionality)
 
 ### 2025-12-31
 
