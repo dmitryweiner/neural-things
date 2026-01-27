@@ -148,8 +148,11 @@
         </div>
 
         <div class="row" id="hueStepRow">
-          <label for="hueStep">Rainbow step (hue degrees)</label>
-          <input id="hueStep" type="number" min="1" max="90" step="1" value="3" />
+          <label for="hueStep" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Rainbow step</span>
+            <span id="hueStepVal" style="opacity:0.7;">1</span>
+          </label>
+          <input id="hueStep" type="range" min="1" max="5" step="0.5" value="1" />
         </div>
 
         <div class="divider"></div>
@@ -164,7 +167,7 @@
           <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
             <button id="presetIso">Isotropic</button>
             <button id="preset120">120°</button>
-            <button id="preset60">60° (strict)</button>
+            <button id="preset60">60°</button>
           </div>
         </div>
 
@@ -222,6 +225,7 @@
       constColor: document.getElementById('constColor'),
       hueStepRow: document.getElementById('hueStepRow'),
       hueStep: document.getElementById('hueStep'),
+      hueStepVal: document.getElementById('hueStepVal'),
       baseAdh: document.getElementById('baseAdh'),
 
       dirCanvas: document.getElementById('dirCanvas'),
@@ -244,7 +248,7 @@
 
       colorMode: 'rainbow', // 'constant' | 'rainbow'
       constantColor: '#8ad1ff',
-      hueStep: 3,
+      hueStep: 1,
 
       baseAdhesion: 0.35,   // 0..1
       dirMult: [1,1,1,1,1,1,1,1,1,1,1,1], // multipliers for 12 directions (30° step)
@@ -254,6 +258,7 @@
       ui.colorMode.value = settings.colorMode;
       ui.constColor.value = settings.constantColor;
       ui.hueStep.value = String(settings.hueStep);
+      ui.hueStepVal.textContent = settings.hueStep;
 
       ui.baseAdh.value = String(settings.baseAdhesion);
 
@@ -458,10 +463,9 @@
       settings.constantColor = ui.constColor.value;
     });
 
-    ui.hueStep.addEventListener('change', () => {
-      const v = Math.max(1, Math.min(90, parseInt(ui.hueStep.value || '3', 10)));
-      settings.hueStep = v;
-      ui.hueStep.value = String(v);
+    ui.hueStep.addEventListener('input', () => {
+      settings.hueStep = parseFloat(ui.hueStep.value);
+      ui.hueStepVal.textContent = settings.hueStep;
     });
 
     ui.baseAdh.addEventListener('input', () => {
@@ -476,14 +480,14 @@
     ui.preset120.addEventListener('click', () => {
       // peaks at 120° intervals: 0°, 120°, 240° strong; others weaker
       // Indices: 0=0°, 4=120°, 8=240° are peaks
-      settings.dirMult = [2, 0.5, 0.2, 0.5, 2, 0.5, 0.2, 0.5, 2, 0.5, 0.2, 0.5];
+      settings.dirMult = [2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0];
       dirEditor.draw();
     });
 
     ui.preset60.addEventListener('click', () => {
       // peaks at 60° intervals: 0°, 60°, 120°, 180°, 240°, 300° strong
       // Indices: 0, 2, 4, 6, 8, 10 are peaks
-      settings.dirMult = [2, 0.3, 2, 0.3, 2, 0.3, 2, 0.3, 2, 0.3, 2, 0.3];
+      settings.dirMult = [2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0];
       dirEditor.draw();
     });
 
