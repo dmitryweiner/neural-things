@@ -160,7 +160,10 @@
         <div class="divider"></div>
 
         <div class="row">
-          <label for="baseAdh">Base adhesion</label>
+          <label for="baseAdh" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Base adhesion</span>
+            <span id="baseAdhVal" style="opacity:0.7;">0.35</span>
+          </label>
           <input id="baseAdh" type="range" min="0" max="1" step="0.01" value="0.35" />
         </div>
 
@@ -231,6 +234,7 @@
       hueStep: document.getElementById('hueStep'),
       hueStepVal: document.getElementById('hueStepVal'),
       baseAdh: document.getElementById('baseAdh'),
+      baseAdhVal: document.getElementById('baseAdhVal'),
 
       dirCanvas: document.getElementById('dirCanvas'),
       presetIso: document.getElementById('presetIso'),
@@ -265,6 +269,7 @@
       ui.hueStepVal.textContent = settings.hueStep;
 
       ui.baseAdh.value = String(settings.baseAdhesion);
+      ui.baseAdhVal.textContent = settings.baseAdhesion;
 
       ui.constColorRow.style.display = (settings.colorMode === 'constant') ? '' : 'none';
       ui.hueStepRow.style.display = (settings.colorMode === 'rainbow') ? '' : 'none';
@@ -474,6 +479,7 @@
 
     ui.baseAdh.addEventListener('input', () => {
       settings.baseAdhesion = parseFloat(ui.baseAdh.value);
+      ui.baseAdhVal.textContent = settings.baseAdhesion;
     });
 
     ui.presetIso.addEventListener('click', () => {
