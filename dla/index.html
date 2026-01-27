@@ -62,6 +62,12 @@
     }
     button:hover { background: rgba(255,255,255,0.11); }
     button:active { transform: translateY(1px); }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    button:disabled:hover { background: rgba(255,255,255,0.08); }
+    button:disabled:active { transform: none; }
 
     /* Start button styling */
     #start {
@@ -738,6 +744,7 @@
       running = true;
       ui.start.textContent = 'Stop';
       ui.start.classList.add('running');
+      ui.reset.disabled = true;
       worker.postMessage({ type: 'start' });
       startRenderLoop();
     }
@@ -746,6 +753,7 @@
       running = false;
       ui.start.textContent = 'Start';
       ui.start.classList.remove('running');
+      ui.reset.disabled = false;
       worker.postMessage({ type: 'stop' });
     }
 
