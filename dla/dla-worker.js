@@ -9,12 +9,20 @@ const KILL_MARGIN = 80;
 const STEP_SIZE = 2;
 const STEPS_PER_BATCH = 50000;
 
+// Spatial hash optimization: numeric keys instead of strings
+const GRID_OFFSET = 50000;  // supports radius up to ~400,000 px
+const GRID_SIZE = 100000;
+
 // ====== State ======
 let spatialHash = new Map();
 let walker = null;
 let stuckCount = 0;
 let maxRadius = 0;
 let running = false;
+
+// Reusable buffer for getNearbyParticles to avoid allocations
+const nearbyBuffer = [];
+let nearbyCount = 0;
 
 // ====== Settings (synced from main thread) ======
 const settings = {
@@ -24,9 +32,9 @@ const settings = {
 
 // ====== Spatial Hash ======
 function cellKey(x, y) {
-  const cx = Math.floor(x / CELL_SIZE);
-  const cy = Math.floor(y / CELL_SIZE);
-  return cx + ',' + cy;
+  const cx = Math.floor(x / CELL_SIZE) + GRID_OFFSET;
+  const cy = Math.floor(y / CELL_SIZE) + GRID_OFFSET;
+  return cx * GRID_SIZE + cy;  // numeric key - no string allocation
 }
 
 function addToSpatialHash(x, y) {
@@ -36,24 +44,33 @@ function addToSpatialHash(x, y) {
 }
 
 function getNearbyParticles(x, y, radius) {
-  const result = [];
+  nearbyCount = 0;
   const cellRadius = Math.ceil(radius / CELL_SIZE) + 1;
-  const cx = Math.floor(x / CELL_SIZE);
-  const cy = Math.floor(y / CELL_SIZE);
+  const cx = Math.floor(x / CELL_SIZE) + GRID_OFFSET;
+  const cy = Math.floor(y / CELL_SIZE) + GRID_OFFSET;
 
   for (let dx = -cellRadius; dx <= cellRadius; dx++) {
     for (let dy = -cellRadius; dy <= cellRadius; dy++) {
-      const key = (cx + dx) + ',' + (cy + dy);
+      const key = (cx + dx) * GRID_SIZE + (cy + dy);  // numeric key
       const cell = spatialHash.get(key);
       if (cell) {
         for (const p of cell) {
           const dist = Math.hypot(p.x - x, p.y - y);
-          if (dist <= radius) result.push({ particle: p, dist });
+          if (dist <= radius) {
+            // Reuse existing buffer slot or create new one
+            if (nearbyCount < nearbyBuffer.length) {
+              nearbyBuffer[nearbyCount].particle = p;
+              nearbyBuffer[nearbyCount].dist = dist;
+            } else {
+              nearbyBuffer.push({ particle: p, dist });
+            }
+            nearbyCount++;
+          }
         }
       }
     }
   }
-  return result;
+  return nearbyCount;
 }
 
 // ====== Simulation ======
@@ -85,9 +102,10 @@ function stickParticle(x, y) {
 }
 
 function tryStickAt(x, y) {
-  const nearby = getNearbyParticles(x, y, PARTICLE_RADIUS * 2.5);
+  const count = getNearbyParticles(x, y, PARTICLE_RADIUS * 2.5);
   
-  for (const { particle, dist } of nearby) {
+  for (let i = 0; i < count; i++) {
+    const { particle, dist } = nearbyBuffer[i];
     if (dist < PARTICLE_RADIUS * 2) {
       const angle = Math.atan2(y - particle.y, x - particle.x);
       const dirIndex = getDirectionIndex(angle);

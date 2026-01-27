@@ -93,6 +93,8 @@ The simulation uses a **Web Worker** to run physics calculations in a separate t
 
 - **Coordinates**: Continuous (x, y) world coordinates — particles stick exactly where they touch
 - **Spatial indexing**: Hash grid for fast neighbor lookup (in worker)
+  - Numeric keys instead of strings to avoid allocations
+  - Reusable buffer for neighbor queries (zero GC pressure in hot path)
 - **Rendering**: HTML5 Canvas with device pixel ratio support, 60 FPS
 - **Performance**: Frustum culling for off-screen particles; 50,000 random walk steps per batch in worker
 - **Spawn/Kill radius**: Particles spawn at `maxRadius + 40` pixels and are killed if they wander beyond `maxRadius + 80` pixels
