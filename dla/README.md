@@ -16,6 +16,13 @@ By adjusting directional adhesion probabilities, you can create symmetric "snowf
 
 Simply open `index.html` in any modern web browser. No server or build step required.
 
+**Note**: Due to Web Worker security restrictions, you may need to serve the files via a local HTTP server (e.g., `python -m http.server`) instead of opening `index.html` directly from the file system.
+
+## Files
+
+- `index.html` — Main page with UI, rendering, and camera controls
+- `dla-worker.js` — Web Worker with all simulation logic
+
 ## Controls
 
 ### Navigation
@@ -44,7 +51,7 @@ Simply open `index.html` in any modern web browser. No server or build step requ
 
 **Base adhesion** (0–1): The baseline probability that a particle sticks when it contacts the cluster.
 
-**Direction multipliers**: Each of the 6 directions (0°, 60°, 120°, 180°, 240°, 300°) has a multiplier (0–2×) that modifies the base adhesion.
+**Direction multipliers**: Each of the 12 directions (30° step: 0°, 30°, 60°, ..., 330°) has a multiplier (0–2×) that modifies the base adhesion.
 
 Final adhesion probability = `baseAdhesion × dirMult[contactDirection]`
 
@@ -58,14 +65,38 @@ Final adhesion probability = `baseAdhesion × dirMult[contactDirection]`
 
 You can also manually adjust each direction's slider to create custom asymmetric patterns.
 
+## Architecture
+
+The simulation uses a **Web Worker** to run physics calculations in a separate thread:
+
+```
+┌─────────────────────┐         ┌─────────────────────┐
+│    Main Thread      │         │     Web Worker      │
+│                     │         │   (dla-worker.js)   │
+│  • UI controls      │ ──────► │  • Random walk      │
+│  • Canvas render    │ start/  │  • Collision detect │
+│  • Camera/zoom      │ stop/   │  • Spatial hash     │
+│  • Color mapping    │ reset   │  • Adhesion logic   │
+│                     │         │                     │
+│  points[] ◄─────────│ ◄────── │  Batched particles  │
+│  (for rendering)    │ (x,y,i) │  (50k steps/batch)  │
+└─────────────────────┘         └─────────────────────┘
+```
+
+**Benefits:**
+- Simulation runs at maximum speed (not limited to 60 FPS)
+- UI remains responsive even during heavy computation
+- Continues running when the browser tab is in background
+- Particles are sent in batches for efficiency
+
 ## Technical Details
 
 - **Coordinates**: Continuous (x, y) world coordinates — particles stick exactly where they touch
-- **Spatial indexing**: Hash grid for fast neighbor lookup
-- **Rendering**: HTML5 Canvas with device pixel ratio support
-- **Performance**: Frustum culling for off-screen particles; 200 random walk steps per tick
+- **Spatial indexing**: Hash grid for fast neighbor lookup (in worker)
+- **Rendering**: HTML5 Canvas with device pixel ratio support, 60 FPS
+- **Performance**: Frustum culling for off-screen particles; 50,000 random walk steps per batch in worker
 - **Spawn/Kill radius**: Particles spawn at `maxRadius + 40` pixels and are killed if they wander beyond `maxRadius + 80` pixels
-- **Background execution**: Uses `setInterval` for simulation, allowing growth to continue even when the browser tab is inactive
+- **Background execution**: Web Worker continues simulation even when the browser tab is inactive
 
 ## HUD Display
 

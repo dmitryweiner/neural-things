@@ -252,8 +252,6 @@
     };
 
     const settings = {
-      targetFps: 60,
-
       colorMode: 'rainbow', // 'constant' | 'rainbow'
       constantColor: '#8ad1ff',
       hueStep: 1,
@@ -445,6 +443,7 @@
         if (this.dragging !== null) {
           this.dragging = null;
           this.draw();
+          sendSettingsToWorker();
         }
       },
 
@@ -480,11 +479,13 @@
     ui.baseAdh.addEventListener('input', () => {
       settings.baseAdhesion = parseFloat(ui.baseAdh.value);
       ui.baseAdhVal.textContent = settings.baseAdhesion;
+      sendSettingsToWorker();
     });
 
     ui.presetIso.addEventListener('click', () => {
       settings.dirMult = [1,1,1,1,1,1,1,1,1,1,1,1];
       dirEditor.draw();
+      sendSettingsToWorker();
     });
 
     ui.preset120.addEventListener('click', () => {
@@ -492,6 +493,7 @@
       // Indices: 0=0°, 4=120°, 8=240° are peaks
       settings.dirMult = [2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0];
       dirEditor.draw();
+      sendSettingsToWorker();
     });
 
     ui.preset60.addEventListener('click', () => {
@@ -499,67 +501,47 @@
       // Indices: 0, 2, 4, 6, 8, 10 are peaks
       settings.dirMult = [2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0];
       dirEditor.draw();
+      sendSettingsToWorker();
     });
 
-    // ====== Simulation (continuous coordinates) ======
+    // ====== Simulation State (render only) ======
     let points = [];          // stuck particles { x, y, c }
-    let walker = null;        // current moving particle { x, y }
     let stuckCount = 0;
     let maxRadius = 0;
 
-    // Spatial hash for fast neighbor lookup
-    const CELL_SIZE = 8;      // world pixels per cell
-    let spatialHash = new Map();
+    // Particle radius for rendering
+    const PARTICLE_RADIUS = 3;
 
-    // World parameters
-    const PARTICLE_RADIUS = 3;      // collision radius
-    const SPAWN_MARGIN = 40;        // spawn distance from maxRadius
-    const KILL_MARGIN = 80;         // kill distance beyond maxRadius
-    const STEP_SIZE = 2;            // random walk step size
-    const MOVES_PER_TICK = 200;     // how many random-walk steps we do per "world frame"
+    // ====== Web Worker for simulation ======
+    const worker = new Worker('dla-worker.js');
 
-    function cellKey(x, y) {
-      const cx = Math.floor(x / CELL_SIZE);
-      const cy = Math.floor(y / CELL_SIZE);
-      return cx + ',' + cy;
-    }
-
-    function addToSpatialHash(p) {
-      const key = cellKey(p.x, p.y);
-      if (!spatialHash.has(key)) spatialHash.set(key, []);
-      spatialHash.get(key).push(p);
-    }
-
-    function getNearbyParticles(x, y, radius) {
-      const result = [];
-      const cellRadius = Math.ceil(radius / CELL_SIZE) + 1;
-      const cx = Math.floor(x / CELL_SIZE);
-      const cy = Math.floor(y / CELL_SIZE);
-
-      for (let dx = -cellRadius; dx <= cellRadius; dx++) {
-        for (let dy = -cellRadius; dy <= cellRadius; dy++) {
-          const key = (cx + dx) + ',' + (cy + dy);
-          const cell = spatialHash.get(key);
-          if (cell) {
-            for (const p of cell) {
-              const dist = Math.hypot(p.x - x, p.y - y);
-              if (dist <= radius) result.push({ particle: p, dist });
-            }
-          }
+    worker.onmessage = function(e) {
+      const { type, data, stats } = e.data;
+      if (type === 'particles') {
+        // Add new particles with colors
+        for (const p of data) {
+          points.push({ x: p.x, y: p.y, c: colorForIndex(p.index) });
         }
+        stuckCount = stats.stuckCount;
+        maxRadius = stats.maxRadius;
       }
-      return result;
+    };
+
+    function sendSettingsToWorker() {
+      worker.postMessage({
+        type: 'updateSettings',
+        settings: {
+          baseAdhesion: settings.baseAdhesion,
+          dirMult: settings.dirMult.slice() // copy array
+        }
+      });
     }
 
     function resetWorld() {
       points = [];
-      spatialHash = new Map();
-      walker = null;
       stuckCount = 0;
       maxRadius = 0;
-
-      // First stuck particle at center
-      stickParticle(0, 0);
+      worker.postMessage({ type: 'reset' });
       // camera center
       camera.x = 0;
       camera.y = 0;
@@ -570,93 +552,6 @@
       const h = (i * settings.hueStep) % 360;
       return `hsl(${h} 95% 65%)`;
     }
-
-    function stickParticle(x, y) {
-      const col = colorForIndex(stuckCount);
-      const p = { x, y, c: col };
-      points.push(p);
-      addToSpatialHash(p);
-
-      stuckCount++;
-      const dist = Math.hypot(x, y);
-      maxRadius = Math.max(maxRadius, dist);
-      return true;
-    }
-
-    function spawnWalker() {
-      // spawn on circle around current maxRadius
-      const R = maxRadius + SPAWN_MARGIN;
-      const angle = Math.random() * Math.PI * 2;
-      walker = {
-        x: Math.cos(angle) * R,
-        y: Math.sin(angle) * R
-      };
-    }
-
-    function getDirectionIndex(angle) {
-      // Convert from atan2 convention (0°=right) to diagram convention (0°=up)
-      // Add 90° to rotate coordinate system so 0° points up
-      let a = ((angle * 180 / Math.PI + 90) % 360 + 360) % 360;
-      // Find closest direction (12 directions, 30° step)
-      return Math.round(a / 30) % 12;
-    }
-
-    function tryStickAt(x, y) {
-      // Check nearby particles
-      const nearby = getNearbyParticles(x, y, PARTICLE_RADIUS * 2.5);
-      
-      for (const { particle, dist } of nearby) {
-        if (dist < PARTICLE_RADIUS * 2) {
-          // Contact! Compute direction from particle to walker
-          const angle = Math.atan2(y - particle.y, x - particle.x);
-          const dirIndex = getDirectionIndex(angle);
-          const p = clamp01(settings.baseAdhesion * settings.dirMult[dirIndex]);
-          
-          if (Math.random() < p) {
-            // Stick at contact point (slightly away from the particle we touched)
-            const stickDist = PARTICLE_RADIUS * 2;
-            const stickX = particle.x + Math.cos(angle) * stickDist;
-            const stickY = particle.y + Math.sin(angle) * stickDist;
-            return stickParticle(stickX, stickY);
-          }
-        }
-      }
-      return false;
-    }
-
-    function stepSimulation() {
-      if (!walker) spawnWalker();
-
-      const killR = maxRadius + KILL_MARGIN;
-      
-      // Check if too far
-      if (Math.hypot(walker.x, walker.y) > killR) {
-        spawnWalker();
-        return;
-      }
-
-      // Perform multiple random-walk moves per tick
-      for (let m = 0; m < MOVES_PER_TICK; m++) {
-        // Random direction
-        const angle = Math.random() * Math.PI * 2;
-        walker.x += Math.cos(angle) * STEP_SIZE;
-        walker.y += Math.sin(angle) * STEP_SIZE;
-
-        // Killed?
-        if (Math.hypot(walker.x, walker.y) > killR) {
-          spawnWalker();
-          return;
-        }
-
-        // Attempt stick if near any particle
-        if (tryStickAt(walker.x, walker.y)) {
-          walker = null;
-          return;
-        }
-      }
-    }
-
-    function clamp01(x) { return Math.max(0, Math.min(1, x)); }
 
     // ====== Render ======
     function render() {
@@ -836,26 +731,14 @@
 
     // ====== Buttons ======
     let running = false;
-    let simInterval = null;
     let renderRAF = null;
-
-    function updateSimulationInterval() {
-      if (simInterval) {
-        clearInterval(simInterval);
-        simInterval = null;
-      }
-      if (running) {
-        const interval = 1000 / Math.max(1, settings.targetFps);
-        simInterval = setInterval(stepSimulation, interval);
-      }
-    }
 
     function startSimulation() {
       if (running) return;
       running = true;
       ui.start.textContent = 'Stop';
       ui.start.classList.add('running');
-      updateSimulationInterval();
+      worker.postMessage({ type: 'start' });
       startRenderLoop();
     }
 
@@ -863,10 +746,7 @@
       running = false;
       ui.start.textContent = 'Start';
       ui.start.classList.remove('running');
-      if (simInterval) {
-        clearInterval(simInterval);
-        simInterval = null;
-      }
+      worker.postMessage({ type: 'stop' });
     }
 
     function startRenderLoop() {
@@ -912,16 +792,15 @@
     });
 
     // ====== Page visibility (background execution) ======
-    document.addEventListener('visibilitychange', () => {
-      // Simulation continues via setInterval even when page is hidden
-      // Only rendering pauses (which is handled by rAF automatically)
-    });
+    // Simulation runs in Web Worker and continues even when page is hidden
+    // Only rendering pauses (which is handled by rAF automatically)
 
     // ====== Init ======
     function init() {
       resize();
       dirEditor.init();
       syncUIFromSettings();
+      sendSettingsToWorker();
       resetWorld();
       startRenderLoop();
       render();
