@@ -42,9 +42,6 @@ Dropdown with three options:
 - **Medium (30 FPS)** — Balanced speed (default)
 - **Slow (10 FPS)** — Slow, relaxing growth
 
-### Walker Visibility
-- **Show moving particle**: Toggle to show/hide the currently walking particle (white dot).
-
 ### Particle Colors
 
 - **Constant**: All particles use a single color (configurable via color picker)

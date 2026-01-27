@@ -140,11 +140,6 @@
       </div>
 
       <div class="row">
-        <label>Show moving particle</label>
-        <div class="chk"><input id="showWalker" type="checkbox" checked /></div>
-      </div>
-
-      <div class="row">
         <label for="colorMode">Particle color</label>
         <select id="colorMode">
           <option value="constant">Constant</option>
@@ -235,7 +230,6 @@
     // ====== Settings ======
     const ui = {
       speed: document.getElementById('speed'),
-      showWalker: document.getElementById('showWalker'),
       colorMode: document.getElementById('colorMode'),
       constColorRow: document.getElementById('constColorRow'),
       constColor: document.getElementById('constColor'),
@@ -262,7 +256,6 @@
 
     const settings = {
       targetFps: 30,
-      showWalker: true,
 
       colorMode: 'rainbow', // 'constant' | 'rainbow'
       constantColor: '#8ad1ff',
@@ -274,7 +267,6 @@
 
     function syncUIFromSettings() {
       ui.speed.value = String(settings.targetFps);
-      ui.showWalker.checked = settings.showWalker;
 
       ui.colorMode.value = settings.colorMode;
       ui.constColor.value = settings.constantColor;
@@ -325,10 +317,6 @@
     ui.speed.addEventListener('change', () => {
       settings.targetFps = parseInt(ui.speed.value, 10);
       updateSimulationInterval();
-    });
-
-    ui.showWalker.addEventListener('change', () => {
-      settings.showWalker = ui.showWalker.checked;
     });
 
     ui.colorMode.addEventListener('change', () => {
@@ -554,15 +542,6 @@
         ctx.fillStyle = p.c;
         ctx.beginPath();
         ctx.arc(p.x, p.y, r, 0, PI2);
-        ctx.fill();
-      }
-
-      // draw walker
-      if (settings.showWalker && walker) {
-        ctx.fillStyle = '#ffffff';
-        const wr = Math.max(0.7, PARTICLE_RADIUS * 0.6);
-        ctx.beginPath();
-        ctx.arc(walker.x, walker.y, wr, 0, PI2);
         ctx.fill();
       }
 
