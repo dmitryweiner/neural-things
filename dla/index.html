@@ -6,9 +6,9 @@
   <title>Pseudo-Fractal (DLA)</title>
   <style>
     :root { color-scheme: dark; }
-    html, body { height: 100%; margin: 0; overflow: hidden; background: #0b0d10; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; touch-action: none; }
-    #wrap { position: fixed; inset: 0; }
-    canvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+    html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background: #0b0d10; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; touch-action: none; }
+    #wrap { position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; }
+    canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
     canvas:active { cursor: grabbing; }
 
     .panel {
@@ -24,27 +24,15 @@
       box-shadow: 0 10px 30px rgba(0,0,0,0.35);
       backdrop-filter: blur(10px);
     }
-    .panel-header {
-      display: flex; align-items: center; justify-content: space-between; gap: 8px;
-      cursor: pointer; user-select: none;
-    }
     .panel h2 {
-      margin: 0; font-size: 14px; font-weight: 700; letter-spacing: .3px;
-      display: flex; align-items: center; gap: 8px;
+      margin: 0 0 10px; font-size: 14px; font-weight: 700; letter-spacing: .3px;
     }
-    .panel .sub { margin: 8px 0 10px; font-size: 12px; opacity: .75; line-height: 1.25; }
-    .panel-body.collapsed { display: none; }
-    .collapse-btn {
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.12);
-      color: #e8eefc;
-      border-radius: 8px;
-      width: 28px; height: 28px;
-      font-size: 12px;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .collapse-btn:hover { background: rgba(255,255,255,0.10); }
+    .panel .sub { margin: 0 0 10px; font-size: 12px; opacity: .75; line-height: 1.25; }
+    
+    .top-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    
+    .settings-body { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.10); }
+    .settings-body.collapsed { display: none; }
     .row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; margin: 8px 0; }
     .row > label { font-size: 12px; opacity: .9; }
     .row input[type="range"] { width: 180px; }
@@ -111,8 +99,13 @@
     .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; opacity: .9; }
 
     @media (max-width: 600px) {
-      .panel { width: calc(100vw - 24px); }
+      .panel { 
+        left: 12px; 
+        right: 12px; 
+        width: auto;
+      }
       .hud { font-size: 11px; padding: 6px 8px; }
+      .row input[type="range"] { width: 120px; }
     }
   </style>
 </head>
@@ -121,69 +114,55 @@
     <canvas id="c"></canvas>
 
     <div class="panel" id="panel">
-      <div class="panel-header" id="panelHeader">
-        <h2>Pseudo-Fractal (DLA)</h2>
-        <button class="collapse-btn" id="collapseBtn">▼</button>
-      </div>
-      <div class="panel-body" id="panelBody">
+      <h2>Pseudo-Fractal (DLA)</h2>
       <p class="sub">
-        A particle wanders randomly and sticks to the cluster on contact. Adjust directional probabilities to create "snowflake" patterns.
+        A particle wanders randomly and sticks to the cluster on contact (<a href="https://en.wikipedia.org/wiki/Diffusion-limited_aggregation">see more</a>).
       </p>
 
-      <div class="row">
-        <label for="speed">Simulation speed</label>
-        <select id="speed">
-          <option value="60" selected>Fast (60 FPS)</option>
-          <option value="30">Medium (30 FPS)</option>
-          <option value="10">Slow (10 FPS)</option>
-        </select>
-      </div>
-
-      <div class="row">
-        <label for="colorMode">Particle color</label>
-        <select id="colorMode">
-          <option value="constant">Constant</option>
-          <option value="rainbow" selected>Rainbow (by time)</option>
-        </select>
-      </div>
-
-      <div class="row" id="constColorRow" style="display:none;">
-        <label for="constColor">Constant color</label>
-        <input id="constColor" type="color" value="#8ad1ff" />
-      </div>
-
-      <div class="row" id="hueStepRow">
-        <label for="hueStep">Rainbow step (hue degrees)</label>
-        <input id="hueStep" type="number" min="1" max="90" step="1" value="3" />
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="row">
-        <label for="baseAdh">Base adhesion</label>
-        <input id="baseAdh" type="range" min="0" max="1" step="0.01" value="0.35" />
-      </div>
-
-      <div class="row">
-        <label>Direction presets</label>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
-          <button id="presetIso">Isotropic</button>
-          <button id="preset120">120°</button>
-          <button id="preset60">60° (strict)</button>
-        </div>
-      </div>
-
-      <div class="dir-grid" id="dirGrid"></div>
-
-      <div class="divider"></div>
-
-      <div class="btns">
+      <div class="top-btns">
         <button id="start">Start</button>
-        <button id="pause">Pause</button>
         <button id="reset">Reset</button>
-        <button id="center">Center view</button>
+        <button id="center">Center</button>
         <button id="saveImage">Save image</button>
+        <button id="settingsBtn">Settings</button>
       </div>
+
+      <div class="settings-body collapsed" id="settingsBody">
+        <div class="row">
+          <label for="colorMode">Particle color</label>
+          <select id="colorMode">
+            <option value="constant">Constant</option>
+            <option value="rainbow" selected>Rainbow (by time)</option>
+          </select>
+        </div>
+
+        <div class="row" id="constColorRow" style="display:none;">
+          <label for="constColor">Constant color</label>
+          <input id="constColor" type="color" value="#8ad1ff" />
+        </div>
+
+        <div class="row" id="hueStepRow">
+          <label for="hueStep">Rainbow step (hue degrees)</label>
+          <input id="hueStep" type="number" min="1" max="90" step="1" value="3" />
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row">
+          <label for="baseAdh">Base adhesion</label>
+          <input id="baseAdh" type="range" min="0" max="1" step="0.01" value="0.35" />
+        </div>
+
+        <div class="row">
+          <label>Direction presets</label>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+            <button id="presetIso">Isotropic</button>
+            <button id="preset120">120°</button>
+            <button id="preset60">60° (strict)</button>
+          </div>
+        </div>
+
+        <div class="dir-grid" id="dirGrid"></div>
       </div>
     </div>
 
@@ -200,11 +179,12 @@
     const canvas = document.getElementById('c');
     const ctx = canvas.getContext('2d', { alpha: false });
 
+    let dpr = 1;
+
     function resize() {
-      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
       canvas.width = Math.floor(window.innerWidth * dpr);
       canvas.height = Math.floor(window.innerHeight * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in CSS pixels
       camera.cx = window.innerWidth / 2;
       camera.cy = window.innerHeight / 2;
     }
@@ -229,7 +209,6 @@
 
     // ====== Settings ======
     const ui = {
-      speed: document.getElementById('speed'),
       colorMode: document.getElementById('colorMode'),
       constColorRow: document.getElementById('constColorRow'),
       constColor: document.getElementById('constColor'),
@@ -244,14 +223,12 @@
 
       start: document.getElementById('start'),
       reset: document.getElementById('reset'),
-      pause: document.getElementById('pause'),
       center: document.getElementById('center'),
       saveImage: document.getElementById('saveImage'),
 
       hudLine: document.getElementById('hudLine'),
-      panelHeader: document.getElementById('panelHeader'),
-      panelBody: document.getElementById('panelBody'),
-      collapseBtn: document.getElementById('collapseBtn'),
+      settingsBtn: document.getElementById('settingsBtn'),
+      settingsBody: document.getElementById('settingsBody'),
     };
 
     const settings = {
@@ -266,8 +243,6 @@
     };
 
     function syncUIFromSettings() {
-      ui.speed.value = String(settings.targetFps);
-
       ui.colorMode.value = settings.colorMode;
       ui.constColor.value = settings.constantColor;
       ui.hueStep.value = String(settings.hueStep);
@@ -314,11 +289,6 @@
     }
 
     // UI handlers
-    ui.speed.addEventListener('change', () => {
-      settings.targetFps = parseInt(ui.speed.value, 10);
-      updateSimulationInterval();
-    });
-
     ui.colorMode.addEventListener('change', () => {
       settings.colorMode = ui.colorMode.value;
       syncUIFromSettings();
@@ -513,19 +483,17 @@
 
     // ====== Render ======
     function render() {
-      // background
-      ctx.save();
+      // background (in device pixels)
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.fillStyle = '#0b0d10';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.restore();
 
-      // world transform
-      ctx.save();
+      // world transform (in CSS pixels, scaled by dpr)
+      const scale = camera.zoom * dpr;
       ctx.setTransform(
-        camera.zoom, 0, 0, camera.zoom,
-        camera.cx - camera.x * camera.zoom,
-        camera.cy - camera.y * camera.zoom
+        scale, 0, 0, scale,
+        camera.cx * dpr - camera.x * scale,
+        camera.cy * dpr - camera.y * scale
       );
 
       // draw stuck points with frustum culling
@@ -545,13 +513,11 @@
         ctx.fill();
       }
 
-      ctx.restore();
-
       // HUD text
       const radiusDisplay = Math.round(maxRadius);
       ui.hudLine.textContent =
         `Particles: ${stuckCount.toLocaleString()} | Radius: ${radiusDisplay} | Zoom: ${camera.zoom.toFixed(2)}` +
-        (!running ? ' | STOPPED' : (paused ? ' | PAUSED' : ''));
+        (!running ? ' | STOPPED' : '');
     }
 
     function getWorldViewBounds() {
@@ -693,7 +659,6 @@
 
     // ====== Buttons ======
     let running = false;
-    let paused = false;
     let simInterval = null;
     let renderRAF = null;
 
@@ -702,7 +667,7 @@
         clearInterval(simInterval);
         simInterval = null;
       }
-      if (running && !paused) {
+      if (running) {
         const interval = 1000 / Math.max(1, settings.targetFps);
         simInterval = setInterval(stepSimulation, interval);
       }
@@ -719,10 +684,8 @@
 
     function stopSimulation() {
       running = false;
-      paused = false;
       ui.start.textContent = 'Start';
       ui.start.classList.remove('running');
-      ui.pause.textContent = 'Pause';
       if (simInterval) {
         clearInterval(simInterval);
         simInterval = null;
@@ -751,13 +714,6 @@
       render();
     });
 
-    ui.pause.addEventListener('click', () => {
-      if (!running) return;
-      paused = !paused;
-      ui.pause.textContent = paused ? 'Resume' : 'Pause';
-      updateSimulationInterval();
-    });
-
     ui.center.addEventListener('click', () => {
       camera.x = 0;
       camera.y = 0;
@@ -773,10 +729,9 @@
       link.click();
     });
 
-    // Panel collapse
-    ui.panelHeader.addEventListener('click', () => {
-      const collapsed = ui.panelBody.classList.toggle('collapsed');
-      ui.collapseBtn.textContent = collapsed ? '▶' : '▼';
+    // Settings toggle
+    ui.settingsBtn.addEventListener('click', () => {
+      ui.settingsBody.classList.toggle('collapsed');
     });
 
     // ====== Page visibility (background execution) ======

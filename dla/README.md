@@ -28,19 +28,11 @@ Simply open `index.html` in any modern web browser. No server or build step requ
 ### Buttons
 
 - **Start / Stop** — Start or stop the simulation (simulation continues even when page is in background)
-- **Pause / Resume** — Pause the running simulation
 - **Reset** — Clear the simulation and start fresh with a single seed particle
-- **Center view** — Reset camera to origin with zoom 1.0
+- **Center** — Reset camera to origin with zoom 1.0
 - **Save image** — Download the current canvas as a PNG file
 
 ## Settings Panel
-
-### Simulation Speed
-
-Dropdown with three options:
-- **Fast (60 FPS)** — Maximum growth speed
-- **Medium (30 FPS)** — Balanced speed (default)
-- **Slow (10 FPS)** — Slow, relaxing growth
 
 ### Particle Colors
 
@@ -82,7 +74,6 @@ The bottom-left overlay shows:
 - **Radius**: Current cluster radius in world pixels
 - **Zoom**: Current camera zoom level
 - **STOPPED**: Shown when simulation is not running
-- **PAUSED**: Shown when simulation is paused
 
 ## Mobile Support
 
