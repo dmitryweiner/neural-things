@@ -8,8 +8,8 @@
     :root { color-scheme: dark; }
     html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background: #0b0d10; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; touch-action: none; }
     #wrap { position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; }
-    canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
-    canvas:active { cursor: grabbing; }
+    #c { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+    #c:active { cursor: grabbing; }
 
     .panel {
       position: fixed;
@@ -79,11 +79,17 @@
 
     .divider { height: 1px; background: rgba(255,255,255,0.10); margin: 10px 0; }
 
-    .dir-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
-    .dir-item { display: grid; grid-template-columns: 72px 1fr 48px; gap: 8px; align-items: center; }
-    .dir-item .tag { font-size: 11px; opacity: .9; }
-    .dir-item input[type="range"] { width: 100%; }
-    .dir-item .val { font-size: 11px; opacity: .85; text-align: right; }
+    .dir-editor-wrap {
+      display: flex;
+      justify-content: center;
+      padding: 8px 0;
+    }
+    #dirCanvas {
+      cursor: grab;
+      touch-action: none;
+      border-radius: 8px;
+    }
+    #dirCanvas:active { cursor: grabbing; }
 
     .hud {
       position: fixed;
@@ -162,7 +168,9 @@
           </div>
         </div>
 
-        <div class="dir-grid" id="dirGrid"></div>
+        <div class="dir-editor-wrap">
+          <canvas id="dirCanvas" width="180" height="180"></canvas>
+        </div>
       </div>
     </div>
 
@@ -216,7 +224,7 @@
       hueStep: document.getElementById('hueStep'),
       baseAdh: document.getElementById('baseAdh'),
 
-      dirGrid: document.getElementById('dirGrid'),
+      dirCanvas: document.getElementById('dirCanvas'),
       presetIso: document.getElementById('presetIso'),
       preset120: document.getElementById('preset120'),
       preset60: document.getElementById('preset60'),
@@ -252,41 +260,191 @@
       ui.constColorRow.style.display = (settings.colorMode === 'constant') ? '' : 'none';
       ui.hueStepRow.style.display = (settings.colorMode === 'rainbow') ? '' : 'none';
 
-      renderDirControls();
+      if (dirEditor.canvas) dirEditor.draw();
     }
 
-    function renderDirControls() {
-      ui.dirGrid.innerHTML = '';
-      for (let i = 0; i < 6; i++) {
-        const wrap = document.createElement('div');
-        wrap.className = 'dir-item';
+    // ====== Direction Editor (circular widget) ======
+    const dirEditor = {
+      canvas: null,
+      ctx: null,
+      cx: 90, cy: 90,       // center of canvas
+      maxRadius: 70,        // max radius for handle (value=2)
+      minRadius: 10,        // min radius for handle (value=0)
+      handleRadius: 6,      // size of draggable point
+      dragging: null,       // index (0-5) or null
 
-        const tag = document.createElement('div');
-        tag.className = 'tag';
-        tag.textContent = DIR_ANGLES[i] + '°';
+      init() {
+        this.canvas = ui.dirCanvas;
+        this.ctx = this.canvas.getContext('2d');
+        this.bindEvents();
+        this.draw();
+      },
 
-        const rng = document.createElement('input');
-        rng.type = 'range';
-        rng.min = '0';
-        rng.max = '2';
-        rng.step = '0.01';
-        rng.value = String(settings.dirMult[i]);
+      // Get angle for direction index (0° at top, clockwise)
+      getAngle(i) {
+        return (DIR_ANGLES[i] - 90) * Math.PI / 180;
+      },
 
-        const val = document.createElement('div');
-        val.className = 'val';
-        val.textContent = settings.dirMult[i].toFixed(2) + '×';
+      // Get handle position for direction i
+      getHandlePos(i) {
+        const angle = this.getAngle(i);
+        const value = settings.dirMult[i];
+        const radius = this.minRadius + (value / 2) * (this.maxRadius - this.minRadius);
+        return {
+          x: this.cx + Math.cos(angle) * radius,
+          y: this.cy + Math.sin(angle) * radius
+        };
+      },
 
-        rng.addEventListener('input', () => {
-          settings.dirMult[i] = parseFloat(rng.value);
-          val.textContent = settings.dirMult[i].toFixed(2) + '×';
-        });
+      // Convert radius to value (0..2)
+      radiusToValue(r) {
+        const clamped = Math.max(this.minRadius, Math.min(this.maxRadius, r));
+        return ((clamped - this.minRadius) / (this.maxRadius - this.minRadius)) * 2;
+      },
 
-        wrap.appendChild(tag);
-        wrap.appendChild(rng);
-        wrap.appendChild(val);
-        ui.dirGrid.appendChild(wrap);
+      // Find which handle is at position (x, y), or null
+      hitTest(x, y) {
+        for (let i = 0; i < 6; i++) {
+          const pos = this.getHandlePos(i);
+          const dist = Math.hypot(x - pos.x, y - pos.y);
+          if (dist <= this.handleRadius + 4) return i;
+        }
+        return null;
+      },
+
+      draw() {
+        const ctx = this.ctx;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+
+        // Clear
+        ctx.clearRect(0, 0, w, h);
+
+        // Background circle
+        ctx.beginPath();
+        ctx.arc(this.cx, this.cy, this.maxRadius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.03)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Inner reference circle (value=1)
+        const midRadius = this.minRadius + (this.maxRadius - this.minRadius) / 2;
+        ctx.beginPath();
+        ctx.arc(this.cx, this.cy, midRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.setLineDash([3, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Draw polygon fill
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const pos = this.getHandlePos(i);
+          if (i === 0) ctx.moveTo(pos.x, pos.y);
+          else ctx.lineTo(pos.x, pos.y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(100, 180, 255, 0.15)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(100, 180, 255, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Draw direction lines and handles
+        for (let i = 0; i < 6; i++) {
+          const angle = this.getAngle(i);
+          const pos = this.getHandlePos(i);
+
+          // Line from center to handle
+          ctx.beginPath();
+          ctx.moveTo(this.cx, this.cy);
+          ctx.lineTo(pos.x, pos.y);
+          ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // Handle circle
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, this.handleRadius, 0, Math.PI * 2);
+          ctx.fillStyle = this.dragging === i ? '#7cb3ff' : '#5a9cff';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          // Angle label
+          const labelRadius = this.maxRadius + 16;
+          const labelX = this.cx + Math.cos(angle) * labelRadius;
+          const labelY = this.cy + Math.sin(angle) * labelRadius;
+          ctx.fillStyle = 'rgba(255,255,255,0.6)';
+          ctx.font = '10px system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(DIR_ANGLES[i] + '°', labelX, labelY);
+        }
+
+        // Center dot
+        ctx.beginPath();
+        ctx.arc(this.cx, this.cy, 3, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.fill();
+      },
+
+      getPointerPos(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+          x: clientX - rect.left,
+          y: clientY - rect.top
+        };
+      },
+
+      onPointerDown(e) {
+        e.preventDefault();
+        const pos = this.getPointerPos(e);
+        const hit = this.hitTest(pos.x, pos.y);
+        if (hit !== null) {
+          this.dragging = hit;
+          this.draw();
+        }
+      },
+
+      onPointerMove(e) {
+        if (this.dragging === null) return;
+        e.preventDefault();
+        
+        const pos = this.getPointerPos(e);
+        const dx = pos.x - this.cx;
+        const dy = pos.y - this.cy;
+        const radius = Math.hypot(dx, dy);
+        
+        settings.dirMult[this.dragging] = this.radiusToValue(radius);
+        this.draw();
+      },
+
+      onPointerUp(e) {
+        if (this.dragging !== null) {
+          this.dragging = null;
+          this.draw();
+        }
+      },
+
+      bindEvents() {
+        // Mouse events
+        this.canvas.addEventListener('mousedown', (e) => this.onPointerDown(e));
+        window.addEventListener('mousemove', (e) => this.onPointerMove(e));
+        window.addEventListener('mouseup', (e) => this.onPointerUp(e));
+
+        // Touch events
+        this.canvas.addEventListener('touchstart', (e) => this.onPointerDown(e), { passive: false });
+        this.canvas.addEventListener('touchmove', (e) => this.onPointerMove(e), { passive: false });
+        this.canvas.addEventListener('touchend', (e) => this.onPointerUp(e));
+        this.canvas.addEventListener('touchcancel', (e) => this.onPointerUp(e));
       }
-    }
+    };
 
     // UI handlers
     ui.colorMode.addEventListener('change', () => {
@@ -310,19 +468,19 @@
 
     ui.presetIso.addEventListener('click', () => {
       settings.dirMult = [1,1,1,1,1,1];
-      renderDirControls();
+      dirEditor.draw();
     });
 
     ui.preset120.addEventListener('click', () => {
       // peaks at 120° intervals: 0°, 120°, 240° strong; others weaker
       settings.dirMult = [1.8, 0.2, 1.8, 0.2, 1.8, 0.2];
-      renderDirControls();
+      dirEditor.draw();
     });
 
     ui.preset60.addEventListener('click', () => {
       // "strict": sticks equally in all 6 directions with high multiplier
       settings.dirMult = [2,2,2,2,2,2];
-      renderDirControls();
+      dirEditor.draw();
     });
 
     // ====== Simulation (continuous coordinates) ======
@@ -418,8 +576,9 @@
     }
 
     function getDirectionIndex(angle) {
-      // Normalize angle to [0, 360)
-      let a = ((angle * 180 / Math.PI) % 360 + 360) % 360;
+      // Convert from atan2 convention (0°=right) to diagram convention (0°=up)
+      // Add 90° to rotate coordinate system so 0° points up
+      let a = ((angle * 180 / Math.PI + 90) % 360 + 360) % 360;
       // Find closest direction (0°, 60°, 120°, 180°, 240°, 300°)
       return Math.round(a / 60) % 6;
     }
@@ -743,6 +902,7 @@
     // ====== Init ======
     function init() {
       resize();
+      dirEditor.init();
       syncUIFromSettings();
       resetWorld();
       startRenderLoop();
