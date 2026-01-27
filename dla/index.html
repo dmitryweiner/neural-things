@@ -213,7 +213,7 @@
     }
 
     // ====== Direction angles for adhesion (6 directions, 60° apart) ======
-    const DIR_ANGLES = [0, 60, 120, 180, 240, 300];
+    const DIR_ANGLES = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330];
 
     // ====== Settings ======
     const ui = {
@@ -247,7 +247,7 @@
       hueStep: 3,
 
       baseAdhesion: 0.35,   // 0..1
-      dirMult: [1,1,1,1,1,1], // multipliers for 6 directions (0°, 60°, 120°, 180°, 240°, 300°)
+      dirMult: [1,1,1,1,1,1,1,1,1,1,1,1], // multipliers for 12 directions (30° step)
     };
 
     function syncUIFromSettings() {
@@ -304,7 +304,7 @@
 
       // Find which handle is at position (x, y), or null
       hitTest(x, y) {
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 12; i++) {
           const pos = this.getHandlePos(i);
           const dist = Math.hypot(x - pos.x, y - pos.y);
           if (dist <= this.handleRadius + 4) return i;
@@ -340,7 +340,7 @@
 
         // Draw polygon fill
         ctx.beginPath();
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 12; i++) {
           const pos = this.getHandlePos(i);
           if (i === 0) ctx.moveTo(pos.x, pos.y);
           else ctx.lineTo(pos.x, pos.y);
@@ -353,7 +353,7 @@
         ctx.stroke();
 
         // Draw direction lines and handles
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 12; i++) {
           const angle = this.getAngle(i);
           const pos = this.getHandlePos(i);
 
@@ -374,15 +374,17 @@
           ctx.lineWidth = 1.5;
           ctx.stroke();
 
-          // Angle label
-          const labelRadius = this.maxRadius + 16;
-          const labelX = this.cx + Math.cos(angle) * labelRadius;
-          const labelY = this.cy + Math.sin(angle) * labelRadius;
-          ctx.fillStyle = 'rgba(255,255,255,0.6)';
-          ctx.font = '10px system-ui, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(DIR_ANGLES[i] + '°', labelX, labelY);
+          // Angle label (only show every 60° to avoid clutter)
+          if (i % 2 === 0) {
+            const labelRadius = this.maxRadius + 16;
+            const labelX = this.cx + Math.cos(angle) * labelRadius;
+            const labelY = this.cy + Math.sin(angle) * labelRadius;
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.font = '10px system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(DIR_ANGLES[i] + '°', labelX, labelY);
+          }
         }
 
         // Center dot
@@ -467,19 +469,21 @@
     });
 
     ui.presetIso.addEventListener('click', () => {
-      settings.dirMult = [1,1,1,1,1,1];
+      settings.dirMult = [1,1,1,1,1,1,1,1,1,1,1,1];
       dirEditor.draw();
     });
 
     ui.preset120.addEventListener('click', () => {
       // peaks at 120° intervals: 0°, 120°, 240° strong; others weaker
-      settings.dirMult = [1.8, 0.2, 1.8, 0.2, 1.8, 0.2];
+      // Indices: 0=0°, 4=120°, 8=240° are peaks
+      settings.dirMult = [2, 0.5, 0.2, 0.5, 2, 0.5, 0.2, 0.5, 2, 0.5, 0.2, 0.5];
       dirEditor.draw();
     });
 
     ui.preset60.addEventListener('click', () => {
-      // "strict": sticks equally in all 6 directions with high multiplier
-      settings.dirMult = [2,2,2,2,2,2];
+      // peaks at 60° intervals: 0°, 60°, 120°, 180°, 240°, 300° strong
+      // Indices: 0, 2, 4, 6, 8, 10 are peaks
+      settings.dirMult = [2, 0.3, 2, 0.3, 2, 0.3, 2, 0.3, 2, 0.3, 2, 0.3];
       dirEditor.draw();
     });
 
@@ -579,8 +583,8 @@
       // Convert from atan2 convention (0°=right) to diagram convention (0°=up)
       // Add 90° to rotate coordinate system so 0° points up
       let a = ((angle * 180 / Math.PI + 90) % 360 + 360) % 360;
-      // Find closest direction (0°, 60°, 120°, 180°, 240°, 300°)
-      return Math.round(a / 60) % 6;
+      // Find closest direction (12 directions, 30° step)
+      return Math.round(a / 30) % 12;
     }
 
     function tryStickAt(x, y) {
