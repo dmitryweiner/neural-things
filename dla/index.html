@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Pseudo-Fractal (DLA)</title>
   <style>
     :root { color-scheme: dark; }
-    html, body { height: 100%; margin: 0; overflow: hidden; background: #0b0d10; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    html, body { height: 100%; margin: 0; overflow: hidden; background: #0b0d10; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; touch-action: none; }
     #wrap { position: fixed; inset: 0; }
-    canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+    canvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
     canvas:active { cursor: grabbing; }
 
     .panel {
@@ -75,6 +75,20 @@
     button:hover { background: rgba(255,255,255,0.11); }
     button:active { transform: translateY(1px); }
 
+    /* Start button styling */
+    #start {
+      background: #27ae60;
+      border-color: #27ae60;
+      box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+    }
+    #start:hover { background: #2ecc71; }
+    #start.running {
+      background: #e67e22;
+      border-color: #e67e22;
+      box-shadow: 0 2px 8px rgba(230, 126, 34, 0.3);
+    }
+    #start.running:hover { background: #f39c12; }
+
     .divider { height: 1px; background: rgba(255,255,255,0.10); margin: 10px 0; }
 
     .dir-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
@@ -95,6 +109,11 @@
       user-select: none;
     }
     .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; opacity: .9; }
+
+    @media (max-width: 600px) {
+      .panel { width: calc(100vw - 24px); }
+      .hud { font-size: 11px; padding: 6px 8px; }
+    }
   </style>
 </head>
 <body>
@@ -108,12 +127,16 @@
       </div>
       <div class="panel-body" id="panelBody">
       <p class="sub">
-        A particle wanders on a hex grid and sticks to the cluster. Set unequal directional probabilities to create "snowflake" patterns.
+        A particle wanders randomly and sticks to the cluster on contact. Adjust directional probabilities to create "snowflake" patterns.
       </p>
 
       <div class="row">
-        <label for="fps">World speed (FPS)</label>
-        <input id="fps" type="number" min="1" max="240" step="1" value="60" />
+        <label for="speed">Simulation speed</label>
+        <select id="speed">
+          <option value="60">Fast (60 FPS)</option>
+          <option value="30" selected>Medium (30 FPS)</option>
+          <option value="10">Slow (10 FPS)</option>
+        </select>
       </div>
 
       <div class="row">
@@ -160,16 +183,17 @@
       <div class="divider"></div>
 
       <div class="btns">
-        <button id="reset">Reset</button>
+        <button id="start">Start</button>
         <button id="pause">Pause</button>
-        <button id="step">Step</button>
+        <button id="reset">Reset</button>
         <button id="center">Center view</button>
+        <button id="saveImage">Save image</button>
       </div>
       </div>
     </div>
 
     <div class="hud" id="hud">
-      <div><span class="kbd">Wheel</span> — zoom, <span class="kbd">Drag</span> — pan</div>
+      <div><span class="kbd">Wheel/Pinch</span> — zoom, <span class="kbd">Drag</span> — pan</div>
       <div id="hudLine"></div>
     </div>
   </div>
@@ -205,40 +229,12 @@
       };
     }
 
-    // ====== Hex grid (axial coords) ======
-    // axial (q,r). Directions correspond to angles 0°,60°,120°,180°,240°,300°
-    const HEX_DIRS = [
-      { q:  1, r:  0, ang: 0   },
-      { q:  1, r: -1, ang: 60  },
-      { q:  0, r: -1, ang: 120 },
-      { q: -1, r:  0, ang: 180 },
-      { q: -1, r:  1, ang: 240 },
-      { q:  0, r:  1, ang: 300 },
-    ];
-    function hexOpp(i) { return (i + 3) % 6; }
-
-    function hexKey(q, r) { return q + ',' + r; }
-
-    function hexDist(q, r) {
-      // cube coords: x=q, z=r, y=-x-z
-      const x = q, z = r, y = -x - z;
-      return Math.max(Math.abs(x), Math.abs(y), Math.abs(z));
-    }
-
-    // Hex to pixel (pointy-top). We'll treat this as "world pixels".
-    let HEX_SIZE = 3; // size in world pixels; camera zoom scales it anyway
-    function hexToPixel(q, r) {
-      // pointy-top axial -> pixel
-      // x = size * sqrt(3) * (q + r/2)
-      // y = size * 3/2 * r
-      const x = HEX_SIZE * Math.sqrt(3) * (q + r / 2);
-      const y = HEX_SIZE * 1.5 * r;
-      return { x, y };
-    }
+    // ====== Direction angles for adhesion (6 directions, 60° apart) ======
+    const DIR_ANGLES = [0, 60, 120, 180, 240, 300];
 
     // ====== Settings ======
     const ui = {
-      fps: document.getElementById('fps'),
+      speed: document.getElementById('speed'),
       showWalker: document.getElementById('showWalker'),
       colorMode: document.getElementById('colorMode'),
       constColorRow: document.getElementById('constColorRow'),
@@ -252,10 +248,11 @@
       preset120: document.getElementById('preset120'),
       preset60: document.getElementById('preset60'),
 
+      start: document.getElementById('start'),
       reset: document.getElementById('reset'),
       pause: document.getElementById('pause'),
-      step: document.getElementById('step'),
       center: document.getElementById('center'),
+      saveImage: document.getElementById('saveImage'),
 
       hudLine: document.getElementById('hudLine'),
       panelHeader: document.getElementById('panelHeader'),
@@ -264,7 +261,7 @@
     };
 
     const settings = {
-      targetFps: 60,
+      targetFps: 30,
       showWalker: true,
 
       colorMode: 'rainbow', // 'constant' | 'rainbow'
@@ -272,11 +269,11 @@
       hueStep: 3,
 
       baseAdhesion: 0.35,   // 0..1
-      dirMult: [1,1,1,1,1,1], // multipliers for 6 directions (angles above)
+      dirMult: [1,1,1,1,1,1], // multipliers for 6 directions (0°, 60°, 120°, 180°, 240°, 300°)
     };
 
     function syncUIFromSettings() {
-      ui.fps.value = String(settings.targetFps);
+      ui.speed.value = String(settings.targetFps);
       ui.showWalker.checked = settings.showWalker;
 
       ui.colorMode.value = settings.colorMode;
@@ -299,7 +296,7 @@
 
         const tag = document.createElement('div');
         tag.className = 'tag';
-        tag.textContent = HEX_DIRS[i].ang + '°';
+        tag.textContent = DIR_ANGLES[i] + '°';
 
         const rng = document.createElement('input');
         rng.type = 'range';
@@ -325,10 +322,9 @@
     }
 
     // UI handlers
-    ui.fps.addEventListener('change', () => {
-      const v = Math.max(1, Math.min(240, parseInt(ui.fps.value || '60', 10)));
-      settings.targetFps = v;
-      ui.fps.value = String(v);
+    ui.speed.addEventListener('change', () => {
+      settings.targetFps = parseInt(ui.speed.value, 10);
+      updateSimulationInterval();
     });
 
     ui.showWalker.addEventListener('change', () => {
@@ -371,21 +367,59 @@
       renderDirControls();
     });
 
-    // ====== Simulation ======
-    let occupied = new Set(); // keys "q,r"
-    let points = [];          // stuck particles with cached pixel coords + color
-    let walker = null;        // current moving particle
+    // ====== Simulation (continuous coordinates) ======
+    let points = [];          // stuck particles { x, y, c }
+    let walker = null;        // current moving particle { x, y }
     let stuckCount = 0;
     let maxRadius = 0;
 
-    // World parameters (feel free to tweak)
-    const SPAWN_MARGIN = 12;  // in hex steps
-    const KILL_MARGIN  = 28;  // in hex steps
-    const MOVES_PER_TICK = 200; // how many random-walk steps we do per "world frame"
+    // Spatial hash for fast neighbor lookup
+    const CELL_SIZE = 8;      // world pixels per cell
+    let spatialHash = new Map();
+
+    // World parameters
+    const PARTICLE_RADIUS = 3;      // collision radius
+    const SPAWN_MARGIN = 40;        // spawn distance from maxRadius
+    const KILL_MARGIN = 80;         // kill distance beyond maxRadius
+    const STEP_SIZE = 2;            // random walk step size
+    const MOVES_PER_TICK = 200;     // how many random-walk steps we do per "world frame"
+
+    function cellKey(x, y) {
+      const cx = Math.floor(x / CELL_SIZE);
+      const cy = Math.floor(y / CELL_SIZE);
+      return cx + ',' + cy;
+    }
+
+    function addToSpatialHash(p) {
+      const key = cellKey(p.x, p.y);
+      if (!spatialHash.has(key)) spatialHash.set(key, []);
+      spatialHash.get(key).push(p);
+    }
+
+    function getNearbyParticles(x, y, radius) {
+      const result = [];
+      const cellRadius = Math.ceil(radius / CELL_SIZE) + 1;
+      const cx = Math.floor(x / CELL_SIZE);
+      const cy = Math.floor(y / CELL_SIZE);
+
+      for (let dx = -cellRadius; dx <= cellRadius; dx++) {
+        for (let dy = -cellRadius; dy <= cellRadius; dy++) {
+          const key = (cx + dx) + ',' + (cy + dy);
+          const cell = spatialHash.get(key);
+          if (cell) {
+            for (const p of cell) {
+              const dist = Math.hypot(p.x - x, p.y - y);
+              if (dist <= radius) result.push({ particle: p, dist });
+            }
+          }
+        }
+      }
+      return result;
+    }
 
     function resetWorld() {
-      occupied = new Set();
       points = [];
+      spatialHash = new Map();
       walker = null;
       stuckCount = 0;
       maxRadius = 0;
@@ -393,65 +427,63 @@
       // First stuck particle at center
       stickParticle(0, 0);
       // camera center
-      const p = hexToPixel(0, 0);
-      camera.x = p.x;
-      camera.y = p.y;
+      camera.x = 0;
+      camera.y = 0;
     }
 
     function colorForIndex(i) {
       if (settings.colorMode === 'constant') return settings.constantColor;
       const h = (i * settings.hueStep) % 360;
-      // bright-ish HSL
       return `hsl(${h} 95% 65%)`;
     }
 
-    function stickParticle(q, r) {
-      const k = hexKey(q, r);
-      if (occupied.has(k)) return false;
-      occupied.add(k);
-
-      const pix = hexToPixel(q, r);
+    function stickParticle(x, y) {
       const col = colorForIndex(stuckCount);
-      points.push({ q, r, x: pix.x, y: pix.y, c: col });
+      const p = { x, y, c: col };
+      points.push(p);
+      addToSpatialHash(p);
 
       stuckCount++;
-      maxRadius = Math.max(maxRadius, hexDist(q, r));
+      const dist = Math.hypot(x, y);
+      maxRadius = Math.max(maxRadius, dist);
       return true;
     }
 
     function spawnWalker() {
-      // spawn on ring around current maxRadius
+      // spawn on circle around current maxRadius
       const R = maxRadius + SPAWN_MARGIN;
-      const a = Math.random() * Math.PI * 2;
-      // pick an approximate axial position from pixel circle and then "snap" by sampling candidates
-      // We do a simpler honest trick: pick a random direction and step R along it, then jitter a bit.
-      const dir = Math.floor(Math.random() * 6);
-      let q = HEX_DIRS[dir].q * R;
-      let r = HEX_DIRS[dir].r * R;
-
-      // jitter a bit by random walks
-      const jitter = 6 + Math.floor(Math.random() * 10);
-      for (let i = 0; i < jitter; i++) {
-        const d = Math.floor(Math.random() * 6);
-        q += HEX_DIRS[d].q;
-        r += HEX_DIRS[d].r;
-      }
-      walker = { q, r };
+      const angle = Math.random() * Math.PI * 2;
+      walker = {
+        x: Math.cos(angle) * R,
+        y: Math.sin(angle) * R
+      };
     }
 
-    function tryStickAt(q, r) {
-      // Check neighbors: if any occupied, attempt adhesion with direction multiplier
-      for (let i = 0; i < 6; i++) {
-        const nq = q + HEX_DIRS[i].q;
-        const nr = r + HEX_DIRS[i].r;
-        if (occupied.has(hexKey(nq, nr))) {
-          // Contact direction: vector from walker -> occupied neighbor is opposite of i
-          const contactDir = hexOpp(i);
-          const p = clamp01(settings.baseAdhesion * settings.dirMult[contactDir]);
+    function getDirectionIndex(angle) {
+      // Normalize angle to [0, 360)
+      let a = ((angle * 180 / Math.PI) % 360 + 360) % 360;
+      // Find closest direction (0°, 60°, 120°, 180°, 240°, 300°)
+      return Math.round(a / 60) % 6;
+    }
+
+    function tryStickAt(x, y) {
+      // Check nearby particles
+      const nearby = getNearbyParticles(x, y, PARTICLE_RADIUS * 2.5);
+      
+      for (const { particle, dist } of nearby) {
+        if (dist < PARTICLE_RADIUS * 2) {
+          // Contact! Compute direction from particle to walker
+          const angle = Math.atan2(y - particle.y, x - particle.x);
+          const dirIndex = getDirectionIndex(angle);
+          const p = clamp01(settings.baseAdhesion * settings.dirMult[dirIndex]);
+          
           if (Math.random() < p) {
-            return stickParticle(q, r);
+            // Stick at contact point (slightly away from the particle we touched)
+            const stickDist = PARTICLE_RADIUS * 2;
+            const stickX = particle.x + Math.cos(angle) * stickDist;
+            const stickY = particle.y + Math.sin(angle) * stickDist;
+            return stickParticle(stickX, stickY);
           }
-          // if it didn't stick via this neighbor, we still might stick via another neighbor this step
         }
       }
       return false;
@@ -460,28 +492,30 @@
     function stepSimulation() {
       if (!walker) spawnWalker();
 
-      // kill if too far
       const killR = maxRadius + KILL_MARGIN;
-      if (hexDist(walker.q, walker.r) > killR) {
+      
+      // Check if too far
+      if (Math.hypot(walker.x, walker.y) > killR) {
         spawnWalker();
         return;
       }
 
-      // perform multiple random-walk moves per tick
+      // Perform multiple random-walk moves per tick
       for (let m = 0; m < MOVES_PER_TICK; m++) {
-        const d = Math.floor(Math.random() * 6);
-        walker.q += HEX_DIRS[d].q;
-        walker.r += HEX_DIRS[d].r;
+        // Random direction
+        const angle = Math.random() * Math.PI * 2;
+        walker.x += Math.cos(angle) * STEP_SIZE;
+        walker.y += Math.sin(angle) * STEP_SIZE;
 
-        // killed?
-        if (hexDist(walker.q, walker.r) > killR) {
+        // Killed?
+        if (Math.hypot(walker.x, walker.y) > killR) {
           spawnWalker();
           return;
         }
 
-        // attempt stick if adjacent
-        if (tryStickAt(walker.q, walker.r)) {
-          walker = null; // next tick spawn a new one
+        // Attempt stick if near any particle
+        if (tryStickAt(walker.x, walker.y)) {
+          walker = null;
           return;
         }
       }
@@ -495,7 +529,7 @@
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.fillStyle = '#0b0d10';
-      ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.restore();
 
       // world transform
@@ -506,15 +540,13 @@
         camera.cy - camera.y * camera.zoom
       );
 
-      // draw stuck points
-      // (simple iteration; tolerable for demos with tens of thousands of points; can optimize with chunks later)
+      // draw stuck points with frustum culling
       const view = getWorldViewBounds();
       const pad = 40 / camera.zoom;
       const minX = view.minX - pad, maxX = view.maxX + pad;
       const minY = view.minY - pad, maxY = view.maxY + pad;
 
-      // choose point radius in world coords
-      const r = Math.max(0.5, HEX_SIZE * 0.45);
+      const r = Math.max(0.5, PARTICLE_RADIUS * 0.5);
       const PI2 = Math.PI * 2;
       for (let i = 0; i < points.length; i++) {
         const p = points[i];
@@ -527,24 +559,23 @@
 
       // draw walker
       if (settings.showWalker && walker) {
-        const wp = hexToPixel(walker.q, walker.r);
         ctx.fillStyle = '#ffffff';
-        const wr = Math.max(0.7, HEX_SIZE * 0.55);
+        const wr = Math.max(0.7, PARTICLE_RADIUS * 0.6);
         ctx.beginPath();
-        ctx.arc(wp.x, wp.y, wr, 0, PI2);
+        ctx.arc(walker.x, walker.y, wr, 0, PI2);
         ctx.fill();
       }
 
       ctx.restore();
 
       // HUD text
+      const radiusDisplay = Math.round(maxRadius);
       ui.hudLine.textContent =
-        `Particles: ${stuckCount.toLocaleString()} | Radius: ${maxRadius} | Zoom: ${camera.zoom.toFixed(2)}` +
-        (paused ? ' | PAUSED' : '');
+        `Particles: ${stuckCount.toLocaleString()} | Radius: ${radiusDisplay} | Zoom: ${camera.zoom.toFixed(2)}` +
+        (!running ? ' | STOPPED' : (paused ? ' | PAUSED' : ''));
     }
 
     function getWorldViewBounds() {
-      // convert screen corners to world
       const tl = screenToWorld(0, 0);
       const br = screenToWorld(window.innerWidth, window.innerHeight);
       return {
@@ -555,7 +586,7 @@
       };
     }
 
-    // ====== Mouse / touch: pan + zoom ======
+    // ====== Mouse: pan + zoom ======
     let dragging = false;
     let lastX = 0, lastY = 0;
 
@@ -588,25 +619,179 @@
       camera.y += (before.y - after.y);
     }, { passive: false });
 
-    // ====== Buttons ======
-    let paused = false;
+    // ====== Touch: pan + pinch zoom ======
+    let touches = [];
+    let lastTouchDist = 0;
+    let lastTouchCenter = null;
 
-    ui.reset.addEventListener('click', () => resetWorld());
-    ui.pause.addEventListener('click', () => {
-      paused = !paused;
-      ui.pause.textContent = paused ? 'Resume' : 'Pause';
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      touches = Array.from(e.touches);
+      
+      if (touches.length === 1) {
+        lastX = touches[0].clientX;
+        lastY = touches[0].clientY;
+        dragging = true;
+      } else if (touches.length === 2) {
+        dragging = false;
+        lastTouchDist = Math.hypot(
+          touches[1].clientX - touches[0].clientX,
+          touches[1].clientY - touches[0].clientY
+        );
+        lastTouchCenter = {
+          x: (touches[0].clientX + touches[1].clientX) / 2,
+          y: (touches[0].clientY + touches[1].clientY) / 2
+        };
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      touches = Array.from(e.touches);
+
+      if (touches.length === 1 && dragging) {
+        // Pan
+        const dx = touches[0].clientX - lastX;
+        const dy = touches[0].clientY - lastY;
+        lastX = touches[0].clientX;
+        lastY = touches[0].clientY;
+        camera.x -= dx / camera.zoom;
+        camera.y -= dy / camera.zoom;
+      } else if (touches.length === 2) {
+        // Pinch zoom
+        const newDist = Math.hypot(
+          touches[1].clientX - touches[0].clientX,
+          touches[1].clientY - touches[0].clientY
+        );
+        const newCenter = {
+          x: (touches[0].clientX + touches[1].clientX) / 2,
+          y: (touches[0].clientY + touches[1].clientY) / 2
+        };
+
+        if (lastTouchDist > 0 && lastTouchCenter) {
+          // Zoom
+          const before = screenToWorld(newCenter.x, newCenter.y);
+          const zoomFactor = newDist / lastTouchDist;
+          camera.zoom = Math.max(0.05, Math.min(40, camera.zoom * zoomFactor));
+          const after = screenToWorld(newCenter.x, newCenter.y);
+          camera.x += (before.x - after.x);
+          camera.y += (before.y - after.y);
+
+          // Pan
+          const dx = newCenter.x - lastTouchCenter.x;
+          const dy = newCenter.y - lastTouchCenter.y;
+          camera.x -= dx / camera.zoom;
+          camera.y -= dy / camera.zoom;
+        }
+
+        lastTouchDist = newDist;
+        lastTouchCenter = newCenter;
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      touches = Array.from(e.touches);
+      if (touches.length < 2) {
+        lastTouchDist = 0;
+        lastTouchCenter = null;
+      }
+      if (touches.length === 0) {
+        dragging = false;
+      } else if (touches.length === 1) {
+        lastX = touches[0].clientX;
+        lastY = touches[0].clientY;
+        dragging = true;
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchcancel', () => {
+      touches = [];
+      dragging = false;
+      lastTouchDist = 0;
+      lastTouchCenter = null;
     });
-    ui.step.addEventListener('click', () => {
-      // one simulation tick
-      stepSimulation();
+
+    // ====== Buttons ======
+    let running = false;
+    let paused = false;
+    let simInterval = null;
+    let renderRAF = null;
+
+    function updateSimulationInterval() {
+      if (simInterval) {
+        clearInterval(simInterval);
+        simInterval = null;
+      }
+      if (running && !paused) {
+        const interval = 1000 / Math.max(1, settings.targetFps);
+        simInterval = setInterval(stepSimulation, interval);
+      }
+    }
+
+    function startSimulation() {
+      if (running) return;
+      running = true;
+      ui.start.textContent = 'Stop';
+      ui.start.classList.add('running');
+      updateSimulationInterval();
+      startRenderLoop();
+    }
+
+    function stopSimulation() {
+      running = false;
+      paused = false;
+      ui.start.textContent = 'Start';
+      ui.start.classList.remove('running');
+      ui.pause.textContent = 'Pause';
+      if (simInterval) {
+        clearInterval(simInterval);
+        simInterval = null;
+      }
+    }
+
+    function startRenderLoop() {
+      if (renderRAF) return;
+      function renderLoop() {
+        render();
+        renderRAF = requestAnimationFrame(renderLoop);
+      }
+      renderRAF = requestAnimationFrame(renderLoop);
+    }
+
+    ui.start.addEventListener('click', () => {
+      if (running) {
+        stopSimulation();
+      } else {
+        startSimulation();
+      }
+    });
+
+    ui.reset.addEventListener('click', () => {
+      resetWorld();
       render();
     });
+
+    ui.pause.addEventListener('click', () => {
+      if (!running) return;
+      paused = !paused;
+      ui.pause.textContent = paused ? 'Resume' : 'Pause';
+      updateSimulationInterval();
+    });
+
     ui.center.addEventListener('click', () => {
-      // Center view on origin (0,0)
-      const p = hexToPixel(0, 0);
-      camera.x = p.x;
-      camera.y = p.y;
+      camera.x = 0;
+      camera.y = 0;
       camera.zoom = 1.0;
+    });
+
+    ui.saveImage.addEventListener('click', () => {
+      // Render one frame to ensure canvas is up to date
+      render();
+      const link = document.createElement('a');
+      link.download = `dla-${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
     });
 
     // Panel collapse
@@ -615,39 +800,19 @@
       ui.collapseBtn.textContent = collapsed ? '▶' : '▼';
     });
 
-    // ====== Main loop (rAF + target fps for simulation) ======
-    let lastTime = performance.now();
-    let accum = 0;
-
-    function loop(now) {
-      requestAnimationFrame(loop);
-      const dt = now - lastTime;
-      lastTime = now;
-      accum += dt;
-
-      const frameInterval = 1000 / Math.max(1, settings.targetFps);
-
-      // simulate at target fps, render every rAF (for smooth zoom/pan)
-      if (!paused) {
-        // Cap accumulated time so the universe doesn't "fast-forward" after tab-switch
-        accum = Math.min(accum, frameInterval * 5);
-        while (accum >= frameInterval) {
-          accum -= frameInterval;
-          stepSimulation();
-        }
-      } else {
-        accum = 0;
-      }
-
-      render();
-    }
+    // ====== Page visibility (background execution) ======
+    document.addEventListener('visibilitychange', () => {
+      // Simulation continues via setInterval even when page is hidden
+      // Only rendering pauses (which is handled by rAF automatically)
+    });
 
     // ====== Init ======
     function init() {
       resize();
       syncUIFromSettings();
       resetWorld();
-      requestAnimationFrame(loop);
+      startRenderLoop();
+      render();
     }
     init();
   </script>
