@@ -136,7 +136,7 @@
         <button id="reset">Reset</button>
         <button id="center">Center</button>
         <button id="saveImage">Save image</button>
-        <button id="settingsBtn">Settings</button>
+        <button id="settingsBtn">Settings ▶</button>
       </div>
 
       <div class="settings-body collapsed" id="settingsBody">
@@ -155,12 +155,45 @@
 
         <div class="divider"></div>
 
+        <div class="row">
+          <label>Sound</label>
+          <div class="chk">
+            <input type="checkbox" id="soundEnabled" checked />
+          </div>
+        </div>
+
+        <div class="row" id="soundVolumeRow">
+          <label for="soundVolume" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Master volume</span>
+            <span id="soundVolumeVal" style="opacity:0.7;">25%</span>
+          </label>
+          <input id="soundVolume" type="range" min="0" max="100" step="5" value="25" />
+        </div>
+
+        <div class="row" id="pitchCoeffRow">
+          <label for="pitchCoeff" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>X → Pitch</span>
+            <span id="pitchCoeffVal" style="opacity:0.7;">1.0</span>
+          </label>
+          <input id="pitchCoeff" type="range" min="0.1" max="3" step="0.1" value="1" />
+        </div>
+
+        <div class="row" id="volumeCoeffRow">
+          <label for="volumeCoeff" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Y → Volume</span>
+            <span id="volumeCoeffVal" style="opacity:0.7;">1.0</span>
+          </label>
+          <input id="volumeCoeff" type="range" min="0.1" max="3" step="0.1" value="1" />
+        </div>
+
+        <div class="divider"></div>
+
         <div class="row" id="hueStepRow">
           <label for="hueStep" style="display:flex; justify-content:space-between; align-items:center;">
             <span>Rainbow step</span>
-            <span id="hueStepVal" style="opacity:0.7;">1</span>
+            <span id="hueStepVal" style="opacity:0.7;">0.1</span>
           </label>
-          <input id="hueStep" type="range" min="1" max="5" step="0.5" value="1" />
+          <input id="hueStep" type="range" min="0.01" max="0.5" step="0.01" value="0.1" />
         </div>
 
         <div class="divider"></div>
@@ -196,6 +229,7 @@
     </div>
   </div>
 
+  <script src="dla-sound.js"></script>
   <script>
     // No build step. Single page. Single canvas.
 
@@ -246,6 +280,13 @@
       presetIso: document.getElementById('presetIso'),
       preset120: document.getElementById('preset120'),
       preset60: document.getElementById('preset60'),
+      soundEnabled: document.getElementById('soundEnabled'),
+      soundVolume: document.getElementById('soundVolume'),
+      soundVolumeVal: document.getElementById('soundVolumeVal'),
+      pitchCoeff: document.getElementById('pitchCoeff'),
+      pitchCoeffVal: document.getElementById('pitchCoeffVal'),
+      volumeCoeff: document.getElementById('volumeCoeff'),
+      volumeCoeffVal: document.getElementById('volumeCoeffVal'),
 
       start: document.getElementById('start'),
       reset: document.getElementById('reset'),
@@ -260,11 +301,19 @@
     const settings = {
       colorMode: 'rainbow', // 'constant' | 'rainbow'
       constantColor: '#8ad1ff',
-      hueStep: 1,
+      hueStep: 0.1,
 
       baseAdhesion: 0.35,   // 0..1
       dirMult: [1,1,1,1,1,1,1,1,1,1,1,1], // multipliers for 12 directions (30° step)
+      
+      // Sound settings (Karplus-Strong)
+      soundEnabled: true,       // Enable/disable sound
+      soundMasterVolume: 0.25,  // 0-1, overall volume
+      soundPitchCoeff: 1.0,     // Multiplier for X->pitch mapping
+      soundVolumeCoeff: 1.0,    // Multiplier for Y->volume mapping
     };
+
+    const STORAGE_KEY = 'dla_settings';
 
     function syncUIFromSettings() {
       ui.colorMode.value = settings.colorMode;
@@ -275,10 +324,73 @@
       ui.baseAdh.value = String(settings.baseAdhesion);
       ui.baseAdhVal.textContent = settings.baseAdhesion;
 
+      // Sound settings
+      ui.soundEnabled.checked = settings.soundEnabled;
+      ui.soundVolume.value = String(Math.round(settings.soundMasterVolume * 100));
+      ui.soundVolumeVal.textContent = Math.round(settings.soundMasterVolume * 100) + '%';
+      ui.pitchCoeff.value = String(settings.soundPitchCoeff);
+      ui.pitchCoeffVal.textContent = settings.soundPitchCoeff.toFixed(1);
+      ui.volumeCoeff.value = String(settings.soundVolumeCoeff);
+      ui.volumeCoeffVal.textContent = settings.soundVolumeCoeff.toFixed(1);
+
       ui.constColorRow.style.display = (settings.colorMode === 'constant') ? '' : 'none';
       ui.hueStepRow.style.display = (settings.colorMode === 'rainbow') ? '' : 'none';
 
+      // Update settings button to show panel state
+      const isCollapsed = ui.settingsBody.classList.contains('collapsed');
+      ui.settingsBtn.textContent = isCollapsed ? 'Settings ▶' : 'Settings ▼';
+
       if (dirEditor.canvas) dirEditor.draw();
+    }
+
+    function saveSettings() {
+      try {
+        const data = {
+          colorMode: settings.colorMode,
+          constantColor: settings.constantColor,
+          hueStep: settings.hueStep,
+          baseAdhesion: settings.baseAdhesion,
+          dirMult: settings.dirMult.slice(),
+          soundEnabled: settings.soundEnabled,
+          soundMasterVolume: settings.soundMasterVolume,
+          soundPitchCoeff: settings.soundPitchCoeff,
+          soundVolumeCoeff: settings.soundVolumeCoeff,
+          settingsPanelOpen: !ui.settingsBody.classList.contains('collapsed'),
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.warn('Failed to save settings:', e);
+      }
+    }
+
+    function loadSettings() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return;
+        
+        const data = JSON.parse(saved);
+        
+        if (data.colorMode !== undefined) settings.colorMode = data.colorMode;
+        if (data.constantColor !== undefined) settings.constantColor = data.constantColor;
+        if (data.hueStep !== undefined) settings.hueStep = data.hueStep;
+        if (data.baseAdhesion !== undefined) settings.baseAdhesion = data.baseAdhesion;
+        if (data.dirMult !== undefined && Array.isArray(data.dirMult)) {
+          settings.dirMult = data.dirMult.slice();
+        }
+        if (data.soundEnabled !== undefined) settings.soundEnabled = data.soundEnabled;
+        if (data.soundMasterVolume !== undefined) settings.soundMasterVolume = data.soundMasterVolume;
+        if (data.soundPitchCoeff !== undefined) settings.soundPitchCoeff = data.soundPitchCoeff;
+        if (data.soundVolumeCoeff !== undefined) settings.soundVolumeCoeff = data.soundVolumeCoeff;
+        
+        // Restore settings panel state
+        if (data.settingsPanelOpen === true) {
+          ui.settingsBody.classList.remove('collapsed');
+        } else {
+          ui.settingsBody.classList.add('collapsed');
+        }
+      } catch (e) {
+        console.warn('Failed to load settings:', e);
+      }
     }
 
     // ====== Direction Editor (circular widget) ======
@@ -450,6 +562,7 @@
           this.dragging = null;
           this.draw();
           sendSettingsToWorker();
+          saveSettings();
         }
       },
 
@@ -471,27 +584,59 @@
     ui.colorMode.addEventListener('change', () => {
       settings.colorMode = ui.colorMode.value;
       syncUIFromSettings();
+      saveSettings();
     });
 
     ui.constColor.addEventListener('change', () => {
       settings.constantColor = ui.constColor.value;
+      saveSettings();
     });
 
     ui.hueStep.addEventListener('input', () => {
       settings.hueStep = parseFloat(ui.hueStep.value);
       ui.hueStepVal.textContent = settings.hueStep;
+      saveSettings();
+    });
+
+    ui.soundEnabled.addEventListener('change', () => {
+      settings.soundEnabled = ui.soundEnabled.checked;
+      syncSoundSettings();
+      saveSettings();
+    });
+
+    ui.soundVolume.addEventListener('input', () => {
+      settings.soundMasterVolume = parseInt(ui.soundVolume.value) / 100;
+      ui.soundVolumeVal.textContent = ui.soundVolume.value + '%';
+      syncSoundSettings();
+      saveSettings();
+    });
+
+    ui.pitchCoeff.addEventListener('input', () => {
+      settings.soundPitchCoeff = parseFloat(ui.pitchCoeff.value);
+      ui.pitchCoeffVal.textContent = settings.soundPitchCoeff.toFixed(1);
+      syncSoundSettings();
+      saveSettings();
+    });
+
+    ui.volumeCoeff.addEventListener('input', () => {
+      settings.soundVolumeCoeff = parseFloat(ui.volumeCoeff.value);
+      ui.volumeCoeffVal.textContent = settings.soundVolumeCoeff.toFixed(1);
+      syncSoundSettings();
+      saveSettings();
     });
 
     ui.baseAdh.addEventListener('input', () => {
       settings.baseAdhesion = parseFloat(ui.baseAdh.value);
       ui.baseAdhVal.textContent = settings.baseAdhesion;
       sendSettingsToWorker();
+      saveSettings();
     });
 
     ui.presetIso.addEventListener('click', () => {
       settings.dirMult = [1,1,1,1,1,1,1,1,1,1,1,1];
       dirEditor.draw();
       sendSettingsToWorker();
+      saveSettings();
     });
 
     ui.preset120.addEventListener('click', () => {
@@ -500,6 +645,7 @@
       settings.dirMult = [2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0];
       dirEditor.draw();
       sendSettingsToWorker();
+      saveSettings();
     });
 
     ui.preset60.addEventListener('click', () => {
@@ -508,7 +654,18 @@
       settings.dirMult = [2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0];
       dirEditor.draw();
       sendSettingsToWorker();
+      saveSettings();
     });
+
+    // ====== Sound Settings Sync ======
+    function syncSoundSettings() {
+      DLASound.updateSettings({
+        enabled: settings.soundEnabled,
+        masterVolume: settings.soundMasterVolume,
+        pitchCoeff: settings.soundPitchCoeff,
+        volumeCoeff: settings.soundVolumeCoeff,
+      });
+    }
 
     // ====== Simulation State (render only) ======
     let points = [];          // stuck particles { x, y, c }
@@ -524,9 +681,11 @@
     worker.onmessage = function(e) {
       const { type, data, stats } = e.data;
       if (type === 'particles') {
-        // Add new particles with colors
+        // Add new particles with colors and play sounds
         for (const p of data) {
           points.push({ x: p.x, y: p.y, c: colorForIndex(p.index) });
+          // Play Karplus-Strong sound for each particle
+          DLASound.play(p.x, p.y, maxRadius);
         }
         stuckCount = stats.stuckCount;
         maxRadius = stats.maxRadius;
@@ -745,6 +904,9 @@
       ui.start.textContent = 'Stop';
       ui.start.classList.add('running');
       ui.reset.disabled = true;
+      // Initialize audio on user interaction
+      DLASound.init();
+      syncSoundSettings();
       worker.postMessage({ type: 'start' });
       startRenderLoop();
     }
@@ -796,7 +958,9 @@
 
     // Settings toggle
     ui.settingsBtn.addEventListener('click', () => {
-      ui.settingsBody.classList.toggle('collapsed');
+      const isCollapsed = ui.settingsBody.classList.toggle('collapsed');
+      ui.settingsBtn.textContent = isCollapsed ? 'Settings ▶' : 'Settings ▼';
+      saveSettings();
     });
 
     // ====== Page visibility (background execution) ======
@@ -806,8 +970,10 @@
     // ====== Init ======
     function init() {
       resize();
+      loadSettings();
       dirEditor.init();
       syncUIFromSettings();
+      syncSoundSettings();
       sendSettingsToWorker();
       resetWorld();
       startRenderLoop();

@@ -22,6 +22,7 @@ Simply open `index.html` in any modern web browser. No server or build step requ
 
 - `index.html` — Main page with UI, rendering, and camera controls
 - `dla-worker.js` — Web Worker with all simulation logic
+- `dla-sound.js` — Karplus-Strong sound synthesis module
 
 ## Controls
 
@@ -41,11 +42,29 @@ Simply open `index.html` in any modern web browser. No server or build step requ
 
 ## Settings Panel
 
+### Sound
+
+Each particle that sticks to the cluster produces a pluck sound using **Karplus-Strong string synthesis**:
+
+- **X position** controls **pitch**: Center (x=0) = 440 Hz. Moving right increases frequency, left decreases it.
+- **Y position** controls **volume**: Top = quieter, bottom = louder.
+
+#### Sound Settings
+
+| Setting | Range | Description |
+|---------|-------|-------------|
+| **Enable on stick** | on/off | Toggle sound on/off (default: on) |
+| **Master volume** | 0–100% | Overall volume of all sounds |
+| **X → Pitch** | 0.1–3.0 | Multiplier for pitch range. Higher = wider frequency variation |
+| **Y → Volume** | 0.1–3.0 | Multiplier for volume range. Higher = more volume variation |
+
+This creates an ambient soundscape that reflects the fractal's growth pattern.
+
 ### Particle Colors
 
 - **Constant**: All particles use a single color (configurable via color picker)
 - **Rainbow**: Particles cycle through the HSL hue spectrum based on their order of attachment
-  - **Hue step**: Degrees to advance per particle (1–90). Lower values = smoother gradients.
+  - **Rainbow step**: Hue increment per particle (0.01–0.5). Lower values = smoother gradients.
 
 ### Adhesion Settings
 
@@ -65,6 +84,16 @@ Final adhesion probability = `baseAdhesion × dirMult[contactDirection]`
 
 You can also manually adjust each direction's slider to create custom asymmetric patterns.
 
+### Settings Persistence
+
+All settings are automatically saved to **localStorage** and restored when you revisit the page:
+
+- Color mode and constant color
+- Rainbow step value
+- Base adhesion and direction multipliers
+- Sound settings (enabled, master volume, pitch coefficient, volume coefficient)
+- Settings panel open/closed state
+
 ## Architecture
 
 The simulation uses a **Web Worker** to run physics calculations in a separate thread:
@@ -77,6 +106,7 @@ The simulation uses a **Web Worker** to run physics calculations in a separate t
 │  • Canvas render    │ start/  │  • Collision detect │
 │  • Camera/zoom      │ stop/   │  • Spatial hash     │
 │  • Color mapping    │ reset   │  • Adhesion logic   │
+│  • Audio (K-S)      │         │                     │
 │                     │         │                     │
 │  points[] ◄─────────│ ◄────── │  Batched particles  │
 │  (for rendering)    │ (x,y,i) │  (50k steps/batch)  │
@@ -99,6 +129,11 @@ The simulation uses a **Web Worker** to run physics calculations in a separate t
 - **Performance**: Frustum culling for off-screen particles; 50,000 random walk steps per batch in worker
 - **Spawn/Kill radius**: Particles spawn at `maxRadius + 40` pixels and are killed if they wander beyond `maxRadius + 80` pixels
 - **Background execution**: Web Worker continues simulation even when the browser tab is inactive
+- **Audio synthesis**: [Karplus-Strong algorithm](https://en.wikipedia.org/wiki/Karplus%E2%80%93Strong_string_synthesis) generates pluck sounds using Web Audio API
+  - Delay line initialized with white noise burst
+  - Low-pass averaging filter with decay creates string-like timbre
+  - Position-based frequency and volume mapping for spatial audio effect
+- **Settings persistence**: All user preferences stored in localStorage
 
 ## HUD Display
 
