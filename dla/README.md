@@ -22,7 +22,7 @@ Simply open `index.html` in any modern web browser. No server or build step requ
 
 - `index.html` — Main page with UI, rendering, and camera controls
 - `dla-worker.js` — Web Worker with all simulation logic
-- `dla-sound.js` — Karplus-Strong sound synthesis module
+- `dla-sound.js` — FM synthesis sound module
 
 ## Controls
 
@@ -44,10 +44,14 @@ Simply open `index.html` in any modern web browser. No server or build step requ
 
 ### Sound
 
-Each particle that sticks to the cluster produces a pluck sound using **Karplus-Strong string synthesis**:
+Each particle that sticks to the cluster produces a short **FM synthesis** tone:
 
-- **X position** controls **pitch**: Center (x=0) = 440 Hz. Moving right increases frequency, left decreases it.
+- **X position** controls **pitch**: Center (x=0) = 660 Hz. Moving right increases frequency, left decreases it.
 - **Y position** controls **volume**: Top = quieter, bottom = louder.
+
+#### What is FM Synthesis?
+
+FM (Frequency Modulation) synthesis creates sound by modulating one oscillator's frequency with another. Using a non-integer frequency ratio (2.5) produces inharmonic, metallic/glassy timbres. Combined with a very fast envelope (5ms attack, exponential decay), this creates short percussive sounds reminiscent of bells, chimes, or glass.
 
 #### Sound Settings
 
@@ -129,10 +133,11 @@ The simulation uses a **Web Worker** to run physics calculations in a separate t
 - **Performance**: Frustum culling for off-screen particles; 50,000 random walk steps per batch in worker
 - **Spawn/Kill radius**: Particles spawn at `maxRadius + 40` pixels and are killed if they wander beyond `maxRadius + 80` pixels
 - **Background execution**: Web Worker continues simulation even when the browser tab is inactive
-- **Audio synthesis**: [Karplus-Strong algorithm](https://en.wikipedia.org/wiki/Karplus%E2%80%93Strong_string_synthesis) generates pluck sounds using Web Audio API
-  - Delay line initialized with white noise burst
-  - Low-pass averaging filter with decay creates string-like timbre
-  - Position-based frequency and volume mapping for spatial audio effect
+- **Audio synthesis**: [FM synthesis](https://en.wikipedia.org/wiki/Frequency_modulation_synthesis) generates metallic/glassy tones using Web Audio API
+  - Carrier frequency modulated by a second oscillator (ratio 2.5, index 3.0)
+  - Very short envelope (5ms attack, fast exponential decay) for percussive feel
+  - X position controls carrier frequency (pitch)
+  - Y position controls volume for spatial audio effect
 - **Settings persistence**: All user preferences stored in localStorage
 
 ## HUD Display

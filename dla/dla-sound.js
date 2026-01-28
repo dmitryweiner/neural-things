@@ -1,10 +1,17 @@
-// dla-sound.js - Karplus-Strong sound synthesis module
-// Based on https://en.wikipedia.org/wiki/Karplus%E2%80%93Strong_string_synthesis
+// dla-sound.js - FM Synthesis sound module
+// Short metallic/glassy sounds using frequency modulation
 
 const DLASound = {
   audioCtx: null,
   lastSoundTime: 0,
   THROTTLE_MS: 80, // Minimum time between sounds to prevent crackling
+  
+  // FM Synthesis parameters
+  FM_RATIO: 2.5,           // Modulator/carrier frequency ratio (non-integer = inharmonic/metallic)
+  FM_INDEX: 3.0,           // Modulation index (higher = more harmonics/brightness)
+  DURATION: 0.15,          // Very short duration for percussive feel
+  ATTACK: 0.005,           // 5ms attack
+  DECAY: 0.145,            // Rest is decay
   
   // Configurable settings (synced from main settings)
   settings: {
@@ -34,71 +41,57 @@ const DLASound = {
   },
   
   /**
-   * Create a Karplus-Strong pluck sound buffer
-   * @param {number} frequency - Frequency in Hz
+   * Create an FM synthesis buffer
+   * FM formula: output = sin(2π * fc * t + I * sin(2π * fm * t))
+   * where fc = carrier freq, fm = modulator freq, I = modulation index
+   * 
+   * @param {number} carrierFreq - Carrier frequency in Hz
    * @param {number} duration - Duration in seconds
    * @returns {AudioBuffer|null}
    */
-  createKSBuffer(frequency, duration = 0.5) {
+  createFMBuffer(carrierFreq, duration) {
     if (!this.audioCtx) return null;
     
     const sampleRate = this.audioCtx.sampleRate;
     const samples = Math.ceil(sampleRate * duration);
-    const period = Math.max(2, Math.round(sampleRate / frequency));
     const buffer = this.audioCtx.createBuffer(1, samples, sampleRate);
     const data = buffer.getChannelData(0);
     
-    // Use a ring buffer for the delay line
-    const delayLine = new Float32Array(period);
+    const fc = carrierFreq;
+    const fm = carrierFreq * this.FM_RATIO; // Modulator frequency
+    const I = this.FM_INDEX;                 // Modulation index
     
-    // Initialize delay line with filtered noise (less harsh)
-    let prev = 0;
-    for (let i = 0; i < period; i++) {
-      // Low-pass filtered noise for softer attack
-      const noise = Math.random() * 2 - 1;
-      delayLine[i] = 0.5 * noise + 0.5 * prev;
-      prev = delayLine[i];
-    }
+    const attackSamples = Math.floor(this.ATTACK * sampleRate);
+    const decaySamples = samples - attackSamples;
     
-    // Karplus-Strong synthesis with proper feedback
-    let readPos = 0;
-    const decay = 0.995; // Decay factor
-    const blend = 0.5;   // Low-pass blend (classic KS uses 0.5)
+    const twoPi = 2 * Math.PI;
     
     for (let i = 0; i < samples; i++) {
-      // Read current sample
-      const current = delayLine[readPos];
+      const t = i / sampleRate;
       
-      // Calculate next position with wrapping
-      const nextPos = (readPos + 1) % period;
+      // FM synthesis
+      const modulator = Math.sin(twoPi * fm * t);
+      const carrier = Math.sin(twoPi * fc * t + I * modulator);
       
-      // Low-pass filter (averaging) + decay
-      const filtered = decay * (blend * current + (1 - blend) * delayLine[nextPos]);
-      
-      // Write back to delay line
-      delayLine[readPos] = filtered;
-      
-      // Output with soft envelope to avoid clicks
-      let envelope = 1.0;
-      const fadeIn = 50;   // samples
-      const fadeOut = 500; // samples
-      if (i < fadeIn) {
-        envelope = i / fadeIn;
-      } else if (i > samples - fadeOut) {
-        envelope = (samples - i) / fadeOut;
+      // Envelope: fast attack, exponential decay
+      let envelope;
+      if (i < attackSamples) {
+        // Linear attack
+        envelope = i / attackSamples;
+      } else {
+        // Exponential decay
+        const decayPos = (i - attackSamples) / decaySamples;
+        envelope = Math.exp(-decayPos * 6); // Fast exponential decay
       }
       
-      data[i] = current * envelope;
-      
-      // Advance read position
-      readPos = nextPos;
+      data[i] = carrier * envelope;
     }
     
     return buffer;
   },
   
   /**
-   * Play a stick sound based on particle position
+   * Play an FM sound based on particle position
    * @param {number} x - X coordinate of the particle
    * @param {number} y - Y coordinate of the particle
    * @param {number} maxRadius - Current max radius of the cluster (for normalization)
@@ -114,23 +107,23 @@ const DLASound = {
     // Use maxRadius for normalization, with a minimum to avoid division issues
     const radius = Math.max(maxRadius, 50);
     
-    // x -> frequency: center=440Hz, left=lower, right=higher
-    // pitchCoeff controls the range (1.0 = 2 octaves: 220-880 Hz)
+    // x -> carrier frequency: center=660Hz, left=lower (~220Hz), right=higher (~2000Hz)
+    // pitchCoeff controls the range
     const normalizedX = Math.max(-1, Math.min(1, x / radius));
-    const pitchRange = this.settings.pitchCoeff; // How many octaves to span
-    const frequency = 440 * Math.pow(2, normalizedX * pitchRange); // Base 440Hz
+    const pitchRange = this.settings.pitchCoeff;
+    const carrierFreq = 660 * Math.pow(2, normalizedX * 1.5 * pitchRange); // ~220-2000 Hz range
     
     // y -> volume: top (negative y) = quieter, bottom (positive y) = louder
     // volumeCoeff controls the sensitivity
     const normalizedY = Math.max(-1, Math.min(1, y / radius));
     const volumeRange = this.settings.volumeCoeff;
-    const baseGain = 0.1 + (normalizedY + 1) * 0.35 * volumeRange; // 0.1 to variable max
+    const baseGain = 0.1 + (normalizedY + 1) * 0.35 * volumeRange;
     
     // Apply master volume
     const finalGain = Math.min(1.0, baseGain * this.settings.masterVolume * 2);
     
     // Create and play the sound
-    const buffer = this.createKSBuffer(frequency, 0.3);
+    const buffer = this.createFMBuffer(carrierFreq, this.DURATION);
     if (!buffer) return;
     
     const source = this.audioCtx.createBufferSource();
