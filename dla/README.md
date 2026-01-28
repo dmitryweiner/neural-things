@@ -133,11 +133,12 @@ The simulation uses a **Web Worker** to run physics calculations in a separate t
 - **Performance**: Frustum culling for off-screen particles; 50,000 random walk steps per batch in worker
 - **Spawn/Kill radius**: Particles spawn at `maxRadius + 40` pixels and are killed if they wander beyond `maxRadius + 80` pixels
 - **Background execution**: Web Worker continues simulation even when the browser tab is inactive
-- **Audio synthesis**: [FM synthesis](https://en.wikipedia.org/wiki/Frequency_modulation_synthesis) generates metallic/glassy tones using Web Audio API
-  - Carrier frequency modulated by a second oscillator (ratio 2.5, index 3.0)
-  - Very short envelope (5ms attack, fast exponential decay) for percussive feel
+- **Audio synthesis**: [FM synthesis](https://en.wikipedia.org/wiki/Frequency_modulation_synthesis) generates metallic/glassy clicks using Web Audio API
+  - Real-time oscillator modulation (carrier + modulator)
+  - Very short envelope (2ms attack, 80-120ms exponential decay) for thin clicks
   - X position controls carrier frequency (pitch)
-  - Y position controls volume for spatial audio effect
+  - Y position controls modulator ratio and volume
+  - Distance from center controls modulation depth and decay time
 - **Settings persistence**: All user preferences stored in localStorage
 
 ## HUD Display

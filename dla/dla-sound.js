@@ -1,17 +1,11 @@
 // dla-sound.js - FM Synthesis sound module
-// Short metallic/glassy sounds using frequency modulation
+// High thin clicks for particle sticking sounds
+// Based on real-time oscillator FM synthesis
 
 const DLASound = {
   audioCtx: null,
   lastSoundTime: 0,
   THROTTLE_MS: 80, // Minimum time between sounds to prevent crackling
-  
-  // FM Synthesis parameters
-  FM_RATIO: 2.5,           // Modulator/carrier frequency ratio (non-integer = inharmonic/metallic)
-  FM_INDEX: 3.0,           // Modulation index (higher = more harmonics/brightness)
-  DURATION: 0.15,          // Very short duration for percussive feel
-  ATTACK: 0.005,           // 5ms attack
-  DECAY: 0.145,            // Rest is decay
   
   // Configurable settings (synced from main settings)
   settings: {
@@ -41,57 +35,61 @@ const DLASound = {
   },
   
   /**
-   * Create an FM synthesis buffer
-   * FM formula: output = sin(2π * fc * t + I * sin(2π * fm * t))
-   * where fc = carrier freq, fm = modulator freq, I = modulation index
-   * 
+   * Play FM synthesis sound
    * @param {number} carrierFreq - Carrier frequency in Hz
-   * @param {number} duration - Duration in seconds
-   * @returns {AudioBuffer|null}
+   * @param {number} modRatio - Modulator/carrier frequency ratio
+   * @param {number} modIndex - Modulation depth
+   * @param {number} attack - Attack time in ms
+   * @param {number} decay - Decay time in ms
+   * @param {number} volume - Volume 0-1
    */
-  createFMBuffer(carrierFreq, duration) {
-    if (!this.audioCtx) return null;
+  playFM(carrierFreq, modRatio, modIndex, attack, decay, volume) {
+    if (!this.audioCtx) return;
     
-    const sampleRate = this.audioCtx.sampleRate;
-    const samples = Math.ceil(sampleRate * duration);
-    const buffer = this.audioCtx.createBuffer(1, samples, sampleRate);
-    const data = buffer.getChannelData(0);
+    const ctx = this.audioCtx;
+    const now = ctx.currentTime;
     
-    const fc = carrierFreq;
-    const fm = carrierFreq * this.FM_RATIO; // Modulator frequency
-    const I = this.FM_INDEX;                 // Modulation index
+    // Create oscillators
+    const modulator = ctx.createOscillator();
+    const carrier = ctx.createOscillator();
     
-    const attackSamples = Math.floor(this.ATTACK * sampleRate);
-    const decaySamples = samples - attackSamples;
+    // Create gain nodes
+    const modulationGain = ctx.createGain();
+    const envelopeGain = ctx.createGain();
     
-    const twoPi = 2 * Math.PI;
+    // Configure modulator
+    modulator.frequency.value = carrierFreq * modRatio;
+    modulationGain.gain.value = modIndex * carrierFreq;
     
-    for (let i = 0; i < samples; i++) {
-      const t = i / sampleRate;
-      
-      // FM synthesis
-      const modulator = Math.sin(twoPi * fm * t);
-      const carrier = Math.sin(twoPi * fc * t + I * modulator);
-      
-      // Envelope: fast attack, exponential decay
-      let envelope;
-      if (i < attackSamples) {
-        // Linear attack
-        envelope = i / attackSamples;
-      } else {
-        // Exponential decay
-        const decayPos = (i - attackSamples) / decaySamples;
-        envelope = Math.exp(-decayPos * 6); // Fast exponential decay
-      }
-      
-      data[i] = carrier * envelope;
-    }
+    // Configure carrier
+    carrier.frequency.value = carrierFreq;
+    carrier.type = 'sine';
+    modulator.type = 'sine';
     
-    return buffer;
+    // Connect modulation: modulator -> modulationGain -> carrier.frequency
+    modulator.connect(modulationGain);
+    modulationGain.connect(carrier.frequency);
+    
+    // Configure envelope (attack + exponential decay)
+    envelopeGain.gain.setValueAtTime(0, now);
+    envelopeGain.gain.linearRampToValueAtTime(volume, now + attack / 1000);
+    envelopeGain.gain.exponentialRampToValueAtTime(0.001, now + attack / 1000 + decay / 1000);
+    
+    // Connect to output: carrier -> envelope -> destination
+    carrier.connect(envelopeGain);
+    envelopeGain.connect(ctx.destination);
+    
+    // Start and schedule stop
+    modulator.start(now);
+    carrier.start(now);
+    
+    const totalDuration = (attack + decay + 100) / 1000;
+    modulator.stop(now + totalDuration);
+    carrier.stop(now + totalDuration);
   },
   
   /**
-   * Play an FM sound based on particle position
+   * Play a sound based on particle position
    * @param {number} x - X coordinate of the particle
    * @param {number} y - Y coordinate of the particle
    * @param {number} maxRadius - Current max radius of the cluster (for normalization)
@@ -107,33 +105,30 @@ const DLASound = {
     // Use maxRadius for normalization, with a minimum to avoid division issues
     const radius = Math.max(maxRadius, 50);
     
-    // x -> carrier frequency: center=660Hz, left=lower (~220Hz), right=higher (~2000Hz)
-    // pitchCoeff controls the range
-    const normalizedX = Math.max(-1, Math.min(1, x / radius));
-    const pitchRange = this.settings.pitchCoeff;
-    const carrierFreq = 660 * Math.pow(2, normalizedX * 1.5 * pitchRange); // ~220-2000 Hz range
+    // Normalize coordinates to 0-1 range
+    const normalizedX = (x / radius + 1) / 2; // 0 (left) to 1 (right)
+    const normalizedY = (y / radius + 1) / 2; // 0 (top) to 1 (bottom)
+    const distance = Math.min(1, Math.sqrt(x * x + y * y) / radius);
     
-    // y -> volume: top (negative y) = quieter, bottom (positive y) = louder
-    // volumeCoeff controls the sensitivity
-    const normalizedY = Math.max(-1, Math.min(1, y / radius));
-    const volumeRange = this.settings.volumeCoeff;
-    const baseGain = 0.1 + (normalizedY + 1) * 0.35 * volumeRange;
+    // Carrier frequency depends on X position (with pitchCoeff multiplier)
+    // Range: 800-2000 Hz base, wider with higher pitchCoeff
+    const freqRange = 600 * this.settings.pitchCoeff;
+    const carrierFreq = 1000 + (normalizedX - 0.5) * freqRange * 2 + Math.random() * 200;
     
-    // Apply master volume
-    const finalGain = Math.min(1.0, baseGain * this.settings.masterVolume * 2);
+    // Modulator ratio depends on Y (2-3 range)
+    const modRatio = 2 + normalizedY;
     
-    // Create and play the sound
-    const buffer = this.createFMBuffer(carrierFreq, this.DURATION);
-    if (!buffer) return;
+    // Modulation index depends on distance from center (2-5 range)
+    const modIndex = 2 + distance * 3;
     
-    const source = this.audioCtx.createBufferSource();
-    source.buffer = buffer;
+    // Envelope
+    const attack = 2; // 2ms - very fast attack
+    const decay = 80 + distance * 40; // 80-120ms depending on distance
     
-    const gainNode = this.audioCtx.createGain();
-    gainNode.gain.value = finalGain;
+    // Volume based on Y position and settings
+    const baseVolume = 0.15 + normalizedY * 0.25 * this.settings.volumeCoeff;
+    const finalVolume = Math.min(1.0, baseVolume * this.settings.masterVolume * 2);
     
-    source.connect(gainNode);
-    gainNode.connect(this.audioCtx.destination);
-    source.start();
+    this.playFM(carrierFreq, modRatio, modIndex, attack, decay, finalVolume);
   },
 };
