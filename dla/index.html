@@ -668,7 +668,7 @@
     }
 
     // ====== Simulation State (render only) ======
-    let points = [];          // stuck particles { x, y, c }
+    let points = [];          // stuck particles { x, y, c, parent }
     let stuckCount = 0;
     let maxRadius = 0;
 
@@ -681,9 +681,9 @@
     worker.onmessage = function(e) {
       const { type, data, stats } = e.data;
       if (type === 'particles') {
-        // Add new particles with colors and play sounds
+        // Add new particles with colors, parent link, and play sounds
         for (const p of data) {
-          points.push({ x: p.x, y: p.y, c: colorForIndex(p.index) });
+          points.push({ x: p.x, y: p.y, c: colorForIndex(p.index), parent: p.parent });
           // Play Karplus-Strong sound for each particle
           DLASound.play(p.x, p.y, maxRadius);
         }
@@ -741,6 +741,25 @@
 
       const r = Math.max(0.5, PARTICLE_RADIUS * 0.5);
       const PI2 = Math.PI * 2;
+      
+      // Draw lines to parent particles first (so circles appear on top)
+      ctx.lineWidth = r * 0.8;
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        if (p.parent < 0 || p.parent >= points.length) continue;
+        const parentPt = points[p.parent];
+        // Skip if both endpoints are outside view
+        const pInView = p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY;
+        const parentInView = parentPt.x >= minX && parentPt.x <= maxX && parentPt.y >= minY && parentPt.y <= maxY;
+        if (!pInView && !parentInView) continue;
+        ctx.strokeStyle = p.c;
+        ctx.beginPath();
+        ctx.moveTo(parentPt.x, parentPt.y);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+      }
+      
+      // Draw circles on top
       for (let i = 0; i < points.length; i++) {
         const p = points[i];
         if (p.x < minX || p.x > maxX || p.y < minY || p.y > maxY) continue;

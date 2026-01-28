@@ -8,9 +8,14 @@ In DLA simulation:
 1. A seed particle is placed at the center
 2. New particles spawn at a distance and perform a random walk
 3. When a walking particle touches the cluster, it sticks at the contact point based on adhesion probability
-4. The process repeats, growing intricate branching patterns
+4. Each particle remembers which particle it stuck to (its "parent")
+5. The process repeats, growing intricate branching patterns
 
 By adjusting directional adhesion probabilities, you can create symmetric "snowflake" patterns with 3-fold (120°) or 6-fold (60°) symmetry.
+
+### Visualization
+
+Particles are rendered as circles connected by line segments to their parent particles. Each line uses the color of the child particle, creating a tree-like structure that reveals the growth history of the fractal.
 
 ## How to Run
 
@@ -110,10 +115,10 @@ The simulation uses a **Web Worker** to run physics calculations in a separate t
 │  • Canvas render    │ start/  │  • Collision detect │
 │  • Camera/zoom      │ stop/   │  • Spatial hash     │
 │  • Color mapping    │ reset   │  • Adhesion logic   │
-│  • Audio (K-S)      │         │                     │
+│  • Audio (K-S)      │         │  • Parent tracking  │
 │                     │         │                     │
 │  points[] ◄─────────│ ◄────── │  Batched particles  │
-│  (for rendering)    │ (x,y,i) │  (50k steps/batch)  │
+│  (for rendering)    │(x,y,i,p)│  (50k steps/batch)  │
 └─────────────────────┘         └─────────────────────┘
 ```
 
@@ -126,10 +131,14 @@ The simulation uses a **Web Worker** to run physics calculations in a separate t
 ## Technical Details
 
 - **Coordinates**: Continuous (x, y) world coordinates — particles stick exactly where they touch
+- **Parent tracking**: Each particle stores the index of the particle it stuck to, forming a tree structure
 - **Spatial indexing**: Hash grid for fast neighbor lookup (in worker)
   - Numeric keys instead of strings to avoid allocations
+  - Stores `{ x, y, index }` for each particle to support parent tracking
   - Reusable buffer for neighbor queries (zero GC pressure in hot path)
 - **Rendering**: HTML5 Canvas with device pixel ratio support, 60 FPS
+  - Lines drawn between particles and their parents
+  - Line color matches the child particle's color
 - **Performance**: Frustum culling for off-screen particles; 50,000 random walk steps per batch in worker
 - **Spawn/Kill radius**: Particles spawn at `maxRadius + 40` pixels and are killed if they wander beyond `maxRadius + 80` pixels
 - **Background execution**: Web Worker continues simulation even when the browser tab is inactive

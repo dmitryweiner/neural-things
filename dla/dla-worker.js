@@ -37,10 +37,10 @@ function cellKey(x, y) {
   return cx * GRID_SIZE + cy;  // numeric key - no string allocation
 }
 
-function addToSpatialHash(x, y) {
+function addToSpatialHash(x, y, index) {
   const key = cellKey(x, y);
   if (!spatialHash.has(key)) spatialHash.set(key, []);
-  spatialHash.get(key).push({ x, y });
+  spatialHash.get(key).push({ x, y, index });
 }
 
 function getNearbyParticles(x, y, radius) {
@@ -92,13 +92,13 @@ function clamp01(x) {
   return Math.max(0, Math.min(1, x));
 }
 
-function stickParticle(x, y) {
-  addToSpatialHash(x, y);
+function stickParticle(x, y, parentIndex) {
   const index = stuckCount;
+  addToSpatialHash(x, y, index);
   stuckCount++;
   const dist = Math.hypot(x, y);
   maxRadius = Math.max(maxRadius, dist);
-  return { x, y, index };
+  return { x, y, index, parent: parentIndex };
 }
 
 function tryStickAt(x, y) {
@@ -115,7 +115,7 @@ function tryStickAt(x, y) {
         const stickDist = PARTICLE_RADIUS * 2;
         const stickX = particle.x + Math.cos(angle) * stickDist;
         const stickY = particle.y + Math.sin(angle) * stickDist;
-        return stickParticle(stickX, stickY);
+        return stickParticle(stickX, stickY, particle.index);
       }
     }
   }
@@ -128,8 +128,8 @@ function resetWorld() {
   stuckCount = 0;
   maxRadius = 0;
   
-  // First particle at center
-  const firstParticle = stickParticle(0, 0);
+  // First particle at center (no parent)
+  const firstParticle = stickParticle(0, 0, -1);
   self.postMessage({
     type: 'particles',
     data: [firstParticle],
