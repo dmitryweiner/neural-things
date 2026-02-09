@@ -287,6 +287,8 @@
   </style>
 </head>
 <body>
+<script src="../lib/nt-ui.js"></script>
+<script src="../lib/nt-audio.js"></script>
 
 <section class="topbar">
   <h2>Ultrasonic Sonogram</h2>
@@ -701,58 +703,10 @@
     return out;
   }
 
-  // --- Slider value formatting
-  function fmt(v, decimals = 0) {
-    v = Number(v);
-    if (decimals === 0) return String(Math.round(v));
-    return v.toFixed(decimals);
-  }
+  // --- Slider value formatting (from NT.ui)
+  const fmt = NT.ui.fmt;
 
-  // --- +/- Adjustment buttons (with hold-to-repeat)
-  let adjRepeatInterval = null;
-  const ADJ_REPEAT_DELAY = 150;
-
-  function adjustSlider(btn) {
-    const sliderId = btn.dataset.slider;
-    const dir = Number(btn.dataset.dir);
-    const slider = document.getElementById(sliderId);
-    if (!slider) return;
-    
-    const step = Number(slider.step) || 1;
-    const min = Number(slider.min);
-    const max = Number(slider.max);
-    let newVal = Number(slider.value) + dir * step;
-    newVal = Math.max(min, Math.min(max, newVal));
-    
-    slider.value = newVal;
-    slider.dispatchEvent(new Event('input', { bubbles: true }));
-  }
-
-  function stopAdjRepeat() {
-    if (adjRepeatInterval) {
-      clearInterval(adjRepeatInterval);
-      adjRepeatInterval = null;
-    }
-  }
-
-  function setupAdjustmentButtons(container) {
-    container.addEventListener('pointerdown', (e) => {
-      const btn = e.target.closest('.adj-btn');
-      if (!btn) return;
-      
-      e.preventDefault();
-      stopAdjRepeat();
-      
-      adjustSlider(btn);
-      adjRepeatInterval = setInterval(() => adjustSlider(btn), ADJ_REPEAT_DELAY);
-    });
-
-    container.addEventListener('pointerup', stopAdjRepeat);
-    container.addEventListener('pointerleave', stopAdjRepeat);
-    container.addEventListener('pointercancel', stopAdjRepeat);
-  }
-
-  document.addEventListener('pointerup', stopAdjRepeat);
+  // --- +/- Adjustment buttons (from NT.ui)
 
   // --- Slider value display updates
   const sliderConfigs = {
@@ -777,7 +731,7 @@
   }
 
   // --- Settings panel
-  setupAdjustmentButtons($("settingsPanel"));
+  NT.ui.setupAdjustmentButtons($("settingsPanel"));
 
   // --- Panel toggles
   const settingsPanel = $("settingsPanel");
@@ -1238,9 +1192,7 @@
         }
         registerProcessor('tap-processor', TapProcessor);
       `;
-      const blob = new Blob([workletCode], { type: "application/javascript" });
-      const url = URL.createObjectURL(blob);
-      await audioCtx.audioWorklet.addModule(url);
+      await NT.audio.createWorkletFromCode(audioCtx, workletCode);
 
       micTap = new AudioWorkletNode(audioCtx, "tap-processor");
       micSource.connect(micTap);

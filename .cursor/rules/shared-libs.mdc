@@ -1,0 +1,166 @@
+---
+description: Shared libraries for Neural-Things projects. Apply when creating or editing any project in this workspace.
+globs: ["**/*.html", "**/*.js", "**/*.css"]
+alwaysApply: false
+---
+
+# Neural-Things Shared Libraries
+
+All projects in this workspace are **vanilla JS single-file apps** (no build step).
+Shared code lives in `lib/` and is loaded via `<link>` / `<script src>` tags.
+
+## Library Overview
+
+| File | Namespace | Purpose |
+|------|-----------|---------|
+| `lib/nt-ui.css` | CSS classes & variables | Dark theme tokens, toggle button, collapsible panel, slider `.ctrl` grid, `.adj-btn` |
+| `lib/nt-ui.js` | `NT.ui` | DOM helpers (`$`, `$$`), `fmt()`, `createToggleButton()`, `createCollapsiblePanel()`, `setupAdjustmentButtons()` |
+| `lib/nt-audio.js` | `NT.audio` | `createContext()`, `createWorkletFromCode()`, `encodeWAV()`, `wakeLock` |
+| `lib/nt-canvas.js` | `NT.canvas` | `resizeCanvas()`, `getSpectroColor()`, `createAnimationLoop()` |
+
+## When to Use Each Library
+
+### nt-ui.css — Always include for dark-theme projects
+
+Include as the **first** stylesheet so project-specific `<style>` can override:
+
+```html
+<link rel="stylesheet" href="../lib/nt-ui.css">
+<style>
+  /* project-specific overrides here */
+</style>
+```
+
+**Skip** for light-theme projects (e.g. sonar). They keep their own CSS.
+
+Provides:
+- CSS custom properties (`--nt-bg`, `--nt-border`, `--nt-text`, `--nt-green`, etc.)
+- `.nt-toggle-btn` / `.nt-toggle-btn.running` — start/stop button (green idle, orange running)
+- `.nt-collapse-btn` / `.nt-collapse-btn.active` — pill-shaped toggle
+- `.nt-panel` / `.nt-panel.open` — collapsible panel
+- `.ctrl` / `.ctrl.with-adj` — slider control grid (label | [−] | range | [+] | value)
+- `.adj-btn` — plus/minus adjustment buttons
+- `.small` — muted helper text
+- `.nt-card`, `.nt-canvas-wrap`, `.nt-sep`, `.nt-row`, `.nt-btn-group`, `.nt-topbar`, `.nt-footer`
+
+### nt-ui.js — Always include
+
+```html
+<script src="../lib/nt-ui.js"></script>
+```
+
+Usage:
+```js
+const $ = NT.ui.$;           // querySelector shorthand
+const fmt = NT.ui.fmt;       // smart number formatting
+
+// fmt() auto mode: >=100 → integer, >=10 → 2 dec, else 3 dec
+fmt(1234);      // "1234"
+fmt(42.567);    // "42.57"
+fmt(3.14159);   // "3.142"
+
+// fmt() fixed-decimals mode:
+fmt(19000, 0);  // "19000"
+fmt(0.35, 2);   // "0.35"
+
+// Start/Stop toggle button
+NT.ui.createToggleButton(el, {
+  onStart: () => startMyApp(),
+  onStop:  () => stopMyApp(),
+  startText: '▶ Start',   // optional
+  stopText:  '⏹ Stop',    // optional
+});
+
+// Collapsible panel
+NT.ui.createCollapsiblePanel(btnEl, panelEl, {
+  openClass: 'open',        // default; or useCollapsed: true for inverted logic
+  onToggle: (isOpen) => {},  // optional callback
+});
+
+// Hold-to-repeat +/- buttons (delegated inside a container)
+// Buttons must have: class="adj-btn" data-slider="<input-id>" data-dir="-1"|"1"
+NT.ui.setupAdjustmentButtons(container);
+```
+
+### nt-audio.js — Include when project uses Web Audio
+
+```html
+<script src="../lib/nt-audio.js"></script>
+```
+
+Usage:
+```js
+// Create AudioContext (handles iOS Safari suspended state)
+const ctx = await NT.audio.createContext({ latencyHint: 'interactive' });
+
+// Register AudioWorklet from inline code string
+await NT.audio.createWorkletFromCode(ctx, workletCodeString);
+const node = new AudioWorkletNode(ctx, 'my-processor');
+
+// Encode Float32Array → WAV Blob (16-bit PCM)
+const wavBlob = NT.audio.encodeWAV(samples, sampleRate);
+// With stereo:
+const wavBlob = NT.audio.encodeWAV(interleavedSamples, sampleRate, 2);
+
+// Screen Wake Lock (prevent sleep on mobile)
+await NT.audio.wakeLock.acquire();
+await NT.audio.wakeLock.release();
+NT.audio.wakeLock.isActive(); // boolean
+```
+
+### nt-canvas.js — Include when project renders to `<canvas>`
+
+```html
+<script src="../lib/nt-canvas.js"></script>
+```
+
+Usage:
+```js
+// DPR-aware canvas resize (call on init + window resize)
+NT.canvas.resizeCanvas(canvasEl);
+
+// Spectrogram color: value 0-255 → blue-to-red HSL string
+const color = NT.canvas.getSpectroColor(magnitude);
+
+// Managed rAF loop with page visibility handling
+const loop = NT.canvas.createAnimationLoop(() => {
+  // draw frame
+}, {
+  onVisibilityChange: (visible) => { /* optional */ }
+});
+loop.start();
+loop.stop();
+```
+
+## Decision Tree for New Projects
+
+1. **Is it a dark-themed visual/audio experiment?**
+   → Include `nt-ui.css` + `nt-ui.js`
+
+2. **Does it produce or capture audio?**
+   → Also include `nt-audio.js`
+
+3. **Does it render to `<canvas>`?**
+   → Also include `nt-canvas.js`
+
+4. **Does it have start/stop functionality?**
+   → Use `.nt-toggle-btn` class + `NT.ui.createToggleButton()`
+
+5. **Does it have settings / config panels?**
+   → Use `.nt-panel` + `NT.ui.createCollapsiblePanel()`
+
+6. **Does it have range sliders with +/- buttons?**
+   → Use `.ctrl.with-adj` layout + `NT.ui.setupAdjustmentButtons()`
+
+## Conventions
+
+- Load shared CSS **before** local `<style>` so project styles override shared ones.
+- Load shared scripts **before** the project's main `<script>`.
+- Create local aliases for frequently used helpers:
+  ```js
+  const $ = NT.ui.$;
+  const fmt = NT.ui.fmt;
+  ```
+- Use CSS custom properties (`--nt-*`) in project-specific styles for consistency.
+- Start/stop buttons MUST use `.running` class name (not `.playing` or other).
+- Keep project-specific logic in the project file; only extract truly reusable patterns to `lib/`.

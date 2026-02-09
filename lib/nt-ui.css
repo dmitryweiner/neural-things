@@ -1,0 +1,300 @@
+/* ================================================================
+   NT-UI  –  Neural-Things shared UI styles
+   ================================================================
+   Include via:  <link rel="stylesheet" href="../lib/nt-ui.css">
+   Projects may override any variable or class below.
+   ================================================================ */
+
+/* ---------- Theme tokens (dark) ---------- */
+:root {
+  --nt-bg:          #0b0f14;
+  --nt-bg-panel:    #0d131b;
+  --nt-bg-input:    #0f1b29;
+  --nt-bg-inset:    #0b1119;
+  --nt-bg-canvas:   #060a0f;
+  --nt-border:      #1d2a3a;
+  --nt-border-light:rgba(255,255,255,0.12);
+  --nt-text:        #e8eef6;
+  --nt-text-dim:    #9fb6d3;
+  --nt-text-muted:  #7a8fa6;
+  --nt-text-heading:#d9e7ff;
+  --nt-text-ctrl:   #cfe1ff;
+  --nt-accent:      #1d3557;
+  --nt-accent-hover:#2a4a6f;
+  --nt-accent-active:#3d5a80;
+  --nt-green:       #27ae60;
+  --nt-green-hover: #2ecc71;
+  --nt-orange:      #e67e22;
+  --nt-orange-hover:#f39c12;
+  --nt-red:         #c0392b;
+  --nt-link:        #8ab4ff;
+  --nt-radius:      10px;
+  --nt-radius-lg:   14px;
+  --nt-shadow-card: 0 10px 24px rgba(0,0,0,0.25);
+  --nt-font:        system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+
+  font-family: var(--nt-font);
+  color-scheme: dark;
+}
+
+/* ---------- Base reset ---------- */
+body.nt-dark {
+  margin: 0;
+  background: var(--nt-bg);
+  color: var(--nt-text);
+}
+
+/* ---------- Buttons (base) ---------- */
+button.nt-btn,
+.nt-btn {
+  background: var(--nt-accent);
+  color: #fff;
+  border: 0;
+  padding: 9px 11px;
+  border-radius: var(--nt-radius);
+  cursor: pointer;
+  font-weight: 650;
+  font-size: inherit;
+  line-height: 1.2;
+}
+.nt-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.nt-btn:hover:not(:disabled) {
+  background: var(--nt-accent-hover);
+}
+.nt-btn.active {
+  background: var(--nt-accent-active);
+}
+
+/* ---------- Toggle (Start / Stop) button ---------- */
+.nt-toggle-btn {
+  background: var(--nt-green);
+  color: #fff;
+  border: 0;
+  padding: 9px 11px;
+  border-radius: var(--nt-radius);
+  cursor: pointer;
+  font-weight: 650;
+  box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+}
+.nt-toggle-btn:hover:not(:disabled) {
+  background: var(--nt-green-hover);
+}
+.nt-toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.nt-toggle-btn.running {
+  background: var(--nt-orange);
+  box-shadow: 0 2px 8px rgba(230, 126, 34, 0.3);
+}
+.nt-toggle-btn.running:hover:not(:disabled) {
+  background: var(--nt-orange-hover);
+}
+
+/* ---------- Collapse button (pill) ---------- */
+.nt-collapse-btn {
+  background: var(--nt-bg-input);
+  border: 1px solid var(--nt-border);
+  color: var(--nt-text-ctrl);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.nt-collapse-btn:hover {
+  background: var(--nt-accent);
+}
+.nt-collapse-btn.active {
+  background: var(--nt-accent);
+  border-color: var(--nt-accent-active);
+}
+
+/* ---------- Collapsible panel ---------- */
+.nt-panel {
+  margin-top: 10px;
+  border: 1px solid var(--nt-border);
+  border-radius: var(--nt-radius-lg);
+  padding: 12px;
+  background: var(--nt-bg-inset);
+  display: none;
+}
+.nt-panel.open {
+  display: block;
+}
+
+/* Variant: collapse by content body */
+.nt-panel-body.collapsed {
+  display: none;
+}
+
+/* ---------- Slider control row ---------- */
+.ctrl {
+  display: grid;
+  grid-template-columns: 130px 1fr 70px;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+}
+.ctrl.with-adj {
+  grid-template-columns: 130px auto 1fr auto 70px;
+  gap: 6px;
+}
+.ctrl:first-child {
+  margin-top: 0;
+}
+.ctrl label {
+  font-size: 12px;
+  color: var(--nt-text-ctrl);
+}
+.ctrl input[type="range"] {
+  width: 100%;
+}
+.ctrl .small,
+.small {
+  font-size: 11px;
+  color: var(--nt-text-dim);
+}
+
+/* ---------- Adjustment +/- buttons ---------- */
+.adj-btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: var(--nt-bg-input);
+  border: 1px solid var(--nt-border);
+  border-radius: 6px;
+  color: var(--nt-text-ctrl);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  touch-action: manipulation;
+  user-select: none;
+}
+.adj-btn:hover {
+  background: var(--nt-accent);
+  border-color: var(--nt-accent-active);
+}
+.adj-btn:active {
+  background: var(--nt-green);
+}
+
+/* ---------- Recording pulse ---------- */
+.nt-rec-btn.recording {
+  background: var(--nt-red);
+  animation: nt-pulse-rec 1s infinite;
+}
+@keyframes nt-pulse-rec {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ---------- Common form elements ---------- */
+.nt-select,
+select {
+  background: var(--nt-bg-input);
+  color: var(--nt-text);
+  border: 1px solid var(--nt-border);
+  border-radius: var(--nt-radius);
+  padding: 8px 10px;
+}
+
+/* ---------- Card / panel ---------- */
+.nt-card {
+  background: var(--nt-bg-panel);
+  border: 1px solid var(--nt-border);
+  border-radius: var(--nt-radius-lg);
+  padding: 14px;
+  box-shadow: var(--nt-shadow-card);
+}
+
+/* ---------- Canvas wrapper ---------- */
+.nt-canvas-wrap {
+  position: relative;
+  border: 1px solid var(--nt-border);
+  border-radius: 12px;
+  background: var(--nt-bg-canvas);
+  padding: 8px;
+}
+
+/* ---------- Separator ---------- */
+.nt-sep,
+.sep {
+  height: 1px;
+  background: var(--nt-border);
+  margin: 10px 0;
+}
+
+/* ---------- Layout helpers ---------- */
+.nt-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.nt-btn-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ---------- Topbar ---------- */
+.nt-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--nt-bg-panel);
+  border-bottom: 1px solid var(--nt-border);
+  padding: 12px 14px;
+}
+.nt-topbar h1,
+.nt-topbar h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 750;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ---------- Footer ---------- */
+.nt-footer {
+  margin-top: 40px;
+  padding: 20px 14px;
+  border-top: 1px solid var(--nt-border);
+  text-align: center;
+  font-size: 12px;
+  color: var(--nt-text-muted);
+}
+.nt-footer a {
+  color: var(--nt-link);
+  text-decoration: none;
+}
+.nt-footer a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Status text ---------- */
+.nt-status {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--nt-text-muted);
+}
+
+/* ---------- Mobile ---------- */
+@media (max-width: 600px) {
+  .ctrl {
+    grid-template-columns: 90px 1fr 45px;
+  }
+  .ctrl.with-adj {
+    grid-template-columns: 90px auto 1fr auto 45px;
+  }
+}
