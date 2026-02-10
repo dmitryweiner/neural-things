@@ -45,6 +45,7 @@
       <h2>Camera</h2>
       <div class="nt-row">
         <button id="btnCam" class="nt-toggle-btn"></button>
+        <button id="btnFlipCam" class="nt-btn" title="Switch front/rear camera">&#x1f504;</button>
       </div>
       <canvas id="cv" width="256" height="256"></canvas>
       <video id="vid" playsinline muted></video>
@@ -211,6 +212,7 @@
   const W = cv.width, H = cv.height;  // 256 × 256
 
   let stream = null;
+  let facingMode = 'environment';  // 'environment' = rear, 'user' = front
   const luma     = new Float32Array(W * H);
   const lumaBlur = new Float32Array(W * H);
 
@@ -286,7 +288,7 @@
       stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
-          facingMode: { ideal: 'environment' },
+          facingMode: { ideal: facingMode },
           width: { ideal: 640 },
           height: { ideal: 480 },
         },
@@ -312,11 +314,22 @@
     camStatus.className = 'small warn';
   }
 
-  NT.ui.createToggleButton($('#btnCam'), {
+  const camToggle = NT.ui.createToggleButton($('#btnCam'), {
     onStart: startCamera,
     onStop:  stopCamera,
     startText: '\u25b6 Start Camera',
     stopText:  '\u23f9 Stop Camera',
+  });
+
+  // Flip front/rear camera
+  $('#btnFlipCam').addEventListener('click', async () => {
+    facingMode = (facingMode === 'environment') ? 'user' : 'environment';
+    if (camToggle.isRunning()) {
+      camLoop.stop();
+      vid.pause();
+      stopCameraStream();
+      await startCamera();
+    }
   });
 
   // ===========================================================
