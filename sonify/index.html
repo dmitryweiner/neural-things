@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Sonify — Camera to Sound</title>
+  <link rel="stylesheet" href="../lib/nt-ui.css">
+  <style>
+    body { padding: 12px; }
+    .split {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    @media (min-width: 860px) {
+      .split { grid-template-columns: 460px 1fr; align-items: start; }
+    }
+    #cv {
+      width: 100%;
+      max-width: 420px;
+      border-radius: 12px;
+      border: 1px solid var(--nt-border);
+      background: var(--nt-bg-canvas);
+      margin-top: 10px;
+    }
+    video { display: none; }
+    h2 { margin: 0 0 10px; font-size: 16px; color: var(--nt-text-heading); }
+    .section-gap { margin-top: 12px; }
+    .kv {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 4px 10px;
+      font-size: 12px;
+    }
+    .kv div:nth-child(odd) { color: var(--nt-text-muted); }
+    .warn { color: var(--nt-orange); }
+    .ok  { color: var(--nt-green); }
+  </style>
+</head>
+<body class="nt-dark">
+
+  <div class="split">
+    <!-- ========== Camera ========== -->
+    <div class="nt-card">
+      <h2>Camera</h2>
+      <div class="nt-row">
+        <button id="btnCam" class="nt-toggle-btn"></button>
+      </div>
+      <canvas id="cv" width="256" height="256"></canvas>
+      <video id="vid" playsinline muted></video>
+      <div class="small" style="margin-top:10px">
+        Tip: on iOS, sound can only start after a button tap (user gesture).
+      </div>
+      <div id="camStatus" class="small" style="margin-top:6px"></div>
+    </div>
+
+    <!-- ========== Sonification ========== -->
+    <div class="nt-card">
+      <h2>Sonification</h2>
+
+      <!-- Audio toggle -->
+      <div class="nt-row">
+        <button id="btnAudio" class="nt-toggle-btn"></button>
+        <span id="audioState" class="nt-status">audio: off</span>
+      </div>
+
+      <!-- Mode + action buttons -->
+      <div class="nt-row section-gap">
+        <select id="mode">
+          <option value="scan">Path scan</option>
+          <option value="spec">Spectrogram inversion</option>
+        </select>
+        <button id="btnFreeze" class="nt-btn">Freeze / Render</button>
+        <button id="btnRefine" class="nt-btn">Refine (GL &times;8)</button>
+        <button id="btnLoop" class="nt-btn">Loop: off</button>
+      </div>
+
+      <!-- Mode 1: Path scan settings -->
+      <div id="scanSection" class="section-gap">
+        <div class="nt-panel open">
+          <div class="nt-row" style="margin-bottom:8px">
+            <label class="small">Path</label>
+            <select id="pathType">
+              <option value="raster">Raster</option>
+              <option value="hilbert">Hilbert curve</option>
+            </select>
+            <label class="small">
+              <input id="preBlur" type="checkbox" checked /> Pre-blur
+            </label>
+          </div>
+          <div class="ctrl">
+            <label>Scan speed</label>
+            <input id="scanSpeed" type="range" min="500" max="300000" step="500" value="30000">
+            <span class="small" id="scanSpeedVal"></span>
+          </div>
+          <div class="ctrl">
+            <label>HPF</label>
+            <input id="hpf" type="range" min="0.90" max="0.9995" step="0.0005" value="0.995">
+            <span class="small" id="hpfVal"></span>
+          </div>
+          <div class="ctrl">
+            <label>AGC strength</label>
+            <input id="agc" type="range" min="0" max="1" step="0.01" value="0.6">
+            <span class="small" id="agcVal"></span>
+          </div>
+          <div class="ctrl">
+            <label>Drive</label>
+            <input id="drive" type="range" min="0.5" max="6" step="0.1" value="2.2">
+            <span class="small" id="driveVal"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode 2: Spectrogram settings -->
+      <div id="specSection" class="section-gap" style="display:none">
+        <div class="nt-panel open">
+          <div class="nt-row" style="margin-bottom:8px">
+            <label class="small">nFFT</label>
+            <select id="nfft">
+              <option value="512" selected>512 (fast)</option>
+              <option value="1024">1024 (better)</option>
+            </select>
+          </div>
+          <div class="ctrl">
+            <label>Range dB</label>
+            <input id="rangeDB" type="range" min="30" max="100" step="1" value="70">
+            <span class="small" id="rangeDBVal"></span>
+          </div>
+          <div class="ctrl">
+            <label>Gamma</label>
+            <input id="gamma" type="range" min="0.6" max="3" step="0.05" value="1.6">
+            <span class="small" id="gammaVal"></span>
+          </div>
+          <div class="small" style="margin-top:8px">
+            Press <b>Freeze / Render</b> to capture the current frame and synthesize audio
+            via iSTFT with random phase (X&nbsp;=&nbsp;time, Y&nbsp;=&nbsp;frequency).
+            Then press <b>Refine</b> to run 8 Griffin-Lim iterations for cleaner reconstruction.
+          </div>
+        </div>
+      </div>
+
+      <!-- Debug -->
+      <div class="section-gap">
+        <button id="btnDebugPanel" class="nt-collapse-btn">Debug</button>
+        <div id="debugPanel" class="nt-panel">
+          <div class="kv">
+            <div>Canvas</div><div id="dbgCanvas"></div>
+            <div>Stream</div><div id="dbgStream"></div>
+            <div>Audio SR</div><div id="dbgSR"></div>
+            <div>Ring fill</div><div id="dbgFill"></div>
+            <div>Mode</div><div id="dbgMode"></div>
+          </div>
+          <div class="small" style="margin-top:8px">
+            If you only hear silence: 1)&nbsp;check camera permission,
+            2)&nbsp;tap Start Audio after a user gesture,
+            3)&nbsp;try increasing Drive or AGC.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<!-- Shared libraries -->
+<script src="../lib/nt-ui.js"></script>
+<script src="../lib/nt-audio.js"></script>
+<script src="../lib/nt-canvas.js"></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = NT.ui.$;
+  const fmt = NT.ui.fmt;
+
+  // ===========================================================
+  // Helpers
+  // ===========================================================
+
+  const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+  const lerp  = (a, b, t) => a + (b - a) * t;
+  function softclip(x) { return x / (1 + Math.abs(x)); }
+
+  // ===========================================================
+  // Hilbert curve  (d2xy: 1-D distance → 2-D coordinates)
+  // ===========================================================
+
+  function d2xy(n, d) {
+    let x = 0, y = 0;
+    for (let s = 1; s < n; s *= 2) {
+      const rx = (d >> 1) & 1;
+      const ry = (d ^ rx) & 1;
+      if (ry === 0) {
+        if (rx === 1) { x = s - 1 - x; y = s - 1 - y; }
+        const t = x; x = y; y = t;
+      }
+      x += s * rx;
+      y += s * ry;
+      d >>= 2;
+    }
+    return [x, y];
+  }
+
+  // ===========================================================
+  // Canvas & Camera
+  // ===========================================================
+
+  const cv   = $('#cv');
+  const vid  = $('#vid');
+  const ctx2d = cv.getContext('2d', { willReadFrequently: true });
+  const W = cv.width, H = cv.height;  // 256 × 256
+
+  let stream = null;
+  const luma     = new Float32Array(W * H);
+  const lumaBlur = new Float32Array(W * H);
+
+  // Pre-compute scan paths (flat index into luma buffer)
+  const rasterOrder  = new Uint32Array(W * H);
+  for (let i = 0; i < W * H; i++) rasterOrder[i] = i;
+
+  const hilbertOrder = new Uint32Array(W * H);
+  for (let d = 0; d < W * H; d++) {
+    const [hx, hy] = d2xy(W, d);
+    hilbertOrder[d] = hy * W + hx;
+  }
+
+  function computeLuma(imgData) {
+    const d = imgData.data;
+    for (let i = 0, p = 0; i < luma.length; i++, p += 4) {
+      luma[i] = 0.2126 * d[p] / 255
+              + 0.7152 * d[p + 1] / 255
+              + 0.0722 * d[p + 2] / 255;
+    }
+  }
+
+  function blur3x3(src, dst, w, h) {
+    // Horizontal pass → dst
+    for (let y = 0; y < h; y++) {
+      const row = y * w;
+      for (let x = 0; x < w; x++) {
+        dst[row + x] = (src[row + (x - 1 + w) % w]
+                      + src[row + x]
+                      + src[row + (x + 1) % w]) / 3;
+      }
+    }
+    // Vertical pass → src (back in-place)
+    for (let x = 0; x < w; x++) {
+      for (let y = 0; y < h; y++) {
+        src[y * w + x] = (dst[((y - 1 + h) % h) * w + x]
+                        + dst[y * w + x]
+                        + dst[((y + 1) % h) * w + x]) / 3;
+      }
+    }
+  }
+
+  // Camera frame tick (called by animation loop)
+  function tickCam() {
+    const vw = vid.videoWidth || 1;
+    const vh = vid.videoHeight || 1;
+    const scale = Math.max(W / vw, H / vh);
+    const dw = vw * scale, dh = vh * scale;
+    ctx2d.drawImage(vid, (W - dw) / 2, (H - dh) / 2, dw, dh);
+
+    computeLuma(ctx2d.getImageData(0, 0, W, H));
+    if ($('#preBlur').checked) blur3x3(luma, lumaBlur, W, H);
+
+    $('#dbgCanvas').textContent = W + '\u00d7' + H;
+    $('#dbgStream').textContent = stream ? 'on' : 'off';
+  }
+
+  const camLoop   = NT.canvas.createAnimationLoop(tickCam);
+  const camStatus = $('#camStatus');
+
+  function stopCameraStream() {
+    if (stream) {
+      for (const t of stream.getTracks()) t.stop();
+      stream = null;
+    }
+  }
+
+  async function startCamera() {
+    try {
+      if (stream) stopCameraStream();
+      camStatus.textContent = 'Requesting camera\u2026';
+      camStatus.className = 'small';
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
+      });
+      vid.srcObject = stream;
+      await vid.play();
+      camLoop.start();
+      camStatus.textContent = 'Camera: OK';
+      camStatus.className = 'small ok';
+    } catch (e) {
+      stopCameraStream();
+      camStatus.textContent = 'Camera error: ' + (e.message || e);
+      camStatus.className = 'small warn';
+      throw e;
+    }
+  }
+
+  function stopCamera() {
+    camLoop.stop();
+    vid.pause();
+    stopCameraStream();
+    camStatus.textContent = 'Camera stopped.';
+    camStatus.className = 'small warn';
+  }
+
+  NT.ui.createToggleButton($('#btnCam'), {
+    onStart: startCamera,
+    onStop:  stopCamera,
+    startText: '\u25b6 Start Camera',
+    stopText:  '\u23f9 Stop Camera',
+  });
+
+  // ===========================================================
+  // AudioWorklet — ring-buffer player (runs in worklet thread)
+  // ===========================================================
+
+  const workletCode = `
+class RingPlayer extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.queue = [];
+    this.queueSamples = 0;
+    this.maxQueueSamples = 48000 * 2;
+    this.port.onmessage = (e) => {
+      const m = e.data;
+      if (m && m.type === 'push' && m.payload) {
+        this.queue.push(m.payload);
+        this.queueSamples += m.payload.length;
+        while (this.queueSamples > this.maxQueueSamples && this.queue.length > 1) {
+          this.queueSamples -= this.queue.shift().length;
+        }
+      } else if (m && m.type === 'clear') {
+        this.queue = [];
+        this.queueSamples = 0;
+      }
+    };
+    this.cur = null;
+    this.curPos = 0;
+    this._tick = 0;
+  }
+  process(inputs, outputs) {
+    const ch = outputs[0][0];
+    for (let i = 0; i < ch.length; i++) {
+      if (!this.cur || this.curPos >= this.cur.length) {
+        this.cur = this.queue.shift() || null;
+        this.curPos = 0;
+        if (this.cur) this.queueSamples -= this.cur.length;
+      }
+      ch[i] = this.cur ? this.cur[this.curPos++] : 0;
+    }
+    if (++this._tick % 50 === 0) {
+      this.port.postMessage({ type: 'fill', fill: this.queueSamples });
+    }
+    return true;
+  }
+}
+registerProcessor('ring-player', RingPlayer);
+`;
+
+  // ===========================================================
+  // Audio context & worklet lifecycle
+  // ===========================================================
+
+  let ac = null;
+  let workletNode = null;
+  let generatorTimer = null;
+
+  // Scan-mode state
+  let scanIndex = 0;
+  let prevV = 0;
+  let hpfY = 0;
+  let agcEnv = 1e-3;
+
+  // Spectrogram-mode state
+  let specRaw       = null;   // raw iSTFT signal (for GL refinement)
+  let specPCM       = null;   // post-processed signal (for playback)
+  let specAmplitude = null;   // A[t][f] matrix (for GL refinement)
+  let specPlayPos   = 0;
+  let loopEnabled   = false;
+
+  async function startAudio() {
+    try {
+      ac = await NT.audio.createContext({ latencyHint: 'interactive' });
+      $('#dbgSR').textContent = ac.sampleRate;
+
+      await NT.audio.createWorkletFromCode(ac, workletCode);
+      workletNode = new AudioWorkletNode(ac, 'ring-player', {
+        numberOfInputs: 0,
+        numberOfOutputs: 1,
+        outputChannelCount: [1],
+      });
+      workletNode.connect(ac.destination);
+
+      workletNode.port.onmessage = (e) => {
+        if (e.data && e.data.type === 'fill') {
+          $('#dbgFill').textContent = e.data.fill + ' samples';
+        }
+      };
+
+      $('#audioState').textContent = 'audio: on';
+      $('#audioState').className = 'nt-status ok';
+
+      generatorTimer = setInterval(generateAndPushAudio, 20);
+      NT.audio.wakeLock.acquire();
+    } catch (e) {
+      console.error(e);
+      stopAudioCleanup();
+      throw e;
+    }
+  }
+
+  function stopAudioCleanup() {
+    if (generatorTimer) { clearInterval(generatorTimer); generatorTimer = null; }
+    if (workletNode) {
+      try { workletNode.port.postMessage({ type: 'clear' }); } catch {}
+      try { workletNode.disconnect(); } catch {}
+      workletNode = null;
+    }
+    if (ac) { try { ac.close(); } catch {} ac = null; }
+    $('#audioState').textContent = 'audio: off';
+    $('#audioState').className = 'nt-status';
+    $('#dbgSR').textContent = '';
+    $('#dbgFill').textContent = '';
+  }
+
+  function stopAudio() {
+    stopAudioCleanup();
+    NT.audio.wakeLock.release();
+  }
+
+  NT.ui.createToggleButton($('#btnAudio'), {
+    onStart: startAudio,
+    onStop:  stopAudio,
+    startText: '\u25b6 Start Audio',
+    stopText:  '\u23f9 Stop Audio',
+  });
+
+  // ===========================================================
+  // Mode 1 — Path Scan sample generator
+  // ===========================================================
+
+  function nextScanSample() {
+    const pathArr = ($('#pathType').value === 'hilbert') ? hilbertOrder : rasterOrder;
+    const idx = (scanIndex | 0) % (W * H);
+    const v = luma[pathArr[idx]];
+
+    // DC-blocking high-pass: y[n] = x[n] - x[n-1] + a * y[n-1]
+    const a = Number($('#hpf').value);
+    hpfY = (v - prevV) + a * hpfY;
+    prevV = v;
+
+    // Drive
+    let s = hpfY * 8 * Number($('#drive').value);
+
+    // AGC envelope follower
+    const strength = Number($('#agc').value);
+    const envAlpha = 0.999;
+    agcEnv = Math.max(1e-4, envAlpha * agcEnv + (1 - envAlpha) * Math.abs(s));
+    if (strength > 0) s *= lerp(1, 0.25 / agcEnv, strength);
+
+    s = softclip(s);
+
+    // Advance scan position
+    scanIndex += Number($('#scanSpeed').value) / (ac ? ac.sampleRate : 48000);
+    return s;
+  }
+
+  // ===========================================================
+  // FFT  (radix-2, in-place, iterative)
+  // ===========================================================
+
+  function bitReversePermute(re, im) {
+    const n = re.length;
+    let j = 0;
+    for (let i = 0; i < n; i++) {
+      if (i < j) {
+        [re[i], re[j]] = [re[j], re[i]];
+        [im[i], im[j]] = [im[j], im[i]];
+      }
+      let m = n >> 1;
+      while (m >= 1 && j >= m) { j -= m; m >>= 1; }
+      j += m;
+    }
+  }
+
+  function fft(re, im) {
+    const n = re.length;
+    bitReversePermute(re, im);
+    for (let len = 2; len <= n; len <<= 1) {
+      const half = len >> 1;
+      const ang  = -2 * Math.PI / len;
+      for (let i = 0; i < n; i += len) {
+        for (let k = 0; k < half; k++) {
+          const c = Math.cos(ang * k), s = Math.sin(ang * k);
+          const p = i + k, q = p + half;
+          const tr = re[q] * c - im[q] * s;
+          const ti = re[q] * s + im[q] * c;
+          re[q] = re[p] - tr;  im[q] = im[p] - ti;
+          re[p] += tr;          im[p] += ti;
+        }
+      }
+    }
+  }
+
+  function ifft(re, im) {
+    const n = re.length;
+    for (let i = 0; i < n; i++) im[i] = -im[i];
+    fft(re, im);
+    for (let i = 0; i < n; i++) { re[i] /= n; im[i] = -im[i] / n; }
+  }
+
+  function hannWindow(N) {
+    const w = new Float32Array(N);
+    for (let i = 0; i < N; i++) w[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (N - 1)));
+    return w;
+  }
+
+  // ===========================================================
+  // Mode 2 — Spectrogram → Sound  (iSTFT + Griffin-Lim)
+  // ===========================================================
+
+  /** Build amplitude matrix A[t][f] from current luma snapshot. */
+  function buildAmplitudeMatrix() {
+    const N       = Number($('#nfft').value);
+    const F       = (N >> 1) + 1;
+    const frames  = W;
+    const rangeDB = Number($('#rangeDB').value);
+    const gamma   = Number($('#gamma').value);
+
+    const amp = [];
+    for (let t = 0; t < frames; t++) {
+      const col = new Float32Array(F);
+      for (let f = 0; f < F; f++) {
+        // Bottom of image = low frequency
+        const y  = Math.floor((1 - f / (F - 1)) * (H - 1));
+        const Y  = clamp(luma[y * W + t], 0, 1);
+        const Yn = Math.pow(Y, gamma);
+        const db = Yn * rangeDB - rangeDB;            // [−rangeDB … 0]
+        col[f]   = Math.pow(10, db / 20);
+      }
+      amp.push(col);
+    }
+    return amp;
+  }
+
+  /** Inverse STFT with random phase. Returns raw PCM. */
+  function istftRandomPhase(amp) {
+    const N     = Number($('#nfft').value);
+    const hop   = N >> 2;
+    const F     = (N >> 1) + 1;
+    const frames = amp.length;
+    const win   = hannWindow(N);
+
+    const outLen = frames * hop + N;
+    const out    = new Float32Array(outLen);
+    const winSum = new Float32Array(outLen);
+    const re     = new Float32Array(N);
+    const im     = new Float32Array(N);
+
+    for (let t = 0; t < frames; t++) {
+      // Positive frequency bins
+      for (let f = 0; f < F; f++) {
+        const phi = Math.random() * 2 * Math.PI;
+        re[f] = amp[t][f] * Math.cos(phi);
+        im[f] = amp[t][f] * Math.sin(phi);
+      }
+      // Mirror to negative frequencies
+      for (let k = F; k < N; k++) { re[k] = re[N - k]; im[k] = -im[N - k]; }
+
+      ifft(re, im);
+
+      // Overlap-add
+      const off = t * hop;
+      for (let n = 0; n < N; n++) {
+        const wv = win[n];
+        out[off + n]    += re[n] * wv;
+        winSum[off + n] += wv * wv;
+      }
+    }
+
+    // Normalize
+    for (let i = 0; i < out.length; i++) out[i] /= (winSum[i] + 1e-8);
+    return out;
+  }
+
+  /** Forward STFT — returns { re: Float32Array[], im: Float32Array[], frames }. */
+  function forwardSTFT(signal, N, hop, win) {
+    const F      = (N >> 1) + 1;
+    const frames = Math.max(0, Math.floor((signal.length - N) / hop) + 1);
+    const specRe = [];
+    const specIm = [];
+    const re = new Float32Array(N);
+    const im = new Float32Array(N);
+
+    for (let t = 0; t < frames; t++) {
+      const off = t * hop;
+      for (let n = 0; n < N; n++) {
+        re[n] = (off + n < signal.length) ? signal[off + n] * win[n] : 0;
+        im[n] = 0;
+      }
+      fft(re, im);
+      specRe.push(re.slice(0, F));
+      specIm.push(im.slice(0, F));
+    }
+    return { re: specRe, im: specIm, frames };
+  }
+
+  /**
+   * Griffin-Lim refinement.
+   * Takes the target amplitude matrix and the current signal estimate,
+   * runs `iterations` rounds of  STFT → replace amplitude → iSTFT.
+   */
+  function griffinLimRefine(amp, signal, iterations) {
+    const N      = Number($('#nfft').value);
+    const hop    = N >> 2;
+    const F      = (N >> 1) + 1;
+    const frames = amp.length;
+    const win    = hannWindow(N);
+    let x = signal;
+
+    for (let iter = 0; iter < iterations; iter++) {
+      const spec   = forwardSTFT(x, N, hop, win);
+      const outLen = frames * hop + N;
+      const out    = new Float32Array(outLen);
+      const wSum   = new Float32Array(outLen);
+      const re     = new Float32Array(N);
+      const im     = new Float32Array(N);
+
+      const nFrames = Math.min(frames, spec.frames);
+      for (let t = 0; t < nFrames; t++) {
+        // Keep phase from forward STFT, replace amplitude
+        for (let f = 0; f < F; f++) {
+          const mag = Math.sqrt(spec.re[t][f] ** 2 + spec.im[t][f] ** 2) + 1e-10;
+          re[f] = amp[t][f] * spec.re[t][f] / mag;
+          im[f] = amp[t][f] * spec.im[t][f] / mag;
+        }
+        for (let k = F; k < N; k++) { re[k] = re[N - k]; im[k] = -im[N - k]; }
+
+        ifft(re, im);
+
+        const off = t * hop;
+        for (let n = 0; n < N; n++) {
+          const wv = win[n];
+          out[off + n]  += re[n] * wv;
+          wSum[off + n] += wv * wv;
+        }
+      }
+
+      for (let i = 0; i < out.length; i++) out[i] /= (wSum[i] + 1e-8);
+      x = out;
+    }
+    return x;
+  }
+
+  /** Post-process: DC removal + gain + soft clip. */
+  function postProcess(signal) {
+    const out = new Float32Array(signal.length);
+    let prev = 0, y = 0;
+    const a = 0.995;
+    for (let i = 0; i < signal.length; i++) {
+      y = (signal[i] - prev) + a * y;
+      prev = signal[i];
+      out[i] = softclip(y * 3);
+    }
+    return out;
+  }
+
+  // ===========================================================
+  // Audio push — feeds samples to the worklet ring buffer
+  // ===========================================================
+
+  function pushChunk(f32) {
+    if (!workletNode) return;
+    const sz = 2048;
+    for (let i = 0; i < f32.length; i += sz) {
+      workletNode.port.postMessage({ type: 'push', payload: f32.slice(i, i + sz) });
+    }
+  }
+
+  function generateAndPushAudio() {
+    if (!ac || !workletNode) return;
+
+    const sr    = ac.sampleRate;
+    const block = Math.floor(sr * 0.020);   // 20 ms
+    const mode  = $('#mode').value;
+
+    // Spectrogram playback (loop or one-shot)
+    if (mode === 'spec' && specPCM) {
+      if (loopEnabled) {
+        const out = new Float32Array(block);
+        for (let i = 0; i < block; i++) {
+          out[i] = specPCM[specPlayPos++];
+          if (specPlayPos >= specPCM.length) specPlayPos = 0;
+        }
+        pushChunk(out);
+      } else {
+        const rem = specPCM.length - specPlayPos;
+        if (rem <= 0) return;
+        const n = Math.min(block, rem);
+        pushChunk(specPCM.slice(specPlayPos, specPlayPos + n));
+        specPlayPos += n;
+      }
+      return;
+    }
+
+    // Default: live path-scan mode
+    const out = new Float32Array(block);
+    for (let i = 0; i < block; i++) out[i] = nextScanSample();
+    pushChunk(out);
+  }
+
+  // ===========================================================
+  // UI wiring
+  // ===========================================================
+
+  // -- Freeze / Render spectrogram --
+  $('#btnFreeze').addEventListener('click', () => {
+    if (!ac)     return alert('Start audio first (AudioContext is needed).');
+    if (!stream) return alert('Start camera first.');
+    specAmplitude = buildAmplitudeMatrix();
+    specRaw       = istftRandomPhase(specAmplitude);
+    specPCM       = postProcess(specRaw);
+    specPlayPos   = 0;
+    $('#mode').value = 'spec';
+    refreshLabels();
+  });
+
+  // -- Refine (Griffin-Lim ×8) --
+  $('#btnRefine').addEventListener('click', () => {
+    if (!specAmplitude || !specRaw) return alert('Freeze a frame first.');
+    specRaw     = griffinLimRefine(specAmplitude, specRaw, 8);
+    specPCM     = postProcess(specRaw);
+    specPlayPos = 0;
+  });
+
+  // -- Loop toggle --
+  $('#btnLoop').addEventListener('click', () => {
+    loopEnabled = !loopEnabled;
+    $('#btnLoop').textContent = 'Loop: ' + (loopEnabled ? 'on' : 'off');
+  });
+
+  // -- Slider labels --
+  function refreshLabels() {
+    $('#scanSpeedVal').textContent = fmt(Number($('#scanSpeed').value), 0);
+    $('#hpfVal').textContent       = fmt(Number($('#hpf').value), 4);
+    $('#agcVal').textContent       = fmt(Number($('#agc').value), 2);
+    $('#driveVal').textContent     = fmt(Number($('#drive').value), 1);
+    $('#rangeDBVal').textContent   = fmt(Number($('#rangeDB').value), 0) + ' dB';
+    $('#gammaVal').textContent     = fmt(Number($('#gamma').value), 2);
+    $('#dbgMode').textContent      = $('#mode').value;
+  }
+
+  ['input', 'change'].forEach(evt => {
+    ['#scanSpeed', '#hpf', '#agc', '#drive', '#rangeDB', '#gamma', '#mode', '#nfft']
+      .forEach(sel => $(sel).addEventListener(evt, refreshLabels));
+  });
+  refreshLabels();
+
+  // -- Mode-dependent panel visibility --
+  function syncModePanels() {
+    const mode = $('#mode').value;
+    $('#scanSection').style.display = (mode === 'scan') ? '' : 'none';
+    $('#specSection').style.display = (mode === 'spec') ? '' : 'none';
+  }
+  $('#mode').addEventListener('change', syncModePanels);
+  syncModePanels();
+
+  // -- Collapsible panels --
+  NT.ui.createCollapsiblePanel($('#btnDebugPanel'), $('#debugPanel'));
+
+  // -- Debug telemetry ping --
+  setInterval(() => {
+    if (workletNode) {
+      try { workletNode.port.postMessage({ type: 'ping' }); } catch {}
+    }
+  }, 500);
+
+})();
+</script>
+</body>
+</html>
