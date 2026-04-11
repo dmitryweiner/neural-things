@@ -16,7 +16,7 @@ Shared UI: [`../lib/nt-ui.css`](../lib/nt-ui.css), [`../lib/nt-ui.js`](../lib/nt
 
 - **Background color** — solid fill behind all grids.
 - **Several grids** — add/remove layers; each layer has:
-  - **Type** — square (orthogonal lines), hex-style (three 60° families), or triangle-style (same three families with a phase shift).
+  - **Type** — square (orthogonal line grids), **hexagons** (closed hex cell outlines), or **triangles** (equilateral triangular tiling as stroked triangle cells).
   - **Color** and **opacity** — browser color picker + slider.
   - **Grid step** — line spacing (0–48 px, step 0.1; 0 is allowed in the UI and clamped internally for drawing).
   - **Tilt** — rotation in degrees (step 0.1°).

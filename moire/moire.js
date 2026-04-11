@@ -235,6 +235,93 @@
     }
   }
 
+  /** Pointy-top regular hexagon outline; `a` = edge length (= circumradius). */
+  function strokeHexagon(px, py, a) {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const t = -Math.PI / 2 + i * (Math.PI / 3);
+      const x = px + a * Math.cos(t);
+      const y = py + a * Math.sin(t);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  /** Honeycomb: stroke each hex cell (pointy-top), `a` = edge length. */
+  function drawHexCellGrid(a, R) {
+    const side = Math.max(a, MIN_DRAW_STEP);
+    const dx = Math.sqrt(3) * side;
+    const dy = 1.5 * side;
+    const nR = Math.min(Math.ceil(R / dy) + 4, 900);
+    const nC = Math.min(Math.ceil(R / dx) + 4, 900);
+    const bound = R + side * 3;
+    for (let r = -nR; r <= nR; r++) {
+      const oy = r * dy;
+      const xShift = (r & 1) * (dx / 2);
+      for (let c = -nC; c <= nC; c++) {
+        const ox = c * dx + xShift;
+        if (ox * ox + oy * oy < bound * bound) {
+          strokeHexagon(ox, oy, side);
+        }
+      }
+    }
+  }
+
+  /**
+   * Equilateral triangular tiling (regular triangular honeycomb).
+   * Up-triangles: apex at (a/2 + i·a, 2k·h); down-triangles: apex at ((j+1)·a, h + 2m·h).
+   * `a` = edge length, `h` = altitude sqrt(3)/2·a.
+   */
+  function drawTriangleCellGrid(a, R) {
+    const side = Math.max(a, MIN_DRAW_STEP);
+    const h = (Math.sqrt(3) / 2) * side;
+    const bound = R + side * 4;
+    const bound2 = bound * bound;
+    const ni = Math.min(Math.ceil(bound / side) + 4, 700);
+    const nk = Math.min(Math.ceil(bound / (2 * h)) + 4, 700);
+
+    function centroidNearDisk(cx, cy) {
+      return cx * cx + cy * cy < bound2;
+    }
+
+    for (let k = -nk; k <= nk; k++) {
+      const apexY = 2 * k * h;
+      for (let i = -ni; i <= ni; i++) {
+        const apexX = side / 2 + i * side;
+        const xL = i * side;
+        const xR = (i + 1) * side;
+        const yBase = apexY + h;
+        const cx = (apexX + xL + xR) / 3;
+        const cy = (apexY + yBase + yBase) / 3;
+        if (!centroidNearDisk(cx, cy)) continue;
+        ctx.beginPath();
+        ctx.moveTo(apexX, apexY);
+        ctx.lineTo(xL, yBase);
+        ctx.lineTo(xR, yBase);
+        ctx.closePath();
+        ctx.stroke();
+      }
+    }
+
+    for (let m = -nk; m <= nk; m++) {
+      const apexY = h + 2 * m * h;
+      for (let j = -ni; j <= ni; j++) {
+        const apexX = (j + 1) * side;
+        const cx = apexX;
+        const cy = apexY + (2 * h) / 3;
+        if (!centroidNearDisk(cx, cy)) continue;
+        ctx.beginPath();
+        ctx.moveTo(apexX, apexY);
+        ctx.lineTo(apexX - side / 2, apexY + h);
+        ctx.lineTo(apexX + side / 2, apexY + h);
+        ctx.closePath();
+        ctx.stroke();
+      }
+    }
+  }
+
   function drawLayer(layer, cssW, cssH) {
     syncLayerFromInputs(layer);
     const s = Math.max(layer.step, MIN_DRAW_STEP);
@@ -243,7 +330,8 @@
     ctx.save();
     ctx.lineWidth = 1;
     ctx.strokeStyle = hexToRgba(layer.color, layer.opacity);
-    ctx.lineCap = 'square';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
     const cx = cssW / 2 + layer.shiftX;
     const cy = cssH / 2 + layer.shiftY;
@@ -251,19 +339,14 @@
     ctx.rotate((layer.tiltDeg * Math.PI) / 180);
 
     if (layer.type === 'square') {
+      ctx.lineCap = 'square';
       drawParallelLines(0, s, R);
       ctx.rotate(Math.PI / 2);
       drawParallelLines(0, s, R);
+    } else if (layer.type === 'hex') {
+      drawHexCellGrid(s, R);
     } else {
-      const third = Math.PI / 3;
-      const triPhase = layer.type === 'triangle' ? s / 2 : 0;
-      for (let f = 0; f < 3; f++) {
-        ctx.save();
-        ctx.rotate(f * third);
-        const phase = layer.type === 'triangle' && f === 1 ? triPhase : 0;
-        drawParallelLines(phase, s, R);
-        ctx.restore();
-      }
+      drawTriangleCellGrid(s, R);
     }
 
     ctx.restore();
