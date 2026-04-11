@@ -1,0 +1,24 @@
+---
+description: Repo layout, vanilla web apps, and when to split HTML vs JS
+alwaysApply: true
+---
+
+# Neural-Things — project structure and code layout
+
+## Layout
+
+- **`lib/`** — shared, no build step: `nt-ui.css`, `nt-ui.js`, optional `nt-audio.js`, `nt-canvas.js`. Apps load them with `../lib/...` from a subfolder (e.g. `moire/index.html` → `../lib/nt-ui.js`).
+- **Each app** lives in its **own directory** next to `lib/` (e.g. `sound/`, `moire/`, `formulas-audio-lab/`). Entry point is usually **`index.html`**.
+- **No bundler** — plain HTML/CSS/JS; the browser loads scripts in order.
+
+## HTML vs separate `.js`
+
+- Keep **`index.html`** for structure, links to `lib/`, page-specific `<style>`, and a short bootstrapping inline script only if necessary.
+- Put **non-trivial or long application logic** in one or more **`.js` files in the same folder** as `index.html` (e.g. `moire/moire.js`), then `<script src="moire.js"></script>` after shared libs. Use an IIFE or module pattern so you do not leak globals unless intentional.
+- Name the script clearly (often **`<folder>.js`** or **`app.js`**) so paths stay obvious.
+
+## Conventions
+
+- New UI should stay consistent with existing apps: **dark theme** + `nt-ui.css` / `nt-ui.js` where appropriate (see `shared-libs.mdc`).
+- Prefer **English** UI strings for new tools unless the product spec says otherwise.
+- Match established patterns (sticky topbar, settings panel, `NT.ui.setupAdjustmentButtons`, etc.) when extending similar tools.

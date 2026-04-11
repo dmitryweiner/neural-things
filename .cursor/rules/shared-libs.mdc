@@ -6,8 +6,7 @@ alwaysApply: false
 
 # Neural-Things Shared Libraries
 
-All projects in this workspace are **vanilla JS single-file apps** (no build step).
-Shared code lives in `lib/` and is loaded via `<link>` / `<script src>` tags.
+Projects are **vanilla JS** (no build step): each app is usually an **`index.html`** in its own folder, sometimes with **colocated `.js`** (e.g. `moire/moire.js`) for non-trivial logic. Shared code lives in **`lib/`** and is loaded via `<link>` / `<script src>` (see `project-structure.mdc`).
 
 ## Library Overview
 
@@ -163,4 +162,4 @@ loop.stop();
   ```
 - Use CSS custom properties (`--nt-*`) in project-specific styles for consistency.
 - Start/stop buttons MUST use `.running` class name (not `.playing` or other).
-- Keep project-specific logic in the project file; only extract truly reusable patterns to `lib/`.
+- Keep reusable logic in **`lib/`**; keep app-specific logic in the app folder (`index.html` and/or same-directory `.js` files).
