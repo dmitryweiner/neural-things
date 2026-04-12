@@ -9,3 +9,4 @@ Things that was generated using some neural chats like ChatGPT and so on
 * [Electronic Hanukkia](https://dmitryweiner.github.io/neural-things/hanukkiah/) [[code]](https://github.com/dmitryweiner/neural-things/tree/main/hanukkiah) (Claude Opus 4.5)
 * [Pseudo-fractal (DLA)](https://dmitryweiner.github.io/neural-things/dla/) [[code]](https://github.com/dmitryweiner/neural-things/tree/main/dla)
 * [Moiré pattern generator](https://dmitryweiner.github.io/neural-things/moire/) [[code]](https://github.com/dmitryweiner/neural-things/tree/main/moire) Done with Cursor.AI
+* [Voxel isosurface explorer](https://dmitryweiner.github.io/neural-things/mandelbulb/) [[code]](https://github.com/dmitryweiner/neural-things/tree/main/mandelbulb) (Mandelbulb, Mandelbox, Menger sponge; STL export)

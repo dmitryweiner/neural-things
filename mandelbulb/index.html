@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Voxel isosurface explorer</title>
+  <link rel="stylesheet" href="../lib/nt-ui.css" />
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+    }
+    body.nt-dark {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .topbar {
+      flex-shrink: 0;
+      z-index: 30;
+      background: var(--nt-bg-panel);
+      border-bottom: 1px solid var(--nt-border);
+      padding: 12px 14px;
+    }
+    .topbar h1 {
+      margin: 0 0 4px;
+      font-size: 16px;
+      font-weight: 750;
+      color: var(--nt-text-heading);
+    }
+    .topbar .sub {
+      margin: 0;
+      font-size: 12px;
+      color: var(--nt-text-muted);
+    }
+    .main {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+    .sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--nt-border);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: var(--nt-bg-panel);
+      overflow-y: auto;
+    }
+    /* Wider sliders: label shrinks, track fills remaining space (overrides nt-ui .ctrl grid). */
+    .sidebar .ctrl {
+      display: grid;
+      grid-template-columns: minmax(0, max-content) minmax(48px, 1fr) 48px;
+      gap: 8px 10px;
+      align-items: center;
+      margin-top: 8px;
+    }
+    .sidebar .ctrl:first-child {
+      margin-top: 0;
+    }
+    .sidebar .ctrl label {
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 11px;
+      color: var(--nt-text-muted);
+      white-space: nowrap;
+    }
+    .sidebar .ctrl input[type="range"] {
+      width: 100%;
+      min-width: 0;
+      height: 28px;
+      vertical-align: middle;
+    }
+    .sidebar .ctrl .val {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--nt-text);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .btn-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--nt-border);
+    }
+    .btn-row .nt-btn {
+      width: 100%;
+    }
+    .progress-wrap {
+      margin-top: 2px;
+    }
+    .progress-wrap[hidden] {
+      display: none !important;
+    }
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--nt-text-muted);
+      margin-bottom: 6px;
+    }
+    #progressPhase {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #progressPct {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: var(--nt-text-dim);
+    }
+    .progress-track {
+      height: 9px;
+      border-radius: 999px;
+      background: var(--nt-bg-inset);
+      border: 1px solid var(--nt-border);
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: var(--nt-accent-active);
+      transition: width 0.1s ease-out;
+    }
+    #statusBox {
+      font-size: 12px;
+      color: var(--nt-text-dim);
+      line-height: 1.45;
+      min-height: 44px;
+      white-space: pre-wrap;
+    }
+    .stage {
+      flex: 1;
+      position: relative;
+      min-width: 0;
+      background: var(--nt-bg-canvas);
+    }
+    #c3d {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    #hint {
+      position: absolute;
+      bottom: 12px;
+      right: 14px;
+      font-size: 11px;
+      color: rgba(232, 238, 246, 0.28);
+      pointer-events: none;
+    }
+    .spin-toggle {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      z-index: 10;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 650;
+    }
+    .spin-toggle.is-off {
+      background: var(--nt-bg-input);
+      color: var(--nt-text-ctrl);
+      border: 1px solid var(--nt-border);
+    }
+    .formula-block {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+    .formula-block label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--nt-text-muted);
+    }
+    .formula-block .nt-select {
+      width: 100%;
+    }
+  </style>
+</head>
+<body class="nt-dark">
+  <header class="topbar">
+    <h1>Voxel isosurface explorer</h1>
+    <p class="sub">
+      Pick a formula, voxelize, then export the same shell as STL. Stray inside crumbs are removed so you
+      get one connected solid for printing. Very high grids use a lot of RAM and time.
+    </p>
+  </header>
+  <div class="main">
+    <aside class="sidebar">
+      <div class="formula-block">
+        <label for="formula">Shape / formula</label>
+        <select id="formula" class="nt-select">
+          <option value="mandelbulb">Mandelbulb (classic, fiddly to print)</option>
+          <option value="mandelbox">Mandelbox (thick, prints well)</option>
+          <option value="menger">Menger sponge (depth auto-capped by grid)</option>
+        </select>
+      </div>
+      <div class="ctrl">
+        <label for="sPow" id="labPow">Power</label>
+        <input type="range" id="sPow" min="2" max="12" value="8" step="1" />
+        <span id="vPow" class="val">8</span>
+      </div>
+      <div class="ctrl">
+        <label for="sIter" id="labIter">Iterations</label>
+        <input type="range" id="sIter" min="4" max="36" value="12" step="1" />
+        <span id="vIter" class="val">12</span>
+      </div>
+      <div class="ctrl">
+        <label for="sRes">Grid resolution</label>
+        <input type="range" id="sRes" min="32" max="400" value="120" step="1" />
+        <span id="vRes" class="val">120</span>
+      </div>
+      <div class="ctrl">
+        <label for="sBail" id="labBail">Bailout radius</label>
+        <input type="range" id="sBail" min="1" max="6" value="2" step="0.5" />
+        <span id="vBail" class="val">2</span>
+      </div>
+      <div class="btn-row">
+        <button type="button" id="btnRender" class="nt-btn">Render</button>
+        <button type="button" id="btnSTL" class="nt-btn" disabled>Save .stl</button>
+      </div>
+      <div id="progressWrap" class="progress-wrap" hidden>
+        <div class="progress-meta">
+          <span id="progressPhase"></span>
+          <span id="progressPct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+      </div>
+      <div id="statusBox"></div>
+    </aside>
+    <div class="stage">
+      <canvas id="c3d"></canvas>
+      <button type="button" id="btnSpin" class="nt-btn spin-toggle" aria-pressed="true">
+        Auto spin: On
+      </button>
+      <div id="hint">Drag to rotate · Wheel to zoom</div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="mandelbulb.js"></script>
+</body>
+</html>
