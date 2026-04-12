@@ -6,15 +6,23 @@
   <title>Voxel isosurface explorer</title>
   <link rel="stylesheet" href="../lib/nt-ui.css" />
   <style>
+    html {
+      height: 100%;
+      overflow: hidden;
+    }
     html,
     body {
-      height: 100%;
       margin: 0;
+    }
+    body {
+      height: 100%;
     }
     body.nt-dark {
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      min-height: 0;
+      overscroll-behavior: none;
     }
     .topbar {
       flex-shrink: 0;
@@ -73,13 +81,25 @@
       width: 280px;
       flex-shrink: 0;
       border-right: 1px solid var(--nt-border);
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      background: var(--nt-bg-panel);
+      overflow: hidden;
+      min-height: 0;
+    }
+    .settingsDrawerScroll {
+      flex: 1;
+      min-height: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
       padding: 14px;
       display: flex;
       flex-direction: column;
       gap: 12px;
-      background: var(--nt-bg-panel);
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
     }
     /* Wider sliders: label shrinks, track fills remaining space (overrides nt-ui .ctrl grid). */
     .sidebar .ctrl {
@@ -89,7 +109,7 @@
       align-items: center;
       margin-top: 8px;
     }
-    .sidebar .ctrl:first-child {
+    .settingsDrawerScroll .formula-block + .ctrl {
       margin-top: 0;
     }
     .sidebar .ctrl label {
@@ -223,6 +243,16 @@
     @media (max-width: 899px) {
       .main {
         flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+      }
+      .topbar .sub {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 4;
+        line-clamp: 4;
+        overflow: hidden;
+        line-height: 1.35;
       }
       #settingsBtn {
         display: inline-flex;
@@ -239,8 +269,8 @@
         top: auto;
         bottom: 0;
         width: 100%;
-        height: min(62vh, 520px);
-        max-height: 78vh;
+        height: min(52vh, 400px);
+        max-height: min(68vh, calc(100vh - 110px));
         border-right: none;
         border-top: 1px solid var(--nt-border);
         border-radius: 14px 14px 0 0;
@@ -249,11 +279,19 @@
         transform: translateY(100%);
         visibility: hidden;
         transition: transform 0.22s ease, visibility 0.22s;
-        padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
       }
       .sidebar.settingsDrawer.is-open {
         transform: translateY(0);
         visibility: visible;
+      }
+      .sidebar.settingsDrawer .settingsDrawerScroll {
+        padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
+      }
+      @supports (height: 1dvh) {
+        .sidebar.settingsDrawer {
+          height: min(56dvh, 440px);
+          max-height: min(72dvh, calc(100dvh - 120px));
+        }
       }
     }
     @media (min-width: 900px) {
@@ -293,6 +331,7 @@
     </div>
     <div id="settingsBackdrop" class="settingsBackdrop" aria-hidden="true"></div>
     <aside id="settingsPanel" class="sidebar settingsDrawer">
+      <div class="settingsDrawerScroll">
       <div class="formula-block">
         <label for="formula">Shape / formula</label>
         <select id="formula" class="nt-select">
@@ -335,6 +374,7 @@
         </div>
       </div>
       <div id="statusBox"></div>
+      </div>
     </aside>
   </div>
 
