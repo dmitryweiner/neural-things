@@ -2,13 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Voxel isosurface explorer</title>
   <link rel="stylesheet" href="../lib/nt-ui.css" />
   <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
     html {
       height: 100%;
+      max-height: 100%;
       overflow: hidden;
+      overflow-y: hidden;
+      overscroll-behavior-y: none;
     }
     html,
     body {
@@ -16,13 +24,33 @@
     }
     body {
       height: 100%;
+      max-height: 100%;
+      overflow: hidden;
+      overflow-y: hidden;
+      overscroll-behavior-y: none;
     }
     body.nt-dark {
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      overflow-y: hidden;
       min-height: 0;
+      max-height: 100%;
       overscroll-behavior: none;
+    }
+    /* Mobile / dynamic toolbars: 100% and classic 100vh are often taller than the visible viewport → vertical page scroll. */
+    @supports (height: 1dvh) {
+      html {
+        height: 100dvh;
+        max-height: 100dvh;
+      }
+      body {
+        height: 100dvh;
+        max-height: 100dvh;
+      }
+      body.nt-dark {
+        max-height: 100dvh;
+      }
     }
     .topbar {
       flex-shrink: 0;
@@ -62,8 +90,10 @@
       display: flex;
       flex: 1;
       min-height: 0;
+      max-height: 100%;
       position: relative;
       flex-direction: row;
+      overflow: hidden;
     }
     .settingsBackdrop {
       position: absolute;
@@ -78,7 +108,7 @@
       pointer-events: auto;
     }
     .sidebar {
-      width: 280px;
+      width: 420px;
       flex-shrink: 0;
       border-right: 1px solid var(--nt-border);
       padding: 0;
@@ -96,6 +126,7 @@
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
+      overscroll-behavior-y: contain;
       padding: 14px;
       display: flex;
       flex-direction: column;
@@ -109,7 +140,8 @@
       align-items: center;
       margin-top: 8px;
     }
-    .settingsDrawerScroll .formula-block + .ctrl {
+    .settingsDrawerScroll .formula-block + .ctrl,
+    .settingsDrawerScroll .formula-block + .polar-row {
       margin-top: 0;
     }
     .sidebar .ctrl label {
@@ -194,12 +226,16 @@
       flex: 1;
       position: relative;
       min-width: 0;
+      min-height: 0;
+      max-height: 100%;
+      overflow: hidden;
       background: var(--nt-bg-canvas);
     }
     #c3d {
       display: block;
       width: 100%;
       height: 100%;
+      touch-action: none;
     }
     #hint {
       position: absolute;
@@ -327,7 +363,7 @@
       <button type="button" id="btnSpin" class="nt-btn spin-toggle" aria-pressed="true">
         Auto spin: On
       </button>
-      <div id="hint">Drag to rotate · Wheel to zoom</div>
+      <div id="hint">Drag to rotate · Wheel / pinch to zoom</div>
     </div>
     <div id="settingsBackdrop" class="settingsBackdrop" aria-hidden="true"></div>
     <aside id="settingsPanel" class="sidebar settingsDrawer">
@@ -340,9 +376,14 @@
           <option value="menger">Menger sponge (depth auto-capped by grid)</option>
         </select>
       </div>
+      <div class="ctrl polar-row" id="rowPolar">
+        <label for="sPolar" id="labPolar">Polar angle</label>
+        <input type="range" id="sPolar" min="0" max="180" value="0" step="1" />
+        <span id="vPolar" class="val">0°</span>
+      </div>
       <div class="ctrl">
         <label for="sPow" id="labPow">Power</label>
-        <input type="range" id="sPow" min="2" max="12" value="8" step="1" />
+        <input type="range" id="sPow" min="2" max="25" value="8" step="1" />
         <span id="vPow" class="val">8</span>
       </div>
       <div class="ctrl">

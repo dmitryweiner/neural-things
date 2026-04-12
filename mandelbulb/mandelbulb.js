@@ -23,6 +23,7 @@
     const labPow = $('labPow');
     const labIter = $('labIter');
     const labBail = $('labBail');
+    const rowPolar = $('rowPolar');
     if (!labPow || !labIter || !labBail) return;
     const map = {
       mandelbulb: { p: 'Power', i: 'Iterations', b: 'Bailout radius' },
@@ -33,6 +34,7 @@
     labPow.textContent = L.p;
     labIter.textContent = L.i;
     labBail.textContent = L.b;
+    if (rowPolar) rowPolar.hidden = f !== 'mandelbulb';
   }
 
   const formulaEl = $('formula');
@@ -90,6 +92,7 @@
   }
 
   const sliders = [
+    ['sPolar', 'vPolar'],
     ['sPow', 'vPow'],
     ['sIter', 'vIter'],
     ['sRes', 'vRes'],
@@ -98,8 +101,9 @@
   sliders.forEach(([sid, vid]) => {
     const s = $(sid);
     const v = $(vid);
+    if (!s || !v) return;
     s.addEventListener('input', () => {
-      v.textContent = s.value;
+      v.textContent = vid === 'vPolar' ? s.value + '°' : s.value;
     });
   });
 
@@ -199,6 +203,7 @@
     const allowedF = { mandelbulb: 1, mandelbox: 1, menger: 1 };
     const rawF = formulaEl && formulaEl.value ? formulaEl.value : 'mandelbulb';
     const formula = allowedF[rawF] ? rawF : 'mandelbulb';
+    const polarDeg = formula === 'mandelbulb' ? parseFloat($('sPolar').value) || 0 : 0;
 
     const gridNote =
       res < requestedRes
@@ -336,6 +341,7 @@
       power: power,
       bail: bail,
       formula: formula,
+      polarDeg: polarDeg,
     });
   });
 
@@ -372,7 +378,7 @@
   });
   window.addEventListener('mousemove', (e) => {
     if (!isDragging) return;
-    rotY += (e.clientX - lastX) * 0.008;
+    rotY -= (e.clientX - lastX) * 0.008;
     rotX += (e.clientY - lastY) * 0.008;
     lastX = e.clientX;
     lastY = e.clientY;
@@ -386,21 +392,60 @@
     { passive: false }
   );
 
-  let touchStart = null;
+  let touchOne = null;
+  let pinchLastD = 0;
+
+  function touchDistance(t0, t1) {
+    const dx = t0.clientX - t1.clientX;
+    const dy = t0.clientY - t1.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
   canvas.addEventListener(
     'touchstart',
     (e) => {
-      touchStart = e.touches[0];
+      if (e.touches.length === 2) {
+        touchOne = null;
+        pinchLastD = touchDistance(e.touches[0], e.touches[1]);
+      } else if (e.touches.length === 1) {
+        pinchLastD = 0;
+        touchOne = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
     },
     { passive: true }
   );
+
   canvas.addEventListener(
     'touchmove',
     (e) => {
-      if (!touchStart) return;
-      rotY += (e.touches[0].clientX - touchStart.clientX) * 0.01;
-      rotX += (e.touches[0].clientY - touchStart.clientY) * 0.01;
-      touchStart = e.touches[0];
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const d = touchDistance(e.touches[0], e.touches[1]);
+        if (pinchLastD > 1) {
+          dist = Math.max(1.2, Math.min(8, dist * (d / pinchLastD)));
+        }
+        pinchLastD = d;
+        touchOne = null;
+      } else if (e.touches.length === 1 && touchOne) {
+        const t = e.touches[0];
+        rotY -= (t.clientX - touchOne.x) * 0.01;
+        rotX += (t.clientY - touchOne.y) * 0.01;
+        touchOne = { x: t.clientX, y: t.clientY };
+      }
+    },
+    { passive: false }
+  );
+
+  canvas.addEventListener(
+    'touchend',
+    (e) => {
+      if (e.touches.length === 0) {
+        touchOne = null;
+        pinchLastD = 0;
+      } else if (e.touches.length === 1) {
+        pinchLastD = 0;
+        touchOne = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
     },
     { passive: true }
   );
@@ -475,7 +520,7 @@
   function animate() {
     requestAnimationFrame(animate);
     resize();
-    if (autoSpin && !isDragging && meshObj) rotY += 0.003;
+    if (autoSpin && !isDragging && meshObj) rotY -= 0.003;
     camera.position.x = dist * Math.sin(rotY) * Math.cos(rotX);
     camera.position.y = dist * Math.sin(rotX);
     camera.position.z = dist * Math.cos(rotY) * Math.cos(rotX);

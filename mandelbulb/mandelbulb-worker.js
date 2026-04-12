@@ -13,29 +13,36 @@
     self.postMessage({ type: 'progress', t: Math.min(1, Math.max(0, t)), phase: phase });
   }
 
-  function mandelbulb(x, y, z, maxIter, power, bailout) {
-    let cx = x;
-    let cy = y;
-    let cz = z;
+  /** Mandelbulb with optional polar angle (deg): rotate sample + c offset around X before iterating. */
+  function mandelbulb(x, y, z, maxIter, power, bailout, polarDeg) {
+    const a = ((polarDeg != null && Number.isFinite(polarDeg) ? polarDeg : 0) * Math.PI) / 180;
+    const cosA = Math.cos(a);
+    const sinA = Math.sin(a);
+    const rx = x;
+    const ry = y * cosA - z * sinA;
+    const rz = y * sinA + z * cosA;
+    let cx = rx;
+    let cy = ry;
+    let cz = rz;
     let dr = 1;
     let r = 0;
     for (let i = 0; i < maxIter; i++) {
       r = Math.sqrt(cx * cx + cy * cy + cz * cz);
       if (r > bailout) return { escaped: true, iter: i, r: r };
-      const theta = Math.acos(cz / r);
+      const theta = Math.acos(Math.max(-1, Math.min(1, cz / r)));
       const phi = Math.atan2(cy, cx);
       const zr = Math.pow(r, power);
       dr = Math.pow(r, power - 1) * power * dr + 1;
       const st = Math.sin(theta * power);
-      cx = zr * st * Math.cos(phi * power) + x;
-      cy = zr * st * Math.sin(phi * power) + y;
-      cz = zr * Math.cos(theta * power) + z;
+      cx = zr * st * Math.cos(phi * power) + rx;
+      cy = zr * st * Math.sin(phi * power) + ry;
+      cz = zr * Math.cos(theta * power) + rz;
     }
     return { escaped: false, iter: maxIter, r: r };
   }
 
-  function sdfMandelbulb(x, y, z, maxIter, power, bailout) {
-    const { escaped } = mandelbulb(x, y, z, maxIter, power, bailout);
+  function sdfMandelbulb(x, y, z, maxIter, power, bailout, polarDeg) {
+    const { escaped } = mandelbulb(x, y, z, maxIter, power, bailout, polarDeg);
     return escaped ? 1 : -1;
   }
 
@@ -108,18 +115,18 @@
     return -1;
   }
 
-  function sdf(x, y, z, maxIter, power, bailout, formula, gridN) {
+  function sdf(x, y, z, maxIter, power, bailout, formula, gridN, polarDeg) {
     switch (formula) {
       case 'mandelbox':
         return sdfMandelbox(x, y, z, maxIter, power, bailout);
       case 'menger':
         return sdfMenger(x, y, z, power, gridN);
       default:
-        return sdfMandelbulb(x, y, z, maxIter, power, bailout);
+        return sdfMandelbulb(x, y, z, maxIter, power, bailout, polarDeg);
     }
   }
 
-  function fillVolume(N, maxIter, power, bailout, formula, onSlice) {
+  function fillVolume(N, maxIter, power, bailout, formula, onSlice, polarDeg) {
     const range = 1.3;
     const step = (2 * range) / (N - 1);
     const vol = new Int8Array(N * N * N);
@@ -139,7 +146,7 @@
             vol[iz * N * N + iy * N + ix] = 1;
             continue;
           }
-          const s = sdf(x, y, z, maxIter, power, bailout, formula, N);
+          const s = sdf(x, y, z, maxIter, power, bailout, formula, N, polarDeg);
           vol[iz * N * N + iy * N + ix] = s > 0 ? 1 : 0;
           if (s <= 0) inside++;
         }
@@ -404,6 +411,7 @@
     const iter = data.iter | 0;
     const power = +data.power;
     const bail = +data.bail;
+    const polarDeg = Number.isFinite(+data.polarDeg) ? +data.polarDeg : 0;
     const allowed = { mandelbulb: 1, mandelbox: 1, menger: 1 };
     const formula =
       typeof data.formula === 'string' && allowed[data.formula] ? data.formula : 'mandelbulb';
@@ -416,7 +424,7 @@
 
       const filled = fillVolume(res, iter, power, bail, formula, function (iz, N) {
         emitProgress(0.32 * ((iz + 1) / N), 'Filling voxel grid…');
-      });
+      }, polarDeg);
 
       if (!filled) {
         self.postMessage({
