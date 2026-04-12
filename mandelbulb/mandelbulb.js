@@ -415,6 +415,63 @@
     }
   }
 
+  const settingsPanel = $('settingsPanel');
+  const settingsBackdrop = $('settingsBackdrop');
+  const settingsBtn = $('settingsBtn');
+  const mqNarrowUi = window.matchMedia('(max-width: 899px)');
+
+  function isNarrowSettingsUi() {
+    return mqNarrowUi.matches;
+  }
+
+  function isSettingsDrawerOpen() {
+    return !!(settingsPanel && settingsPanel.classList.contains('is-open'));
+  }
+
+  function setSettingsOpen(open) {
+    if (!settingsPanel || !settingsBtn) return;
+    if (isNarrowSettingsUi()) {
+      settingsPanel.classList.toggle('is-open', open);
+      settingsPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+      settingsBtn.classList.toggle('active', open);
+      settingsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      settingsBtn.textContent = open ? '⚙ Settings ▼' : '⚙ Settings ▶';
+      if (settingsBackdrop) {
+        settingsBackdrop.classList.toggle('is-visible', open);
+        settingsBackdrop.setAttribute('aria-hidden', open ? 'false' : 'true');
+      }
+      if (open) requestAnimationFrame(resize);
+    } else {
+      settingsPanel.classList.remove('is-open');
+      settingsPanel.setAttribute('aria-hidden', 'false');
+      settingsBtn.classList.remove('active');
+      settingsBtn.setAttribute('aria-expanded', 'false');
+      settingsBtn.textContent = '⚙ Settings ▶';
+      if (settingsBackdrop) {
+        settingsBackdrop.classList.remove('is-visible');
+        settingsBackdrop.setAttribute('aria-hidden', 'true');
+      }
+    }
+  }
+
+  function toggleSettingsDrawer() {
+    if (!isNarrowSettingsUi()) return;
+    setSettingsOpen(!isSettingsDrawerOpen());
+  }
+
+  if (settingsBtn) settingsBtn.addEventListener('click', toggleSettingsDrawer);
+  if (settingsBackdrop) {
+    settingsBackdrop.addEventListener('click', () => setSettingsOpen(false));
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isNarrowSettingsUi() && isSettingsDrawerOpen()) {
+      setSettingsOpen(false);
+    }
+  });
+  mqNarrowUi.addEventListener('change', () => setSettingsOpen(false));
+
+  setSettingsOpen(false);
+
   function animate() {
     requestAnimationFrame(animate);
     resize();

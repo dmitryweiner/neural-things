@@ -33,11 +33,41 @@
       margin: 0;
       font-size: 12px;
       color: var(--nt-text-muted);
+      flex: 1;
+      min-width: 0;
+    }
+    .topbar-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 10px 12px;
+    }
+    #settingsBtn {
+      flex-shrink: 0;
+      display: none;
+    }
+    #settingsBtn.active {
+      background: var(--nt-accent-active);
+      color: var(--nt-text-on-accent, #0b0f14);
     }
     .main {
       display: flex;
       flex: 1;
       min-height: 0;
+      position: relative;
+      flex-direction: row;
+    }
+    .settingsBackdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 24;
+      background: transparent;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .settingsBackdrop.is-visible {
+      opacity: 1;
+      pointer-events: auto;
     }
     .sidebar {
       width: 280px;
@@ -49,6 +79,7 @@
       gap: 12px;
       background: var(--nt-bg-panel);
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
     /* Wider sliders: label shrinks, track fills remaining space (overrides nt-ui .ctrl grid). */
     .sidebar .ctrl {
@@ -187,18 +218,81 @@
     .formula-block .nt-select {
       width: 100%;
     }
+
+    /* Narrow: bottom sheet over full-width canvas (same idea as moire/) */
+    @media (max-width: 899px) {
+      .main {
+        flex-direction: column;
+      }
+      #settingsBtn {
+        display: inline-flex;
+      }
+      .stage {
+        flex: 1;
+        width: 100%;
+        min-height: 0;
+      }
+      .sidebar.settingsDrawer {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: auto;
+        bottom: 0;
+        width: 100%;
+        height: min(62vh, 520px);
+        max-height: 78vh;
+        border-right: none;
+        border-top: 1px solid var(--nt-border);
+        border-radius: 14px 14px 0 0;
+        box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.55);
+        z-index: 25;
+        transform: translateY(100%);
+        visibility: hidden;
+        transition: transform 0.22s ease, visibility 0.22s;
+        padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
+      }
+      .sidebar.settingsDrawer.is-open {
+        transform: translateY(0);
+        visibility: visible;
+      }
+    }
+    @media (min-width: 900px) {
+      .settingsBackdrop {
+        pointer-events: none !important;
+        opacity: 0 !important;
+      }
+    }
   </style>
 </head>
 <body class="nt-dark">
   <header class="topbar">
     <h1>Voxel isosurface explorer</h1>
-    <p class="sub">
-      Pick a formula, voxelize, then export the same shell as STL. Stray inside crumbs are removed so you
-      get one connected solid for printing. Very high grids use a lot of RAM and time.
-    </p>
+    <div class="topbar-row">
+      <p class="sub">
+        Pick a formula, voxelize, then export the same shell as STL. Stray inside crumbs are removed so you
+        get one connected solid for printing. Very high grids use a lot of RAM and time.
+      </p>
+      <button
+        type="button"
+        id="settingsBtn"
+        class="nt-btn"
+        aria-expanded="false"
+        aria-controls="settingsPanel"
+      >
+        ⚙ Settings ▶
+      </button>
+    </div>
   </header>
   <div class="main">
-    <aside class="sidebar">
+    <div class="stage">
+      <canvas id="c3d"></canvas>
+      <button type="button" id="btnSpin" class="nt-btn spin-toggle" aria-pressed="true">
+        Auto spin: On
+      </button>
+      <div id="hint">Drag to rotate · Wheel to zoom</div>
+    </div>
+    <div id="settingsBackdrop" class="settingsBackdrop" aria-hidden="true"></div>
+    <aside id="settingsPanel" class="sidebar settingsDrawer">
       <div class="formula-block">
         <label for="formula">Shape / formula</label>
         <select id="formula" class="nt-select">
@@ -242,13 +336,6 @@
       </div>
       <div id="statusBox"></div>
     </aside>
-    <div class="stage">
-      <canvas id="c3d"></canvas>
-      <button type="button" id="btnSpin" class="nt-btn spin-toggle" aria-pressed="true">
-        Auto spin: On
-      </button>
-      <div id="hint">Drag to rotate · Wheel to zoom</div>
-    </div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
